@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JobLink | Home</title>
+  <link rel="stylesheet" href="CSS/style.css" />
+</head>
+<body>
+  <div class="bg-shape shape1"></div>
+  <div class="bg-shape shape2"></div>
+  <div class="bg-shape shape3"></div>
+
+  <header>
+    <nav class="navbar">
+      <div class="logo">JobLink</div>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="builder.html">Create Resume</a></li>
+        <li id="loginNavItem"><a href="login.html">Login</a></li>
+      </ul>
+
+      <div class="nav-controls">
+        <div class="user-profile hidden" id="profileNavCtrl">
+          <img
+            src="https://ui-avatars.com/api/?name=John+Doe&background=38bdf8&color=fff&bold=true"
+            alt="Profile"
+            class="profile-pic"
+            id="userProfileBtn"
+          />
+          <div class="profile-dropdown hidden" id="profileDropdown">
+            <p><strong id="profileUserName">John Doe</strong></p>
+            <a href="dashboard.html">My Resumes</a>
+            <a href="builder.html">Create Resume</a>
+            <hr />
+            <a href="#" class="logout-link" id="logoutBtn">Logout</a>
+          </div>
+        </div>
+        <button class="menu-btn" id="menuBtn">☰</button>
+      </div>
+    </nav>
+  </header>
+
+  <section class="hero" id="home">
+    <div class="hero-text">
+      <p class="tagline">Professional Resume Builder</p>
+      <h1>Create Your Resume with <span>3 Professional Formats</span></h1>
+      <p class="hero-desc">
+        Build a professional resume using Harvard, Reverse Chronological,
+        or Functional format. Submit your TOR and other requirements to proceed.
+      </p>
+      <a href="builder.html" class="btn">Create Resume</a>
+    </div>
+
+    <div class="hero-card">
+      <h3>Available Resume Formats</h3>
+      <div class="template-list">
+        <div class="template-item">Harvard Resume</div>
+        <div class="template-item">Reverse Chronological</div>
+        <div class="template-item">Functional Resume</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="templates-section" id="templates">
+    <h2>Resume Templates</h2>
+    <p class="section-desc">Choose the format that best fits your experience and career goals.</p>
+    <div class="card-container">
+      <div class="card">
+        <h3>Harvard Resume</h3>
+        <p>A clean and professional academic-style resume ideal for formal and structured presentation.</p>
+      </div>
+      <div class="card">
+        <h3>Reverse Chronological</h3>
+        <p>Highlights your most recent education and work experience first.</p>
+      </div>
+      <div class="card">
+        <h3>Functional Resume</h3>
+        <p>Focuses on skills and strengths instead of work history.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>© 2026 JobLink. All Rights Reserved.</p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="script.js"></script>
+</body>
+</html>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="auth.js"></script>
+<script src="script.js"></script>

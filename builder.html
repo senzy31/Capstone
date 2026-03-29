@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JobLink | Resume Builder</title>
+  <link rel="stylesheet" href="CSS/style.css" />
+</head>
+<body>
+  <div class="bg-shape shape1"></div>
+  <div class="bg-shape shape2"></div>
+  <div class="bg-shape shape3"></div>
+
+  <header>
+    <nav class="navbar">
+      <div class="logo">JobLink</div>
+
+      <ul class="nav-links" id="navLinks">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="builder.html" style="color: #7dd3fc; font-weight: bold;">Create Resume</a></li>
+        <li id="loginNavItem"><a href="login.html">Login</a></li>
+      </ul>
+
+      <div class="nav-controls">
+        <div class="user-profile hidden" id="profileNavCtrl">
+          <img src="https://ui-avatars.com/api/?name=John+Doe&background=38bdf8&color=fff&bold=true" alt="Profile" class="profile-pic" id="userProfileBtn" />
+          <div class="profile-dropdown hidden" id="profileDropdown">
+            <p><strong id="profileUserName">John Doe</strong></p>
+            <a href="index.html">My Resumes</a>
+            <a href="builder.html">Create Resume</a>
+            <hr>
+            <a href="#" class="logout-link" id="logoutBtn">Logout</a>
+          </div>
+        </div>
+
+        <button class="menu-btn" id="menuBtn">☰</button>
+      </div>
+    </nav>
+  </header>
+
+  <section class="resume-builder-section">
+    <div class="resume-wrapper">
+      <form id="resumeForm" class="resume-form">
+        <h2>Create Resume</h2>
+
+        <select id="resumeType" required>
+          <option value="">Select Resume Format</option>
+          <option value="Harvard">Harvard</option>
+          <option value="Reverse Chronological">Reverse Chronological</option>
+          <option value="Functional">Functional</option>
+        </select>
+
+        <input type="text" id="fullName" placeholder="Full Name" required />
+        <input type="email" id="email" placeholder="Email Address" required />
+        <input type="text" id="phone" placeholder="Phone Number" required />
+        <input type="text" id="address" placeholder="Address" required />
+        <input type="text" id="objective" placeholder="Career Objective" required />
+        <input type="text" id="education" placeholder="Education" required />
+        <input type="text" id="experience" placeholder="Experience" required />
+        <input type="text" id="skills" placeholder="Skills" required />
+
+        <button type="submit" class="btn" id="resumeSubmitBtn">Save Details</button>
+      </form>
+
+      <div id="requirementsSection" class="requirements-box hidden">
+        <h2>Upload Requirements</h2>
+        <form id="requirementsForm" class="requirements-form">
+          <label for="torFile">TOR File</label>
+          <input type="file" id="torFile" required />
+
+          <label for="otherFile">Other Supporting File</label>
+          <input type="file" id="otherFile" required />
+
+          <label for="purpose">Purpose</label>
+          <textarea id="purpose" rows="4" placeholder="Enter purpose..." required></textarea>
+
+          <button type="submit" class="btn">Submit Requirements</button>
+        </form>
+
+        <div id="requirementsMessage" class="result-box hidden"></div>
+      </div>
+
+      <div id="resumeOutput" class="resume-output hidden">
+        <h3 id="outResumeType">Resume Preview</h3>
+        <p><strong>Name:</strong> <span id="outName"></span></p>
+        <p><strong>Email:</strong> <span id="outEmail"></span></p>
+        <p><strong>Phone:</strong> <span id="outPhone"></span></p>
+        <p><strong>Address:</strong> <span id="outAddress"></span></p>
+        <p><strong>Objective:</strong> <span id="outObjective"></span></p>
+        <p><strong>Education:</strong> <span id="outEducation"></span></p>
+        <p><strong>Experience:</strong> <span id="outExperience"></span></p>
+        <p><strong>Skills:</strong> <span id="outSkills"></span></p>
+      </div>
+    </div>
+  </section>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="script.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="auth.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
