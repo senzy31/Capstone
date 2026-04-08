@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>JobLink | Login</title>
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="login.css" />
+</head>
+
+<body>
+
+  <!-- TOP BAR (UPDATED) -->
+  <div class="top-bar">
+    <span class="logo">Job<span class="highlight">Link</span></span>
+  </div>
+
+  <!-- LOGIN SECTION -->
+  <div class="login-container">
+    <div class="login-card">
+      <h2>Welcome Back</h2>
+      <p class="subtitle">Login to continue your journey</p>
+
+      <form id="loginForm">
+        <div class="input-group">
+          <label>Email</label>
+          <input type="email" id="loginEmail" placeholder="Enter your email" required />
+        </div>
+
+        <div class="input-group">
+          <label>Password</label>
+          <input type="password" id="loginPassword" placeholder="Enter your password" required />
+        </div>
+
+        <button type="submit">Login</button>
+      </form>
+
+      <p class="signup-text">
+        Don’t have an account?
+        <a href="signup.html">Sign Up now</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div class="bottom-bar">
+    Build Smart. Match Faster. Get Hired
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="auth.js"></script>
+
+</body>
+</html>

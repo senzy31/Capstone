@@ -511,3 +511,49 @@ footer {
 .hidden {
   display: none;
 }
+.jobs-section {
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.job-search-box {
+  margin: 20px auto;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  max-width: 500px;
+}
+
+.job-search-box input {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+}
+
+.job-search-box button {
+  padding: 12px 18px;
+  border: none;
+  background: #38bdf8;
+  color: white;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.job-search-box button:hover {
+  background: #0ea5e9;
+}
+
+.jobs-container {
+  margin-top: 30px;
+  display: grid;
+  gap: 20px;
+}
+
+.job-card {
+  background: white;
+  padding: 20px;
+  border-radius: 15px;
+  text-align: left;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+}
