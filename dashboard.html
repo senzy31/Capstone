@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JobLink Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="CSS/dashboard.css">
+</head>
+<body>
+
+    <header class="top-navbar">
+        <div class="logo">
+            <span class="logo-blue">JOB</span><span class="logo-black">LINK</span>
+        </div>
+        
+        <div class="search-container">
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" placeholder="Search...">
+            </div>
+        </div>
+
+        <div class="user-controls">
+            <i class="fa-regular fa-bell icon-btn"></i>
+            <i class="fa-regular fa-user icon-btn"></i>
+            <span class="user-name">Sean</span>
+            <i class="fa-solid fa-caret-down drop-arrow"></i>
+        </div>
+    </header>
+
+    <div class="main-container">
+        
+        <aside class="sidebar">
+            <ul class="nav-links">
+                <li class="active">
+                    <a href="#">
+                        <i class="fa-solid fa-house"></i>
+                        <span class="text-blue">Dash</span><span class="text-black">board</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#">
+                        <i class="fa-solid fa-file-signature"></i>
+                        <span class="text-blue">My</span><span class="text-black"> Resume</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#">
+                        <i class="fa-regular fa-newspaper"></i>
+                        <span class="text-blue">Job</span><span class="text-black"> Matches</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#">
+                        <i class="fa-regular fa-envelope-open"></i>
+                        <span class="text-blue">Appli</span><span class="text-black">cation</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#">
+                        <i class="fa-regular fa-user"></i>
+                        <span class="text-blue">Pro</span><span class="text-black">file</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        <span class="text-blue">Log</span><span class="text-black">out</span>
+                    </a>
+                </li>
+            </ul>
+        </aside>
+
+        <main class="content">
+            
+            <section class="welcome-section">
+                <h1>Welcome, Sean!</h1>
+                <p>Your career journey starts here.</p>
+            </section>
+
+            <section class="stat-cards">
+                <div class="card stat-card">
+                    <h3>Resume Score</h3>
+                    <div class="stat-value">
+                        <span class="number">85%</span>
+                    </div>
+                    <div class="progress-bar-container small-bar">
+                        <div class="progress-fill black-fill" style="width: 85%;"></div>
+                    </div>
+                </div>
+
+                <div class="card stat-card">
+                    <h3>Job Matches</h3>
+                    <div class="stat-value">
+                        <span class="number">12</span> <span class="label">Jobs</span>
+                    </div>
+                    <div class="progress-bar-container small-bar">
+                        <div class="progress-fill grey-fill" style="width: 100%;"></div>
+                    </div>
+                </div>
+
+                <div class="card stat-card">
+                    <h3>Applications</h3>
+                    <div class="stat-value">
+                        <span class="number">3</span> <span class="label">Sent</span>
+                    </div>
+                    <div class="progress-bar-container small-bar">
+                        <div class="progress-fill grey-fill" style="width: 100%;"></div>
+                    </div>
+                </div>
+            </section>
+
+            <hr class="divider">
+
+            <section class="resume-strength-section">
+                <h2>Resume Strength</h2>
+                <div class="progress-bar-container large-bar">
+                    <div class="progress-fill gradient-fill" style="width: 80%;"></div>
+                </div>
+            </section>
+
+            <section class="job-matches-section">
+                <div class="card job-card">
+                    <div class="job-card-top">
+                        <div class="company-logo-placeholder">
+                            <i class="fa-regular fa-image"></i>
+                        </div>
+                        <div class="job-info">
+                            <h4>Company Logo</h4>
+                            <p class="job-title">Software Developer</p>
+                            <p class="job-location">Location: Manila</p>
+                        </div>
+                        <div class="match-badge">92 Percent Match</div>
+                    </div>
+                    <div class="job-card-actions">
+                        <button class="btn btn-secondary">View Details</button>
+                        <button class="btn btn-primary">Apply</button>
+                    </div>
+                </div>
+
+                <div class="card job-card">
+                    <div class="job-card-top">
+                        <div class="company-logo-placeholder">
+                            <i class="fa-regular fa-image"></i>
+                        </div>
+                        <div class="job-info">
+                            <h4>Company Logo</h4>
+                            <p class="job-title">IT Support Specialist</p>
+                            <p class="job-location">Location: Batangas</p>
+                        </div>
+                        <div class="match-badge">87 Percent Match</div>
+                    </div>
+                    <div class="job-card-actions">
+                        <button class="btn btn-secondary">View Details</button>
+                        <button class="btn btn-primary">Apply</button>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+</body>
+</html>
