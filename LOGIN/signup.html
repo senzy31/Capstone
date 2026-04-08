@@ -4,50 +4,26 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>JobLink | Sign Up</title>
-  <link rel="stylesheet" href="CSS/style.css" />
+
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="signup.css" />
 </head>
+
 <body>
-  <div class="bg-shape shape1"></div>
-  <div class="bg-shape shape2"></div>
-  <div class="bg-shape shape3"></div>
 
-  <header>
-    <nav class="navbar">
-      <div class="logo">JobLink</div>
-
-      <ul class="nav-links" id="navLinks">
-        <li><a href="index.html">Home</a></li>
-        <li><a href="builder.html">Create Resume</a></li>
-        <li id="loginNavItem"><a href="login.html">Login</a></li>
-      </ul>
-
-      <div class="nav-controls">
-        <div class="user-profile hidden" id="profileNavCtrl">
-          <img src="https://ui-avatars.com/api/?name=John+Doe&background=38bdf8&color=fff&bold=true" alt="Profile" class="profile-pic" id="userProfileBtn" />
-          <div class="profile-dropdown hidden" id="profileDropdown">
-            <p><strong id="profileUserName">John Doe</strong></p>
-            <a href="index.html">My Resumes</a>
-            <a href="builder.html">Create Resume</a>
-            <hr>
-            <a href="#" class="logout-link" id="logoutBtn">Logout</a>
-          </div>
-        </div>
-
-        <button class="menu-btn" id="menuBtn">☰</button>
-      </div>
-    </nav>
-  </header>
-
-  <section class="auth-section">
+  <div class="auth-section">
     <div class="auth-box">
-      <h2>Create an Account</h2>
-      <p class="auth-subtitle">Start building your professional resume today</p>
+      <h2>Create Account</h2>
+      <p class="subtitle">Start your journey with JobLink</p>
 
+      <!-- ✅ IMPORTANT: added class -->
       <form id="signupForm" class="auth-form">
         <input type="text" id="signupName" placeholder="Full Name" required />
         <input type="email" id="signupEmail" placeholder="Email Address" required />
         <input type="password" id="signupPass" placeholder="Password" required />
         <input type="password" id="signupConfirm" placeholder="Confirm Password" required />
+
+        <!-- ✅ add class -->
         <button type="submit" class="btn">Sign Up</button>
       </form>
 
@@ -55,10 +31,10 @@
         Already have an account? <a href="login.html">Login</a>
       </p>
     </div>
-  </section>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="auth.js"></script>
-  <script src="script.js"></script>
+
 </body>
 </html>

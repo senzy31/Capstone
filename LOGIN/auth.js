@@ -3,25 +3,58 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-async function signUpUser(name, email, password) {
-  const { data, error } = await supabaseClient.auth.signUp({
+
+// SIGNUP
+document.getElementById("signupForm")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const name = document.getElementById("signupName").value;
+  const email = document.getElementById("signupEmail").value;
+  const password = document.getElementById("signupPass").value;
+  const confirm = document.getElementById("signupConfirm").value;
+
+  if (password !== confirm) {
+    alert("Passwords do not match!");
+    return;
+  }
+
+  const { error } = await supabaseClient.auth.signUp({
     email,
     password,
-    options: {
-      data: {
-        full_name: name
-      }
-    }
+    options: { data: { full_name: name } }
   });
 
-  return { data, error };
-}
+  if (error) {
+    alert(error.message);
+  } else {
+    alert("Signup successful!");
+    window.location.href = "login.html";
+  }
+});
 
-async function loginUser(email, password) {
+
+// LOGIN
+document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const email = document.getElementById("loginEmail").value;
+  const password = document.getElementById("loginPassword").value;
+
   const { data, error } = await supabaseClient.auth.signInWithPassword({
     email,
     password
   });
 
-  return { data, error };
-}
+  if (error) {
+    alert("Invalid email or password.");
+    return;
+  }
+
+  if (!data.user) {
+    alert("Account not found.");
+    return;
+  }
+
+  alert("Login successful!");
+  window.location.href = "../HTML/index.html";
+});
