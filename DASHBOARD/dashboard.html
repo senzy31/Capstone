@@ -26,7 +26,7 @@
     <div class="user-controls">
         <i class="fa-regular fa-bell icon-btn"></i>
         <i class="fa-regular fa-user icon-btn"></i>
-        <span class="user-name">Sean</span>
+        <span class="user-name" id="userName">Loading...</span>
     </div>
 </header>
 
@@ -39,14 +39,14 @@
             <li><a href="#"><i class="fa-regular fa-newspaper"></i> Job Matches</a></li>
             <li><a href="#"><i class="fa-regular fa-envelope-open"></i> Application</a></li>
             <li><a href="#"><i class="fa-regular fa-user"></i> Profile</a></li>
-            <li><a href="#"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
+            <li><a href="#" id="logoutBtn"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
         </ul>
     </aside>
 
     <main class="content">
 
         <section class="welcome-section">
-            <h1>Welcome, Sean!</h1>
+            <h1 id="welcomeText">Welcome!</h1>
             <p>Your career journey starts here.</p>
         </section>
 
@@ -74,13 +74,22 @@
         </section>
 
         <section class="job-matches-section">
-
-    <div class="job-vertical-container" id="jobContainer"></div>
-
-</section>
+            <div class="job-vertical-container" id="jobContainer"></div>
         </section>
 
     </main>
+</div>
+
+<!-- Logout Confirmation Modal -->
+<div id="logoutModal" class="popup">
+    <div class="popup-content logout-modal">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to logout?</p>
+        <div class="logout-actions">
+            <button id="confirmLogout" class="btn btn-logout-confirm">Yes, Logout</button>
+            <button id="cancelLogout" class="btn btn-logout-cancel">Cancel</button>
+        </div>
+    </div>
 </div>
 
 <div id="jobPopup" class="popup">
@@ -93,6 +102,11 @@
     </div>
 </div>
 
+<!-- ✅ FIX: Supabase must be loaded FIRST -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- ✅ Then your JS -->
 <script src="dashboard.js"></script>
+
 </body>
 </html>

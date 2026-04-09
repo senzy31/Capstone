@@ -56,5 +56,5 @@ document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
   }
 
   alert("Login successful!");
-  window.location.href = "../HTML/index.html";
+  window.location.href = "../DASHBOARD/dashboard.html";
 });
