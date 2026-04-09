@@ -1,4 +1,40 @@
-// ===== API CONFIG =====
+// ================= SUPABASE SETUP =================
+const SUPABASE_URL = "https://levveflpiytbwxnkclzz.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxldnZlZmxwaXl0Ynd4bmtjbHp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxOTQ2NjEsImV4cCI6MjA4OTc3MDY2MX0.I9xl80gIXa2oMusWt63Q-xhqBiDs39WD52B57WypdXw";
+
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ================= LOAD USER =================
+async function loadUser() {
+    const { data, error } = await supabaseClient.auth.getUser();
+
+    if (error || !data.user) {
+        window.location.href = "../LOGIN/login.html";
+        return;
+    }
+
+    const user = data.user;
+    const name = user.user_metadata?.full_name || "User";
+
+    document.getElementById("userName").innerText = name;
+    document.getElementById("welcomeText").innerText = `Welcome, ${name}!`;
+}
+
+// ================= LOGOUT =================
+document.getElementById("logoutBtn")?.addEventListener("click", () => {
+    document.getElementById("logoutModal").style.display = "block";
+});
+
+document.getElementById("cancelLogout")?.addEventListener("click", () => {
+    document.getElementById("logoutModal").style.display = "none";
+});
+
+document.getElementById("confirmLogout")?.addEventListener("click", async () => {
+    await supabaseClient.auth.signOut();
+    window.location.href = "../LOGIN/login.html";
+});
+
+// ================= JOB API =================
 const url = "https://jsearch.p.rapidapi.com/search?query=jobs%20philippines&page=1&num_pages=2";
 
 const options = {
@@ -9,7 +45,7 @@ const options = {
     }
 };
 
-// ===== LOAD JOBS =====
+// ================= LOAD JOBS =================
 async function loadJobs() {
     try {
         const cached = localStorage.getItem("jobsData");
@@ -30,7 +66,7 @@ async function loadJobs() {
     }
 }
 
-// ===== RENDER JOBS =====
+// ================= RENDER JOBS =================
 function renderJobs(jobs) {
     const container = document.getElementById("jobContainer");
     container.innerHTML = "";
@@ -70,7 +106,7 @@ function renderJobs(jobs) {
     });
 }
 
-// ===== POPUP =====
+// ================= POPUP =================
 function openPopup(title, company, location, description) {
     document.getElementById("popupTitle").innerText = title;
     document.getElementById("popupCompany").innerText = company;
@@ -84,25 +120,8 @@ function closePopup() {
     document.getElementById("jobPopup").style.display = "none";
 }
 
-// ===== SCROLL BUTTONS (FIXED) =====
+// ================= INIT =================
 document.addEventListener("DOMContentLoaded", () => {
-    const wrapper = document.getElementById("scrollWrapper");
-    const leftBtn = document.querySelector(".scroll-btn.left");
-    const rightBtn = document.querySelector(".scroll-btn.right");
-
-    if (!wrapper || !leftBtn || !rightBtn) {
-        console.error("Scroll elements not found!");
-        return;
-    }
-
-    leftBtn.addEventListener("click", () => {
-        wrapper.scrollLeft -= 350;
-    });
-
-    rightBtn.addEventListener("click", () => {
-        wrapper.scrollLeft += 350;
-    });
+    loadUser();   // 🔥 this fixes your "Loading..."
+    loadJobs();
 });
-
-// ===== INIT =====
-loadJobs();

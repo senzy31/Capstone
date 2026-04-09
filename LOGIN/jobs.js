@@ -6,7 +6,7 @@ async function fetchJobs() {
       "https://jsearch.p.rapidapi.com/search?query=developer%20jobs%20in%20philippines&page=1&num_pages=1",
       {
         headers: {
-          "X-RapidAPI-Key": "ef06002ee2msh045ec0a8a333a9ep1271a0jsn92901d8309a2",
+          "X-RapidAPI-Key": "1f0a340b56msh6a8602fdf3e910bp1d3bb2jsn0abd16958aa8",
           "X-RapidAPI-Host": "jsearch.p.rapidapi.com"
         }
       }
