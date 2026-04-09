@@ -49,6 +49,6 @@ function goToLogin(e) {
   document.getElementById("loginSection").scrollIntoView({
     behavior: "smooth"
   });
-}
+} 
 
 fetchJobs();

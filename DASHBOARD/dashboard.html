@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JobLink Dashboard</title>
+
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+<header class="top-navbar">
+    <div class="logo">
+        <span class="logo-blue">JOB</span><span class="logo-black">LINK</span>
+    </div>
+
+    <div class="search-container">
+        <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" placeholder="Search...">
+        </div>
+    </div>
+
+    <div class="user-controls">
+        <i class="fa-regular fa-bell icon-btn"></i>
+        <i class="fa-regular fa-user icon-btn"></i>
+        <span class="user-name">Sean</span>
+    </div>
+</header>
+
+<div class="main-container">
+
+    <aside class="sidebar">
+        <ul class="nav-links">
+            <li class="active"><a href="#"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+            <li><a href="#"><i class="fa-solid fa-file-signature"></i> My Resume</a></li>
+            <li><a href="#"><i class="fa-regular fa-newspaper"></i> Job Matches</a></li>
+            <li><a href="#"><i class="fa-regular fa-envelope-open"></i> Application</a></li>
+            <li><a href="#"><i class="fa-regular fa-user"></i> Profile</a></li>
+            <li><a href="#"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
+        </ul>
+    </aside>
+
+    <main class="content">
+
+        <section class="welcome-section">
+            <h1>Welcome, Sean!</h1>
+            <p>Your career journey starts here.</p>
+        </section>
+
+        <section class="stat-cards">
+            <div class="card stat-card">
+                <h3>Resume Score</h3>
+                <div class="stat-value">
+                    <span class="number">85%</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <h3>Job Matches</h3>
+                <div class="stat-value">
+                    <span class="number">12</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <h3>Applications</h3>
+                <div class="stat-value">
+                    <span class="number">3</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="job-matches-section">
+
+    <div class="job-vertical-container" id="jobContainer"></div>
+
+</section>
+        </section>
+
+    </main>
+</div>
+
+<div id="jobPopup" class="popup">
+    <div class="popup-content">
+        <span class="close-btn" onclick="closePopup()">&times;</span>
+        <h3 id="popupTitle"></h3>
+        <p id="popupCompany"></p>
+        <p id="popupLocation"></p>
+        <p id="popupDescription"></p>
+    </div>
+</div>
+
+<script src="dashboard.js"></script>
+</body>
+</html>
