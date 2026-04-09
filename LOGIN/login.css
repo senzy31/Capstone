@@ -1,58 +1,121 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Poppins', sans-serif;
+}
+
 body {
-  font-family: Poppins;
-  background: #eef2f7;
+  background: linear-gradient(135deg, #dfe6f3, #f5f7fb);
+}
+
+/* TOP */
+.top-bar {
+  background: linear-gradient(90deg, #2f4a92, #3d5afe);
+  color: white;
+  text-align: center;
+  padding: 20px;
+}
+
+.logo {
+  font-size: 24px;
+}
+
+.highlight {
+  color: #a5b4fc;
 }
 
 /* LOGIN */
 .login-container {
   display: flex;
   justify-content: center;
-  padding: 60px;
+  padding: 60px 0;
 }
 
 .login-card {
-  width: 420px;
-  padding: 40px;
-  background: #5b6fa8;
-  color: white;
+  background: rgba(91, 111, 168, 0.95);
+  padding: 50px;
   border-radius: 20px;
+  width: 420px;
+  max-width: 90%;
+  text-align: center;
+  color: white;
+  backdrop-filter: blur(10px);
 }
 
-input {
+.input-group {
+  text-align: left;
+  margin-bottom: 15px;
+}
+
+.input-group input {
   width: 100%;
   padding: 14px;
-  margin-bottom: 15px;
   border-radius: 10px;
   border: none;
+  background: #e4e9f7;
 }
 
 button {
   width: 100%;
   padding: 14px;
-  background: #3d5afe;
-  color: white;
-  border: none;
   border-radius: 10px;
+  border: none;
+  background: linear-gradient(90deg, #3d5afe, #5c6cff);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-/* JOBS SLIDER */
+.signup-text {
+  margin-top: 15px;
+}
+
+/* JOBS */
+.jobs-section {
+  padding: 40px;
+  text-align: center;
+}
+
+/* 🔥 SLIDER */
 .jobs-slider {
   display: flex;
-  gap: 20px;
   overflow-x: auto;
+  gap: 20px;
   padding: 20px;
   scroll-behavior: smooth;
 }
 
-.job-card {
-  min-width: 250px;
-  background: white;
-  padding: 20px;
-  border-radius: 10px;
+.jobs-slider::-webkit-scrollbar {
+  display: none;
 }
 
-/* TOP / FOOTER */
-.top-bar, .bottom-bar {
+/* JOB CARD */
+.job-card {
+  min-width: 280px;
+  background: white;
+  padding: 20px;
+  border-radius: 15px;
+  text-align: left;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.job-card h4 {
+  color: #3d5afe;
+}
+
+.job-card a {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: #3d5afe;
+  color: white;
+  border-radius: 8px;
+  text-decoration: none;
+}
+
+/* FOOTER */
+.bottom-bar {
   background: #2f4a92;
   color: white;
   text-align: center;
