@@ -121,3 +121,168 @@ button {
   text-align: center;
   padding: 15px;
 }
+
+/* ============================= */
+/* 📱 TABLET RESPONSIVENESS */
+/* ============================= */
+@media (max-width: 1024px) {
+  .login-container {
+    padding: 50px 20px;
+  }
+
+  .login-card {
+    width: 80%;
+    padding: 40px;
+  }
+
+  .jobs-section {
+    padding: 30px 20px;
+  }
+
+  .job-card {
+    min-width: 240px;
+  }
+}
+
+/* ============================= */
+/* 📱 MOBILE RESPONSIVENESS */
+/* ============================= */
+@media (max-width: 768px) {
+  .top-bar {
+    padding: 15px;
+  }
+
+  .logo {
+    font-size: 20px;
+  }
+
+  .login-container {
+    padding: 40px 15px;
+  }
+
+  .login-card {
+    width: 100%;
+    padding: 30px 20px;
+    border-radius: 15px;
+  }
+
+  .input-group input {
+    padding: 12px;
+  }
+
+  button {
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  .signup-text {
+    font-size: 14px;
+  }
+
+  .jobs-section {
+    padding: 25px 15px;
+  }
+
+  .jobs-section h2 {
+    font-size: 20px;
+  }
+
+  .jobs-slider {
+    gap: 15px;
+    padding: 15px;
+  }
+
+  .job-card {
+    min-width: 220px;
+    padding: 15px;
+  }
+
+  .job-card h4 {
+    font-size: 16px;
+  }
+
+  .job-card p {
+    font-size: 14px;
+  }
+
+  .bottom-bar {
+    font-size: 14px;
+    padding: 12px;
+  }
+}
+
+/* ============================= */
+/* 📱 SMALL MOBILE DEVICES */
+/* ============================= */
+@media (max-width: 480px) {
+  .top-bar {
+    padding: 12px;
+  }
+
+  .logo {
+    font-size: 18px;
+  }
+
+  .login-container {
+    padding: 30px 10px;
+  }
+
+  .login-card {
+    padding: 25px 15px;
+    border-radius: 12px;
+  }
+
+  .login-card h2 {
+    font-size: 20px;
+  }
+
+  .input-group label {
+    font-size: 14px;
+  }
+
+  .input-group input {
+    padding: 10px;
+    font-size: 14px;
+  }
+
+  button {
+    padding: 10px;
+    font-size: 14px;
+  }
+
+  .signup-text {
+    font-size: 13px;
+  }
+
+  .jobs-section h2 {
+    font-size: 18px;
+  }
+
+  .jobs-slider {
+    gap: 12px;
+    padding: 10px;
+  }
+
+  .job-card {
+    min-width: 200px;
+    padding: 12px;
+  }
+
+  .job-card h4 {
+    font-size: 15px;
+  }
+
+  .job-card p {
+    font-size: 13px;
+  }
+
+  .job-card a {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  .bottom-bar {
+    font-size: 12px;
+    padding: 10px;
+  }
+}

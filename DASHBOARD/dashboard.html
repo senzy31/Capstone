@@ -11,6 +11,7 @@
 
 <body>
 
+<!-- ================= NAVBAR ================= -->
 <header class="top-navbar">
     <div class="logo">
         <span class="logo-blue">JOB</span><span class="logo-black">LINK</span>
@@ -19,7 +20,7 @@
     <div class="search-container">
         <div class="search-box">
             <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" placeholder="Search...">
+            <input type="text" placeholder="Search jobs..." id="searchInput">
         </div>
     </div>
 
@@ -32,6 +33,7 @@
 
 <div class="main-container">
 
+    <!-- ================= SIDEBAR ================= -->
     <aside class="sidebar">
         <ul class="nav-links">
             <li class="active"><a href="#"><i class="fa-solid fa-house"></i> Dashboard</a></li>
@@ -43,6 +45,7 @@
         </ul>
     </aside>
 
+    <!-- ================= CONTENT ================= -->
     <main class="content">
 
         <section class="welcome-section">
@@ -50,29 +53,31 @@
             <p>Your career journey starts here.</p>
         </section>
 
+        <!-- Stats -->
         <section class="stat-cards">
             <div class="card stat-card">
                 <h3>Resume Score</h3>
                 <div class="stat-value">
-                    <span class="number">85%</span>
+                    <span class="number">0%</span>
                 </div>
             </div>
 
             <div class="card stat-card">
                 <h3>Job Matches</h3>
                 <div class="stat-value">
-                    <span class="number">12</span>
+                    <span class="number" id="jobCount">0</span>
                 </div>
             </div>
 
             <div class="card stat-card">
                 <h3>Applications</h3>
                 <div class="stat-value">
-                    <span class="number">3</span>
+                    <span class="number">0</span>
                 </div>
             </div>
         </section>
 
+        <!-- Job Listings -->
         <section class="job-matches-section">
             <div class="job-vertical-container" id="jobContainer"></div>
         </section>
@@ -80,7 +85,7 @@
     </main>
 </div>
 
-<!-- Logout Confirmation Modal -->
+<!-- ================= LOGOUT MODAL ================= -->
 <div id="logoutModal" class="popup">
     <div class="popup-content logout-modal">
         <h3>Confirm Logout</h3>
@@ -92,20 +97,38 @@
     </div>
 </div>
 
+<!-- ================= JOB DETAILS POPUP ================= -->
 <div id="jobPopup" class="popup">
-    <div class="popup-content">
+    <div class="popup-content job-popup">
         <span class="close-btn" onclick="closePopup()">&times;</span>
-        <h3 id="popupTitle"></h3>
-        <p id="popupCompany"></p>
-        <p id="popupLocation"></p>
-        <p id="popupDescription"></p>
+
+        <div class="popup-header">
+            <h2 id="popupTitle">Job Title</h2>
+            <p>
+                <strong id="popupCompany">Company</strong> •
+                <span id="popupLocation">Location</span>
+            </p>
+        </div>
+
+        <div class="popup-body">
+            <div class="popup-section">
+                <h4>Estimated Salary</h4>
+                <span id="popupSalary" class="salary-badge">Not Available</span>
+            </div>
+
+            <div class="popup-section">
+                <h4>Job Description</h4>
+                <p id="popupDescription">Loading...</p>
+            </div>
+        </div>
+
+        <div class="popup-footer">
+            <button class="btn btn-secondary" onclick="closePopup()">Close</button>
+            <button id="applyBtn" class="btn btn-primary">Apply Now</button>
+        </div>
     </div>
 </div>
 
-<!-- ✅ FIX: Supabase must be loaded FIRST -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<!-- ✅ Then your JS -->
 <script src="dashboard.js"></script>
 
 </body>

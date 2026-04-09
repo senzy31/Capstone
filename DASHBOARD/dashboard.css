@@ -130,7 +130,8 @@ body {
 .content {
     flex-grow: 1;
     padding: 40px;
-    max-width: calc(100vw - 250px);
+    width: 100%;
+    max-width: 100%;
 }
 
 /* --- WELCOME --- */
@@ -387,4 +388,165 @@ body {
     background: #a6a6a6;
     padding: 10px 24px;
     border-radius: 5px;
+}
+
+/* ================= JOB POPUP DESIGN ================= */
+.popup {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden; /* Prevent background scrolling */
+}
+
+.popup.show {
+    display: flex;
+}
+
+/* Popup Container */
+.job-popup {
+    width: 500px;
+    max-width: 90%;
+    max-height: 85vh;
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 25px;
+    position: relative;
+    overflow-y: auto;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+    transform: translateY(-30px); /* Moves popup slightly upward */
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-60px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(-30px) scale(1);
+    }
+}
+
+/* Close Button */
+.close-btn {
+    position: absolute;
+    right: 15px;
+    top: 12px;
+    font-size: 22px;
+    cursor: pointer;
+    color: #888;
+    transition: color 0.3s ease;
+}
+
+.close-btn:hover {
+    color: #e74c3c;
+}
+
+/* Popup Header */
+.popup-header {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+}
+
+.popup-header h2 {
+    color: var(--primary-blue);
+    font-size: 20px;
+}
+
+/* Popup Sections */
+.popup-section {
+    margin-bottom: 15px;
+}
+
+.popup-section h4 {
+    color: var(--primary-blue);
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+/* Salary Badge */
+.salary-badge {
+    background: #e8f0ff;
+    color: var(--primary-blue);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 13px;
+    display: inline-block;
+}
+
+/* Popup Footer */
+.popup-footer {
+    display: flex;
+    gap: 10px;
+    border-top: 1px solid var(--border-color);
+    margin-top: 15px;
+    padding-top: 15px;
+}
+
+.popup-footer .btn {
+    flex: 1;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.popup-footer .btn-primary {
+    background: var(--primary-blue);
+    color: #fff;
+}
+
+.popup-footer .btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+/* ================= REMOVE HORIZONTAL SCROLL ================= */
+html, body {
+    overflow-x: hidden;
+    width: 100%;
+}
+
+/* ================= RESPONSIVE DESIGN ================= */
+@media (max-width: 768px) {
+    .job-popup {
+        width: 92%;
+        padding: 20px;
+        transform: translateY(-20px);
+    }
+
+    .popup-header h2 {
+        font-size: 18px;
+    }
+
+    .popup-section h4 {
+        font-size: 13px;
+    }
+
+    .popup-footer {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 480px) {
+    .job-popup {
+        width: 95%;
+        padding: 18px;
+        transform: translateY(-10px);
+    }
+
+    .popup-header h2 {
+        font-size: 16px;
+    }
+
+    .salary-badge {
+        font-size: 12px;
+    }
 }
