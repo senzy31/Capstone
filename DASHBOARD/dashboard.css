@@ -25,7 +25,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: linear-gradient(90deg, #d3e1f5 0%, #a2bce6 100%);
+    background: linear-gradient(90deg, #98baeb 0%, #164fab 100%);
     padding: 15px 30px;
     border-bottom: 2px solid var(--border-color);
     height: 70px;
@@ -313,11 +313,11 @@ body {
 }
 
 .btn-primary {
-    background: #a6a6a6;
+    background: #0032b1;
 }
 
 .btn-secondary {
-    background: #b3b3b3;
+    background: #0088fe;
 }
 
 .btn:hover {
@@ -344,7 +344,7 @@ body {
 .popup-content {
     background: white;
     width: 350px;
-    margin: 10% auto;
+    margin: 20% auto;
     padding: 20px;
     border-radius: 10px;
     position: relative;

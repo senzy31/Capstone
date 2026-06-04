@@ -1,68 +1,133 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>JobLink | Login</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="login.css" />
+<title>JobLink | Login</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="login.css">
+
+<link rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 
 <body>
 
-  <!-- TOP -->
-  <div class="top-bar">
-    <span class="logo">Job<span class="highlight">Link</span></span>
-  </div>
+<div class="bg-shape shape1"></div>
+<div class="bg-shape shape2"></div>
 
-  <!-- LOGIN -->
-  <div class="login-container" id="loginSection">
-    <div class="login-card">
+<div class="container">
 
-      <h2>Welcome Back</h2>
+    <div class="left-panel">
 
-      <form id="loginForm">
-
-        <div class="input-group">
-          <label>Email</label>
-          <input type="email" id="loginEmail" required />
+        <div class="brand">
+            Job<span>Link</span>
         </div>
 
-        <div class="input-group">
-          <label>Password</label>
-          <input type="password" id="loginPassword" required />
+        <h1>
+            Find Your Dream Job Faster
+        </h1>
+
+        <p>
+            Build professional resumes with AI,
+            discover opportunities,
+            and get matched with jobs that fit your skills.
+        </p>
+
+        <div class="feature-card">
+            <i class="fa-solid fa-robot"></i>
+            AI Resume Builder
         </div>
 
-        <button type="submit">Login</button>
+        <div class="feature-card">
+            <i class="fa-solid fa-briefcase"></i>
+            Smart Job Matching
+        </div>
 
-      </form>
-
-      <p class="signup-text">
-        Don’t have an account?
-        <a href="signup.html">Sign Up</a>
-      </p>
+        <div class="feature-card">
+            <i class="fa-solid fa-bolt"></i>
+            Real-Time Vacancies
+        </div>
 
     </div>
-  </div>
 
-  <!-- JOBS -->
-  <section class="jobs-section">
-    <h3>Latest Job Vacancies</h3>
+    <div class="right-panel">
 
-    <div class="jobs-slider" id="jobsGrid">
-      <p>Loading jobs...</p>
+        <div class="login-card">
+
+            <h2>Welcome Back!</h2>
+
+            <p>
+                Login to continue your career journey.
+            </p>
+
+            <form id="loginForm">
+
+                <div class="input-group">
+
+                    <label>Email</label>
+
+                    <input
+                        type="email"
+                        id="loginEmail"
+                        required>
+
+                </div>
+
+                <div class="input-group">
+
+                    <label>Password</label>
+
+                    <div class="password-wrapper">
+
+                        <input
+                            type="password"
+                            id="loginPassword"
+                            required>
+
+                        <i
+                        class="fa-solid fa-eye"
+                        id="togglePassword"></i>
+
+                    </div>
+
+                </div>
+
+                <button
+                    type="submit"
+                    id="loginBtn">
+
+                    Login
+
+                </button>
+
+            </form>
+
+            <div class="divider">
+                OR
+            </div>
+
+            <p class="signup-link">
+
+                Don't have an account?
+
+                <a href="signup.html">
+                    Create Account
+                </a>
+
+            </p>
+
+        </div>
+
     </div>
-  </section>
 
-  <!-- FOOTER -->
-  <div class="bottom-bar">
-    Build Smart. Match Faster. Get Hired
-  </div>
+</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="auth.js"></script>
-  <script src="jobs.js"></script>
+<script src="auth.js"></script>
 
 </body>
 </html>

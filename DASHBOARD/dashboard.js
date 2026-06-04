@@ -1,18 +1,19 @@
 // ================= LOAD USER =================
-function loadUser() {
-    const userData = localStorage.getItem("user");
+document.addEventListener("DOMContentLoaded", () => {
 
-    if (!userData) {
+    const user = JSON.parse(localStorage.getItem("user"));
+
+    if (!user) {
         window.location.href = "../LOGIN/login.html";
         return;
     }
 
-    const user = JSON.parse(userData);
-    const name = user.fullName || "User";
+    const welcomeText = document.getElementById("welcomeText");
 
-    document.getElementById("userName").innerText = name;
-    document.getElementById("welcomeText").innerText = `Welcome, ${name}!`;
-}
+    if (welcomeText) {
+        welcomeText.textContent = `Welcome, ${user.fullName}!`;
+    }
+});
 
 // ================= LOGOUT =================
 document.getElementById("logoutBtn")?.addEventListener("click", () => {
@@ -28,23 +29,36 @@ document.getElementById("confirmLogout")?.addEventListener("click", () => {
     window.location.href = "../LOGIN/login.html";
 });
 
-// ================= LOAD JOBS =================
-async function loadJobs() {
-    const res = await fetch("https://jsearch.p.rapidapi.com/search?query=jobs%20philippines&page=1", {
-        headers: {
-            "X-RapidAPI-Key": "1f0a340b56msh6a8602fdf3e910bp1d3bb2jsn0abd16958aa8",
-            "X-RapidAPI-Host": "jsearch.p.rapidapi.com"
-        }
-    });
+// ================= LOAD JOBS (WITH SEARCH) =================
+async function loadJobs(search = "jobs philippines") {
+    try {
+        const res = await fetch(`https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(search)}&page=1`, {
+            method: "GET",
+            headers: {
+                "X-RapidAPI-Key": "1f0a340b56msh6a8602fdf3e910bp1d3bb2jsn0abd16958aa8",
+                "X-RapidAPI-Host": "jsearch.p.rapidapi.com"
+            }
+        });
 
-    const data = await res.json();
-    renderJobs(data.data);
+        const data = await res.json();
+
+        renderJobs(data.data || []);
+        document.getElementById("jobCount").innerText = data.data?.length || 0;
+
+    } catch (error) {
+        console.error("Error fetching jobs:", error);
+    }
 }
 
 // ================= RENDER JOBS =================
 function renderJobs(jobs) {
     const container = document.getElementById("jobContainer");
     container.innerHTML = "";
+
+    if (jobs.length === 0) {
+        container.innerHTML = "<p>No jobs found.</p>";
+        return;
+    }
 
     jobs.slice(0, 20).forEach(job => {
         container.innerHTML += `
@@ -68,9 +82,25 @@ function renderJobs(jobs) {
     });
 }
 
-// ================= POPUP WITH JSEARCH API =================
+// ================= SEARCH FUNCTION =================
+let debounceTimer;
+
+document.getElementById("searchInput").addEventListener("input", function (e) {
+    clearTimeout(debounceTimer);
+
+    debounceTimer = setTimeout(() => {
+        const query = e.target.value.trim();
+
+        if (query !== "") {
+            loadJobs(query + " philippines");
+        } else {
+            loadJobs();
+        }
+    }, 500); // delay to avoid too many API calls
+});
+
+// ================= POPUP =================
 async function openPopup(jobId, title, company, location) {
-    // Show popup with loading placeholders
     document.getElementById("jobPopup").style.display = "block";
     document.getElementById("popupTitle").innerText = "Loading...";
     document.getElementById("popupCompany").innerText = company;
@@ -85,35 +115,20 @@ async function openPopup(jobId, title, company, location) {
     };
 
     try {
-        // 🔹 JOB DETAILS API
-        const detailsUrl = `https://jsearch.p.rapidapi.com/job-details?job_id=${encodeURIComponent(jobId)}&country=ph`;
-
-        const detailsRes = await fetch(detailsUrl, {
-            method: "GET",
-            headers: headers
-        });
-
-        if (!detailsRes.ok) {
-            throw new Error("Failed to fetch job details.");
-        }
+        const detailsRes = await fetch(
+            `https://jsearch.p.rapidapi.com/job-details?job_id=${encodeURIComponent(jobId)}&country=ph`,
+            { method: "GET", headers }
+        );
 
         const detailsData = await detailsRes.json();
         const jobDetails = detailsData?.data?.[0];
 
-        const description =
-            jobDetails?.job_description || "No description available.";
+        const description = jobDetails?.job_description || "No description available.";
 
-        // 🔹 SALARY ESTIMATION API
-        const salaryUrl = `https://jsearch.p.rapidapi.com/estimated-salary?job_title=${encodeURIComponent(title)}&location=${encodeURIComponent(location || "Philippines")}&location_type=ANY&years_of_experience=ALL`;
-
-        const salaryRes = await fetch(salaryUrl, {
-            method: "GET",
-            headers: headers
-        });
-
-        if (!salaryRes.ok) {
-            throw new Error("Failed to fetch salary data.");
-        }
+        const salaryRes = await fetch(
+            `https://jsearch.p.rapidapi.com/estimated-salary?job_title=${encodeURIComponent(title)}&location=${encodeURIComponent(location || "Philippines")}&location_type=ANY&years_of_experience=ALL`,
+            { method: "GET", headers }
+        );
 
         const salaryData = await salaryRes.json();
         const salaryInfo = salaryData?.data?.[0];
@@ -134,7 +149,6 @@ async function openPopup(jobId, title, company, location) {
             }
         }
 
-        // 🔹 UPDATE POPUP CONTENT
         document.getElementById("popupTitle").innerText = title;
         document.getElementById("popupDescription").innerText =
             description.substring(0, 500) + "...";
@@ -142,11 +156,9 @@ async function openPopup(jobId, title, company, location) {
             `Estimated Salary: ${salaryText}`;
 
     } catch (err) {
-        console.error("Error fetching job data:", err);
-        document.getElementById("popupDescription").innerText =
-            "Failed to load job details.";
-        document.getElementById("popupSalary").innerText =
-            "Salary information unavailable.";
+        console.error(err);
+        document.getElementById("popupDescription").innerText = "Failed to load job details.";
+        document.getElementById("popupSalary").innerText = "Salary unavailable.";
     }
 }
 
@@ -155,9 +167,8 @@ function closePopup() {
     document.getElementById("jobPopup").style.display = "none";
 }
 
-
 // ================= INIT =================
 document.addEventListener("DOMContentLoaded", () => {
     loadUser();
     loadJobs();
-});
+}); 
