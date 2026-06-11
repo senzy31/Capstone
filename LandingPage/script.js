@@ -21,3 +21,25 @@ window.addEventListener("scroll", () => {
         navbar.style.boxShadow = "0 2px 10px rgba(0,0,0,.08)";
     }
 });
+
+
+// ================= LOGIN BUTTON =================
+
+document.getElementById("loginBtn")
+?.addEventListener("click", () => {
+
+    window.location.href =
+        "../LOGIN/login.html";
+
+});
+
+
+// ================= REGISTER BUTTON =================
+
+document.getElementById("registerBtn")
+?.addEventListener("click", () => {
+
+    window.location.href =
+        "../LOGIN/signup.html";
+
+});

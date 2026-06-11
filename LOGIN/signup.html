@@ -1,40 +1,185 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>JobLink | Sign Up</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="signup.css" />
+<title>JobLink | Create Account</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="signup.css">
+
+<link rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 
 <body>
 
-  <div class="auth-section">
-    <div class="auth-box">
-      <h2>Create Account</h2>
-      <p class="subtitle">Start your journey with JobLink</p>
+<div class="shape shape1"></div>
+<div class="shape shape2"></div>
 
-      <!-- ✅ IMPORTANT: added class -->
-      <form id="signupForm" class="auth-form">
-        <input type="text" id="signupName" placeholder="Full Name" required />
-        <input type="email" id="signupEmail" placeholder="Email Address" required />
-        <input type="password" id="signupPass" placeholder="Password" required />
-        <input type="password" id="signupConfirm" placeholder="Confirm Password" required />
+<div class="container">
 
-        <!-- ✅ add class -->
-        <button type="submit" class="btn">Sign Up</button>
-      </form>
+    <div class="left-panel">
 
-      <p class="auth-switch">
-        Already have an account? <a href="login.html">Login</a>
-      </p>
+        <div class="logo">
+            Job<span>Link</span>
+        </div>
+
+        <h1>Create Your Professional Profile</h1>
+
+        <p>
+            Join thousands of job seekers and let JobLink's AI
+            connect you with opportunities that match your skills,
+            achievements, and salary expectations.
+        </p>
+
+        <div class="feature">
+            <i class="fa-solid fa-robot"></i>
+            AI Resume Builder
+        </div>
+
+        <div class="feature">
+            <i class="fa-solid fa-briefcase"></i>
+            Smart Job Matching
+        </div>
+
+        <div class="feature">
+            <i class="fa-solid fa-chart-line"></i>
+            Career Growth Insights
+        </div>
+
     </div>
-  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="auth.js"></script>
+    <div class="right-panel">
+
+        <div class="signup-card">
+
+            <h2>Create Account</h2>
+
+            <form id="signupForm">
+
+                <div class="section-title">
+                    Account Information
+                </div>
+
+                <input type="text"
+                       id="signupName"
+                       placeholder="Full Name"
+                       required>
+
+                <input type="email"
+                       id="signupEmail"
+                       placeholder="Email Address"
+                       required>
+
+                <div class="password-wrapper">
+
+                    <input type="password"
+                           id="signupPass"
+                           placeholder="Password"
+                           required>
+
+                    <i class="fa-solid fa-eye"
+                       id="togglePassword"></i>
+
+                </div>
+
+                <input type="password"
+                       id="signupConfirm"
+                       placeholder="Confirm Password"
+                       required>
+
+                <div class="section-title">
+                    Career Information
+                </div>
+
+                <input type="text"
+                       id="jobTitle"
+                       placeholder="Current Job Title">
+
+                <select id="education">
+                    <option value="">Highest Education</option>
+                    <option>Bachelor's Degree</option>
+                    <option>Master's Degree</option>
+                    <option>Doctorate Degree</option>
+                    <option>Senior High School</option>
+                </select>
+
+                <select id="experience">
+                    <option value="">Years of Experience</option>
+                    <option>Fresh Graduate</option>
+                    <option>1-2 Years</option>
+                    <option>3-5 Years</option>
+                    <option>5+ Years</option>
+                </select>
+
+                <select id="workSetup">
+                    <option value="">Preferred Work Setup</option>
+                    <option>Remote</option>
+                    <option>Hybrid</option>
+                    <option>On-Site</option>
+                </select>
+
+                <div class="section-title">
+                    Technical Skills
+                </div>
+
+                <div class="skills-grid">
+
+                    <label><input type="checkbox" value="Java"> Java</label>
+                    <label><input type="checkbox" value="C#"> C#</label>
+                    <label><input type="checkbox" value="Python"> Python</label>
+                    <label><input type="checkbox" value="JavaScript"> JavaScript</label>
+                    <label><input type="checkbox" value="SQL"> SQL</label>
+                    <label><input type="checkbox" value="Networking"> Networking</label>
+                    <label><input type="checkbox" value="Cybersecurity"> Cybersecurity</label>
+                    <label><input type="checkbox" value="React"> React</label>
+
+                </div>
+
+                <div class="section-title">
+                    Achievements & Certifications
+                </div>
+
+                <textarea
+                    id="achievements"
+                    rows="4"
+                    placeholder="Example: Dean's Lister, Cisco CCNA, TESDA NC II">
+                </textarea>
+
+                <div class="section-title">
+                    Expected Salary
+                </div>
+
+                <select id="salaryRange">
+                    <option value="">Select Salary Range</option>
+                    <option>₱15,000 - ₱25,000</option>
+                    <option>₱25,000 - ₱40,000</option>
+                    <option>₱40,000 - ₱60,000</option>
+                    <option>₱60,000+</option>
+                </select>
+
+                <button type="submit" class="btn">
+                    Create Account
+                </button>
+
+            </form>
+
+            <p class="login-link">
+                Already have an account?
+                <a href="login.html">Login</a>
+            </p>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script src="auth.js"></script>
 
 </body>
 </html>
