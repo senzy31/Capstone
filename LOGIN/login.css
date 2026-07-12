@@ -140,10 +140,99 @@ button:hover{
 transform:translateY(-2px);
 }
 
+.link-button{
+    width:auto;
+    padding:0;
+    margin-top:18px;
+    background:none;
+    border:none;
+    color:white;
+    font-weight:600;
+    text-decoration:underline;
+    cursor:pointer;
+}
+
+.link-button:hover{
+    opacity:0.85;
+    text-decoration:none;
+}
+
+.employer-text{
+    width:100%;
+    margin-top:14px;
+    text-align:center;
+    color:rgba(255,255,255,0.9);
+    font-weight:600;
+    font-size:0.96rem;
+}
+
+.employer-link{
+    display:inline;
+    margin-left:8px;
+    color:rgb(235, 73, 73);
+    font-weight:700;
+    text-decoration:underline;
+    cursor:pointer;
+}
+
+.employer-link:hover{
+    color:rgb(235, 73, 73);
+    opacity:0.85;
+}
+
 .divider{
-text-align:center;
-margin:20px 0;
-opacity:.8;
+    display:block;
+    width:100%;
+    text-align:center;
+    margin:20px auto;
+    opacity:.8;
+}
+
+.btn{
+    width:100%;
+    padding:15px;
+    border:none;
+    border-radius:12px;
+    font-weight:600;
+    cursor:pointer;
+    transition:.3s;
+    margin-top:10px;
+}
+
+.btn-secondary{
+    background:rgba(255,255,255,0.15);
+    color:white;
+}
+
+.btn-secondary:hover{
+    opacity:0.95;
+}
+
+.employer-page .left-panel {
+    background: rgba(0, 0, 0, 0.12);
+}
+
+.employer-page .login-card {
+    background: rgba(10, 35, 70, 0.9);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);
+}
+
+.employer-page .login-card h2,
+.employer-page .login-card p,
+.employer-page .feature-card {
+    color: #f7f9fc;
+}
+
+.employer-page .feature-card {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.employer-page .bg-shape.shape1 {
+    background: #ff8c00;
+}
+
+.employer-page .bg-shape.shape2 {
+    background: #ff4d00;
 }
 
 .signup-link{

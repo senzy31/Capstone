@@ -143,35 +143,38 @@
 
         <div class="section-title">
             <h2>Featured Opportunities</h2>
-            <p>Trending jobs for IT professionals.</p>
+            <p id="jobsSubtitle">Explore jobs in different categories.</p>
         </div>
 
-        <div class="job-container">
+        <div class="jobs-header">
+            <p>Find the best role for your skills and industry.</p>
+            <button id="filterBtn" class="btn btn-outline">Filter Jobs</button>
+        </div>
 
-            <div class="job-card">
-                <h3>Frontend Developer</h3>
-                <p>Google</p>
-                <span>Remote</span>
-                <button class="btn btn-primary">Apply Now</button>
-            </div>
-
-            <div class="job-card">
-                <h3>Backend Developer</h3>
-                <p>Microsoft</p>
-                <span>Hybrid</span>
-                <button class="btn btn-primary">Apply Now</button>
-            </div>
-
-            <div class="job-card">
-                <h3>UI/UX Designer</h3>
-                <p>Meta</p>
-                <span>Remote</span>
-                <button class="btn btn-primary">Apply Now</button>
-            </div>
-
+        <div class="job-container" id="jobContainer">
         </div>
 
     </section>
+
+    <div id="filterModal" class="modal">
+        <div class="modal-content filter-modal">
+            <h3>Filter Jobs</h3>
+            <p>Select one category or search by job title, company, or profession.</p>
+            <input type="text" id="jobSearchInput" class="filter-search" placeholder="Search jobs, e.g. IT, Engineer, Chef">
+            <div class="filter-list">
+                <button class="filter-chip active" data-category="All">All</button>
+                <button class="filter-chip" data-category="IT">IT</button>
+                <button class="filter-chip" data-category="Engineering">Engineering</button>
+                <button class="filter-chip" data-category="Chef">Chef</button>
+                <button class="filter-chip" data-category="Design">Design</button>
+                <button class="filter-chip" data-category="Operations">Operations</button>
+            </div>
+            <div class="filter-actions">
+                <button id="searchFilter" class="btn btn-primary">Search</button>
+                <button id="closeFilter" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
 
     <section class="cta">
 
@@ -181,7 +184,7 @@
             Join JobLink and discover smarter ways to find opportunities and create professional resumes.
         </p>
 
-        <button class="btn btn-primary btn-large">
+        <button id="startNowBtn" class="btn btn-primary btn-large">
             Start Now
         </button>
 

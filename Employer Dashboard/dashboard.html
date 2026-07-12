@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employer Dashboard | JobLink</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+
+<div class="dashboard-shell">
+    <aside class="sidebar">
+        <div class="brand">
+            Job<span>Link</span>
+        </div>
+        <nav>
+            <a class="active" href="#overview">Overview</a>
+            <a href="#post-job">Post Job</a>
+            <a href="#applicants">Applicants</a>
+            <a href="#settings">Settings</a>
+        </nav>
+        <button id="logoutBtn" class="btn btn-logout">Logout</button>
+    </aside>
+
+    <main class="main-panel">
+        <header class="topbar">
+            <div>
+                <h1 id="welcomeText">Welcome, Employer</h1>
+                <p>Manage your company postings and review candidates.</p>
+                <div id="demoBanner" class="demo-banner" style="display:none;">
+                    Demo mode: employer dashboard preview without database login.
+                </div>
+            </div>
+        </header>
+
+        <section class="cards-grid" id="overview">
+            <article class="card">
+                <h3>Active Jobs</h3>
+                <p id="activeJobs">0</p>
+            </article>
+            <article class="card">
+                <h3>Total Applicants</h3>
+                <p id="totalApplicants">0</p>
+            </article>
+            <article class="card">
+                <h3>Open Interviews</h3>
+                <p id="openInterviews">0</p>
+            </article>
+        </section>
+
+        <section class="panel" id="post-job">
+            <div class="panel-header">
+                <h2>Post a New Job</h2>
+            </div>
+            <form id="jobForm" class="job-form">
+                <input type="text" id="jobTitle" placeholder="Job Title" required>
+                <input type="text" id="jobLocation" placeholder="Location" required>
+                <textarea id="jobDescription" rows="4" placeholder="Job Description"></textarea>
+                <button type="submit" class="btn btn-primary">Publish Job</button>
+            </form>
+        </section>
+
+        <section class="panel" id="applicants">
+            <div class="panel-header">
+                <h2>Recent Applicants</h2>
+            </div>
+            <div id="applicantList" class="applicant-list">
+                <p>No applicants yet.</p>
+            </div>
+        </section>
+
+        <section class="panel" id="past-listings">
+            <div class="panel-header">
+                <h2>Past Listings</h2>
+                <p>Review jobs you've posted previously.</p>
+            </div>
+            <div id="pastListingContainer" class="applicant-list">
+                <p>Loading past listings...</p>
+            </div>
+        </section>
+    </main>
+</div>
+
+<div id="logoutModal" class="modal">
+    <div class="modal-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to sign out?</p>
+        <div class="modal-actions">
+            <button id="cancelLogout" class="btn btn-secondary">Cancel</button>
+            <button id="confirmLogout" class="btn btn-primary">Logout</button>
+        </div>
+    </div>
+</div>
+
+<script src="dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JobLink | Employer Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="login.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+</head>
+<body class="employer-page">
+<div class="bg-shape shape1"></div>
+<div class="bg-shape shape2"></div>
+<div class="container">
+    <div class="left-panel">
+        <div class="brand">
+            Job<span>Link</span>
+        </div>
+        <h1>
+            Employer Access
+        </h1>
+        <p>
+            Manage job postings, review applicants, and access employer-only tools.
+        </p>
+        <div class="feature-card">
+            <i class="fa-solid fa-building"></i>
+            Company Dashboard
+        </div>
+        <div class="feature-card">
+            <i class="fa-solid fa-user-check"></i>
+            Applicant Management
+        </div>
+        <div class="feature-card">
+            <i class="fa-solid fa-chart-line"></i>
+            Hiring Insights
+        </div>
+    </div>
+    <div class="right-panel">
+        <div class="login-card">
+            <h2>Employer Login</h2>
+            <p>
+                Sign in with your employer account to continue.
+            </p>
+            <form id="employerLoginForm">
+                <div class="input-group">
+                    <label>Email</label>
+                    <input type="email" id="employerEmail" required>
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="employerPassword" required>
+                        <i class="fa-solid fa-eye" id="togglePassword"></i>
+                    </div>
+                </div>
+                <button type="submit" id="employerLoginBtn">Employer Login</button>
+            </form>
+            <div class="divider">OR</div>
+            <p class="signup-link">
+                Accessing as a candidate?
+                <a href="login.html">Return to User Login</a>
+            </p>
+        </div>
+    </div>
+</div>
+<script src="auth.js"></script>
+</body>
+</html>

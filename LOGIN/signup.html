@@ -75,6 +75,10 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
                        placeholder="Email Address"
                        required>
 
+                <p id="emailHint" class="input-hint" style="display:none;">
+                    Use your company email domain when signing up as an employer.
+                </p>
+
                 <div class="password-wrapper">
 
                     <input type="password"
@@ -92,42 +96,69 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
                        placeholder="Confirm Password"
                        required>
 
-                <div class="section-title">
-                    Career Information
+                <div id="employerFields" class="employer-fields" style="display:none;">
+                    <div class="section-title">
+                        Employer Business Info
+                    </div>
+                    <input type="text"
+                           id="companyName"
+                           placeholder="Company Name">
+                    <input type="text"
+                           id="companyWebsite"
+                           placeholder="Company Website (optional)">
+                    <input type="text"
+                           id="companyEmailDomain"
+                           placeholder="Company Email Domain (e.g. company.com)">
+                    <input type="text"
+                           id="companyIndustry"
+                           placeholder="Industry">
+                    <input type="text"
+                           id="companySize"
+                           placeholder="Company Size">
+                    <input type="tel"
+                           id="companyPhone"
+                           placeholder="Contact Phone">
                 </div>
 
-                <input type="text"
-                       id="jobTitle"
-                       placeholder="Current Job Title">
+                <div id="candidateFields" class="candidate-only">
+                    <div class="section-title">
+                        Career Information
+                    </div>
 
-                <select id="education">
-                    <option value="">Highest Education</option>
-                    <option>Bachelor's Degree</option>
-                    <option>Master's Degree</option>
-                    <option>Doctorate Degree</option>
-                    <option>Senior High School</option>
-                </select>
+                    <input type="text"
+                           id="jobTitle"
+                           placeholder="Current Job Title">
 
-                <select id="experience">
-                    <option value="">Years of Experience</option>
-                    <option>Fresh Graduate</option>
-                    <option>1-2 Years</option>
-                    <option>3-5 Years</option>
-                    <option>5+ Years</option>
-                </select>
+                    <select id="education">
+                        <option value="">Highest Education</option>
+                        <option>Bachelor's Degree</option>
+                        <option>Master's Degree</option>
+                        <option>Doctorate Degree</option>
+                        <option>Senior High School</option>
+                    </select>
 
-                <select id="workSetup">
-                    <option value="">Preferred Work Setup</option>
-                    <option>Remote</option>
-                    <option>Hybrid</option>
-                    <option>On-Site</option>
-                </select>
+                    <select id="experience">
+                        <option value="">Years of Experience</option>
+                        <option>Fresh Graduate</option>
+                        <option>1-2 Years</option>
+                        <option>3-5 Years</option>
+                        <option>5+ Years</option>
+                    </select>
 
-                <div class="section-title">
-                    Technical Skills
+                    <select id="workSetup">
+                        <option value="">Preferred Work Setup</option>
+                        <option>Remote</option>
+                        <option>Hybrid</option>
+                        <option>On-Site</option>
+                    </select>
                 </div>
 
-                <div class="skills-grid">
+                <div id="candidateExtra" class="candidate-only">
+                    <div class="section-title">
+                        Technical Skills
+                    </div>
+
+                    <div class="skills-grid">
 
                     <label><input type="checkbox" value="Java"> Java</label>
                     <label><input type="checkbox" value="C#"> C#</label>
@@ -140,30 +171,40 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
 
                 </div>
 
-                <div class="section-title">
-                    Achievements & Certifications
-                </div>
+                    <div class="section-title">
+                        Achievements & Certifications
+                    </div>
 
-                <textarea
-                    id="achievements"
-                    rows="4"
-                    placeholder="Example: Dean's Lister, Cisco CCNA, TESDA NC II">
-                </textarea>
+                    <textarea
+                        id="achievements"
+                        rows="4"
+                        placeholder="Example: Dean's Lister, Cisco CCNA, TESDA NC II">
+                    </textarea>
 
-                <div class="section-title">
-                    Expected Salary
-                </div>
+                    <div class="section-title">
+                        Expected Salary
+                    </div>
 
-                <select id="salaryRange">
+                    <select id="salaryRange">
                     <option value="">Select Salary Range</option>
                     <option>₱15,000 - ₱25,000</option>
                     <option>₱25,000 - ₱40,000</option>
                     <option>₱40,000 - ₱60,000</option>
                     <option>₱60,000+</option>
                 </select>
+                </div>
+                <input type="hidden" id="accountRole" value="user">
 
-                <button type="submit" class="btn">
+                <p id="accountTypeIndicator" class="account-type-indicator">
+                    Account type: User
+                </p>
+
+                <button type="submit" id="signupSubmit" class="btn">
                     Create Account
+                </button>
+
+                <button type="button" id="employerSignUpBtn" class="btn btn-secondary">
+                    Switch to Employer Signup
                 </button>
 
             </form>
