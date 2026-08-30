@@ -3,16 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>JobLink Dashboard</title>
 
     <link rel="stylesheet" href="dashboard.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
 <body>
 
 <!-- ================= NAVBAR ================= -->
 <header class="top-navbar">
+
     <div class="logo">
         <span class="logo-blue">JOB</span><span class="logo-black">LINK</span>
     </div>
@@ -20,114 +23,524 @@
     <div class="search-container">
         <div class="search-box">
             <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" placeholder="Search jobs..." id="searchInput">
+
+            <input
+                type="text"
+                placeholder="Search jobs..."
+                id="searchInput"
+            >
         </div>
     </div>
 
     <div class="user-controls">
         <i class="fa-regular fa-bell icon-btn"></i>
         <i class="fa-regular fa-user icon-btn"></i>
-        <span class="user-name" id="userName">Loading...</span>
+
+        <span class="user-name" id="userName">
+            Loading...
+        </span>
     </div>
+
 </header>
 
+
+<!-- ================= MAIN ================= -->
 <div class="main-container">
+
 
     <!-- ================= SIDEBAR ================= -->
     <aside class="sidebar">
+
         <ul class="nav-links">
-            <li class="active"><a href="#"><i class="fa-solid fa-house"></i> Dashboard</a></li>
-            <li><a href="#"><i class="fa-solid fa-file-signature"></i> My Resume</a></li>
-            <li><a href="#"><i class="fa-regular fa-newspaper"></i> Job Matches</a></li>
-            <li><a href="#"><i class="fa-regular fa-envelope-open"></i> Application</a></li>
-            <li><a href="#"><i class="fa-regular fa-user"></i> Profile</a></li>
-            <li><a href="#" id="logoutBtn"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
+
+            <li class="active">
+                <a href="#">
+                    <i class="fa-solid fa-house"></i>
+                    Dashboard
+                </a>
+            </li>
+
+            <li>
+                <a href="#">
+                    <i class="fa-solid fa-file-signature"></i>
+                    My Resume
+                </a>
+            </li>
+
+            <li>
+                <a href="#">
+                    <i class="fa-regular fa-newspaper"></i>
+                    Job Matches
+                </a>
+            </li>
+
+            <li>
+                <a href="#">
+                    <i class="fa-regular fa-envelope-open"></i>
+                    Application
+                </a>
+            </li>
+
+            <li>
+                <a href="#">
+                    <i class="fa-regular fa-user"></i>
+                    Profile
+                </a>
+            </li>
+
+            <li>
+                <a href="#" id="logoutBtn">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    Logout
+                </a>
+            </li>
+
         </ul>
+
     </aside>
+
 
     <!-- ================= CONTENT ================= -->
     <main class="content">
 
+
+        <!-- ================= WELCOME ================= -->
         <section class="welcome-section">
-            <h1 id="welcomeText">Welcome!</h1>
-            <p>Your career journey starts here.</p>
+
+            <h1 id="welcomeText">
+                Welcome!
+            </h1>
+
+            <p>
+                Your career journey starts here.
+            </p>
+
         </section>
 
-        <!-- Stats -->
+
+        <!-- ================= STATS ================= -->
         <section class="stat-cards">
+
             <div class="card stat-card">
-                <h3>Resume Score</h3>
-                <div class="stat-value">
+
+                <div class="stat-icon resume-icon">
+                    <i class="fa-solid fa-file"></i>
+                </div>
+
+                <div>
+                    <h3>Resume Score</h3>
                     <span class="number">0%</span>
                 </div>
+
             </div>
 
+
             <div class="card stat-card">
-                <h3>Job Matches</h3>
-                <div class="stat-value">
+
+                <div class="stat-icon job-icon">
+                    <i class="fa-solid fa-briefcase"></i>
+                </div>
+
+                <div>
+                    <h3>Job Matches</h3>
                     <span class="number" id="jobCount">0</span>
                 </div>
+
             </div>
+
 
             <div class="card stat-card">
-                <h3>Applications</h3>
-                <div class="stat-value">
+
+                <div class="stat-icon application-icon">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </div>
+
+                <div>
+                    <h3>Applications</h3>
                     <span class="number">0</span>
                 </div>
+
             </div>
+
         </section>
 
-        <!-- Job Listings -->
-        <section class="job-matches-section">
-            <div class="job-vertical-container" id="jobContainer"></div>
+
+        <!-- ================= FILTER SECTION ================= -->
+        <section class="filter-section">
+
+            <div class="filter-header">
+
+                <div>
+                    <h2>
+                        <i class="fa-solid fa-sliders"></i>
+                        Find Your Ideal Job
+                    </h2>
+
+                    <p>
+                        Customize your preferences to discover jobs that match you.
+                    </p>
+                </div>
+
+            </div>
+
+
+            <div class="filter-grid">
+
+
+                <!-- WORK ARRANGEMENT -->
+                <div class="filter-group">
+
+                    <label>
+                        <i class="fa-solid fa-building"></i>
+                        Work Arrangement
+                    </label>
+
+                    <select id="workSetup">
+
+                        <option value="">
+                            All Work Setups
+                        </option>
+
+                        <option value="onsite">
+                            On-site
+                        </option>
+
+                        <option value="remote">
+                            Remote / WFH
+                        </option>
+
+                        <option value="hybrid">
+                            Hybrid
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- LOCATION -->
+                <div class="filter-group">
+
+                    <label>
+                        <i class="fa-solid fa-location-dot"></i>
+                        Preferred Location
+                    </label>
+
+                    <input
+                        type="text"
+                        id="locationInput"
+                        placeholder="e.g. Manila, Makati, Quezon City"
+                    >
+
+                </div>
+
+
+                <!-- MIN SALARY -->
+                <div class="filter-group">
+
+                    <label>
+                        <i class="fa-solid fa-peso-sign"></i>
+                        Minimum Salary
+                    </label>
+
+                    <input
+                        type="number"
+                        id="minSalary"
+                        placeholder="e.g. 30000"
+                        min="0"
+                    >
+
+                </div>
+
+
+                <!-- MAX SALARY -->
+                <div class="filter-group">
+
+                    <label>
+                        <i class="fa-solid fa-peso-sign"></i>
+                        Maximum Salary
+                    </label>
+
+                    <input
+                        type="number"
+                        id="maxSalary"
+                        placeholder="e.g. 60000"
+                        min="0"
+                    >
+
+                </div>
+
+
+                <!-- JOB TYPE -->
+                <div class="filter-group">
+
+                    <label>
+                        <i class="fa-solid fa-briefcase"></i>
+                        Job Type
+                    </label>
+
+                    <select id="jobType">
+
+                        <option value="">
+                            All Job Types
+                        </option>
+
+                        <option value="FULLTIME">
+                            Full-time
+                        </option>
+
+                        <option value="PARTTIME">
+                            Part-time
+                        </option>
+
+                        <option value="CONTRACTOR">
+                            Contract
+                        </option>
+
+                        <option value="INTERN">
+                            Internship
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+            </div>
+
+
+            <!-- FILTER BUTTONS -->
+            <div class="filter-actions">
+
+                <button id="applyFilters" class="btn-filter apply-filter-btn">
+
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    Apply Filters
+
+                </button>
+
+
+                <button id="resetFilters" class="btn-filter reset-filter-btn">
+
+                    <i class="fa-solid fa-rotate-left"></i>
+                    Reset
+
+                </button>
+
+            </div>
+
         </section>
+
+
+        <!-- ================= JOB SECTION ================= -->
+        <section class="job-matches-section">
+
+            <div class="job-section-header">
+
+                <div>
+
+                    <h2>
+                        Recommended Jobs
+                    </h2>
+
+                    <p id="jobResultText">
+                        Finding jobs for you...
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- JOB CONTAINER -->
+            <div
+                class="job-vertical-container"
+                id="jobContainer"
+            >
+
+                <div class="loading-jobs">
+
+                    <i class="fa-solid fa-spinner fa-spin"></i>
+
+                    <p>
+                        Loading jobs...
+                    </p>
+
+                </div>
+
+            </div>
+
+        </section>
+
 
     </main>
+
 </div>
+
 
 <!-- ================= LOGOUT MODAL ================= -->
 <div id="logoutModal" class="popup">
+
     <div class="popup-content logout-modal">
-        <h3>Confirm Logout</h3>
-        <p>Are you sure you want to logout?</p>
+
+        <h3>
+            Confirm Logout
+        </h3>
+
+        <p>
+            Are you sure you want to logout?
+        </p>
+
         <div class="logout-actions">
-            <button id="confirmLogout" class="btn btn-logout-confirm">Yes, Logout</button>
-            <button id="cancelLogout" class="btn btn-logout-cancel">Cancel</button>
+
+            <button
+                id="confirmLogout"
+                class="btn btn-logout-confirm"
+            >
+                Yes, Logout
+            </button>
+
+
+            <button
+                id="cancelLogout"
+                class="btn btn-logout-cancel"
+            >
+                Cancel
+            </button>
+
         </div>
+
     </div>
+
 </div>
+
 
 <!-- ================= JOB DETAILS POPUP ================= -->
 <div id="jobPopup" class="popup">
+
     <div class="popup-content job-popup">
-        <span class="close-btn" onclick="closePopup()">&times;</span>
+
+        <span
+            class="close-btn"
+            id="closeJobPopup"
+        >
+            &times;
+        </span>
+
 
         <div class="popup-header">
-            <h2 id="popupTitle">Job Title</h2>
+
+            <h2 id="popupTitle">
+                Job Title
+            </h2>
+
             <p>
-                <strong id="popupCompany">Company</strong> •
-                <span id="popupLocation">Location</span>
+
+                <strong id="popupCompany">
+                    Company
+                </strong>
+
+                •
+
+                <span id="popupLocation">
+                    Location
+                </span>
+
             </p>
+
         </div>
+
 
         <div class="popup-body">
-            <div class="popup-section">
-                <h4>Estimated Salary</h4>
-                <span id="popupSalary" class="salary-badge">Not Available</span>
-            </div>
+
 
             <div class="popup-section">
-                <h4>Job Description</h4>
-                <p id="popupDescription">Loading...</p>
+
+                <h4>
+                    Work Arrangement
+                </h4>
+
+                <span
+                    id="popupWorkSetup"
+                    class="info-badge"
+                >
+                    Not Available
+                </span>
+
             </div>
+
+
+            <div class="popup-section">
+
+                <h4>
+                    Job Type
+                </h4>
+
+                <span
+                    id="popupJobType"
+                    class="info-badge"
+                >
+                    Not Available
+                </span>
+
+            </div>
+
+
+            <div class="popup-section">
+
+                <h4>
+                    Estimated Salary
+                </h4>
+
+                <span
+                    id="popupSalary"
+                    class="salary-badge"
+                >
+                    Not Available
+                </span>
+
+            </div>
+
+
+            <div class="popup-section">
+
+                <h4>
+                    Job Description
+                </h4>
+
+                <p id="popupDescription">
+                    Loading...
+                </p>
+
+            </div>
+
+
         </div>
+
 
         <div class="popup-footer">
-            <button class="btn btn-secondary" onclick="closePopup()">Close</button>
-            <button id="applyBtn" class="btn btn-primary">Apply Now</button>
+
+            <button
+                class="btn btn-secondary"
+                id="closePopupBtn"
+            >
+                Close
+            </button>
+
+
+            <button
+                id="applyBtn"
+                class="btn btn-primary"
+            >
+                Apply Now
+            </button>
+
         </div>
+
     </div>
+
 </div>
+
 
 <script src="dashboard.js"></script>
 
