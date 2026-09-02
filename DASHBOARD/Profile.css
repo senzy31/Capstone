@@ -1,0 +1,924 @@
+/* =========================================
+   GLOBAL
+========================================= */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f5f7fb;
+    color: #111827;
+}
+
+button,
+input {
+    font-family: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+
+/* =========================================
+   TOP NAVBAR
+========================================= */
+
+.top-navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+
+    width: 100%;
+    height: 80px;
+
+    display: flex;
+    align-items: center;
+
+    background: linear-gradient(
+        90deg,
+        #8eb1e7 0%,
+        #285eae 100%
+    );
+
+    z-index: 1000;
+}
+
+
+/* LOGO */
+
+.logo {
+    width: 240px;
+
+    padding-left: 34px;
+
+    color: white;
+
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: 2px;
+}
+
+
+/* SEARCH */
+
+.search-box {
+    position: absolute;
+
+    left: 50%;
+    transform: translateX(-50%);
+
+    width: 513px;
+    height: 46px;
+
+    display: flex;
+    align-items: center;
+
+    background: white;
+
+    border-radius: 9px;
+
+    border: 1px solid #d6d6d6;
+
+    overflow: hidden;
+}
+
+.search-box i {
+    margin-left: 18px;
+
+    font-size: 18px;
+
+    color: #7b8794;
+}
+
+.search-box input {
+    flex: 1;
+
+    height: 100%;
+
+    border: none;
+    outline: none;
+
+    padding: 0 15px;
+
+    font-size: 16px;
+
+    color: #333;
+}
+
+.search-box input::placeholder {
+    color: #777;
+}
+
+
+/* NAV ACTIONS */
+
+.nav-actions {
+    margin-left: auto;
+
+    display: flex;
+    align-items: center;
+
+    gap: 16px;
+
+    padding-right: 30px;
+}
+
+.nav-icon {
+    width: 28px;
+    height: 40px;
+
+    border: none;
+
+    background: transparent;
+
+    color: white;
+
+    font-size: 21px;
+}
+
+.nav-icon:hover {
+    opacity: 0.8;
+}
+
+.nav-user {
+    color: white;
+
+    font-size: 16px;
+    font-weight: 600;
+
+    margin-left: 2px;
+}
+
+
+/* =========================================
+   SIDEBAR
+========================================= */
+
+.sidebar {
+    position: fixed;
+
+    top: 80px;
+    left: 0;
+
+    width: 240px;
+    height: calc(100vh - 80px);
+
+    background: #ffffff;
+
+    border-right: 1px solid #dddddd;
+
+    z-index: 900;
+}
+
+
+.sidebar-menu {
+    width: 100%;
+
+    padding-top: 28px;
+}
+
+
+/* MENU ITEM */
+
+.menu-item {
+    position: relative;
+
+    width: 100%;
+    height: 58px;
+
+    display: flex;
+    align-items: center;
+
+    gap: 18px;
+
+    padding-left: 34px;
+
+    color: #111111;
+
+    text-decoration: none;
+
+    font-size: 17px;
+    font-weight: 500;
+
+    transition: 0.2s ease;
+}
+
+.menu-item i {
+    width: 26px;
+
+    font-size: 23px;
+
+    text-align: center;
+}
+
+.menu-item:hover {
+    background: #f2f6fd;
+}
+
+
+/* ACTIVE PROFILE */
+
+.menu-item.active {
+    background: #edf4ff;
+
+    color: #1f5da9;
+}
+
+.menu-item.active::before {
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    top: 0;
+
+    width: 4px;
+    height: 100%;
+
+    background: #2c67b3;
+}
+
+
+/* =========================================
+   MAIN CONTENT
+========================================= */
+
+.main-content {
+    margin-left: 240px;
+
+    padding: 28px 52px 60px;
+
+    padding-top: 28px;
+
+    min-height: calc(100vh - 80px);
+
+    position: relative;
+
+    top: 80px;
+}
+
+
+/* =========================================
+   PAGE HEADER
+========================================= */
+
+.page-header {
+    display: flex;
+
+    justify-content: space-between;
+    align-items: center;
+
+    margin-bottom: 28px;
+}
+
+.page-header h1 {
+    font-size: 25px;
+
+    margin-bottom: 4px;
+
+    color: #111111;
+}
+
+.page-header p {
+    color: #8b939d;
+
+    font-size: 13px;
+}
+
+
+/* EDIT PROFILE BUTTON */
+
+.edit-profile-btn {
+    display: flex;
+
+    align-items: center;
+    gap: 8px;
+
+    border: none;
+
+    background: #2d64ad;
+
+    color: white;
+
+    padding: 11px 18px;
+
+    border-radius: 7px;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    transition: 0.2s ease;
+}
+
+.edit-profile-btn:hover {
+    background: #245595;
+}
+
+
+/* =========================================
+   PROFILE SUMMARY
+========================================= */
+
+.profile-summary {
+    width: 100%;
+
+    min-height: 85px;
+
+    display: flex;
+    align-items: center;
+
+    padding: 16px 18px;
+
+    background: white;
+
+    border: 1px solid #d0d0d0;
+
+    border-radius: 14px;
+
+    box-shadow: 0 3px 4px rgba(0, 0, 0, 0.16);
+
+    margin-bottom: 44px;
+}
+
+
+/* AVATAR */
+
+.profile-avatar {
+    width: 50px;
+    height: 50px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: #5775be;
+
+    color: white;
+
+    border-radius: 10px;
+
+    font-size: 27px;
+    font-weight: 500;
+
+    margin-right: 5px;
+}
+
+
+/* SUMMARY INFO */
+
+.profile-summary-info {
+    margin-left: 0;
+}
+
+.profile-summary-info h2 {
+    font-size: 17px;
+
+    font-weight: 600;
+
+    margin-bottom: 2px;
+}
+
+.profile-summary-info p {
+    font-size: 12px;
+
+    color: #888888;
+
+    margin-bottom: 3px;
+}
+
+.summary-stats {
+    display: flex;
+
+    gap: 14px;
+
+    font-size: 12px;
+
+    color: #999999;
+}
+
+
+/* =========================================
+   INFORMATION GRID
+========================================= */
+
+.information-grid {
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+
+    gap: 16px;
+
+    margin-bottom: 54px;
+}
+
+
+/* CARD */
+
+.info-card {
+    min-height: 194px;
+
+    background: white;
+
+    border: 1px solid #d5d5d5;
+
+    border-radius: 14px;
+
+    padding: 16px 18px;
+
+    box-shadow: 0 3px 4px rgba(0, 0, 0, 0.15);
+}
+
+
+/* CARD HEADER */
+
+.card-header {
+    margin-bottom: 14px;
+}
+
+.card-header h3 {
+    font-size: 14px;
+
+    font-weight: 700;
+}
+
+
+/* FIELD */
+
+.info-field {
+    margin-bottom: 7px;
+}
+
+.info-field label {
+    display: block;
+
+    font-size: 11px;
+
+    color: #999999;
+
+    margin-bottom: 2px;
+}
+
+.field-value {
+    font-size: 12px;
+
+    color: #111111;
+
+    font-weight: 600;
+
+    line-height: 16px;
+}
+
+
+/* =========================================
+   EDIT INPUTS
+========================================= */
+
+.edit-input {
+    display: none;
+
+    width: 100%;
+
+    height: 30px;
+
+    border: 1px solid #c7cdd6;
+
+    border-radius: 5px;
+
+    padding: 5px 8px;
+
+    outline: none;
+
+    font-size: 12px;
+
+    font-weight: 600;
+
+    background: white;
+}
+
+.edit-input:focus {
+    border-color: #2d64ad;
+
+    box-shadow: 0 0 0 2px rgba(45, 100, 173, 0.1);
+}
+
+
+/* EDITING STATE */
+
+body.editing .field-value {
+    display: none;
+}
+
+body.editing .edit-input {
+    display: block;
+}
+
+
+/* =========================================
+   SKILLS
+========================================= */
+
+.skills-card {
+    width: 100%;
+
+    min-height: 84px;
+
+    background: white;
+
+    border: 1px solid #d0d0d0;
+
+    border-radius: 14px;
+
+    padding: 13px 12px;
+
+    box-shadow: 0 3px 4px rgba(0, 0, 0, 0.16);
+}
+
+
+/* SKILLS HEADER */
+
+.skills-header {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    padding: 0 0 7px 0;
+}
+
+.skills-header h3 {
+    font-size: 14px;
+
+    font-weight: 700;
+}
+
+
+/* ADD SKILL */
+
+.add-skill-btn {
+    display: none;
+
+    border: none;
+
+    background: #e9f1ff;
+
+    color: #2864b5;
+
+    padding: 6px 10px;
+
+    border-radius: 6px;
+
+    font-size: 11px;
+
+    font-weight: 600;
+}
+
+body.editing .add-skill-btn {
+    display: block;
+}
+
+
+/* SKILL CONTAINER */
+
+.skills-container {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 15px;
+
+    padding: 0 10px;
+}
+
+
+/* SKILL */
+
+.skill {
+    min-width: 78px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 8px;
+
+    padding: 4px 13px;
+
+    background: #d5e5ff;
+
+    color: #1f5ec5;
+
+    border-radius: 9px;
+
+    font-size: 12px;
+
+    font-weight: 600;
+}
+
+
+/* REMOVE BUTTON */
+
+.remove-skill {
+    display: none;
+
+    border: none;
+
+    background: transparent;
+
+    color: #dc3545;
+
+    font-size: 16px;
+
+    line-height: 1;
+
+    padding: 0;
+}
+
+body.editing .remove-skill {
+    display: inline-block;
+}
+
+
+/* =========================================
+   EDIT ACTIONS
+========================================= */
+
+.edit-actions {
+    display: none;
+
+    justify-content: flex-end;
+
+    gap: 10px;
+
+    margin-top: 18px;
+}
+
+body.editing .edit-actions {
+    display: flex;
+}
+
+
+.cancel-btn,
+.save-btn {
+    border: none;
+
+    border-radius: 7px;
+
+    padding: 10px 17px;
+
+    font-size: 13px;
+
+    font-weight: 600;
+}
+
+
+/* CANCEL */
+
+.cancel-btn {
+    background: #e9e9e9;
+
+    color: #444;
+}
+
+.cancel-btn:hover {
+    background: #dddddd;
+}
+
+
+/* SAVE */
+
+.save-btn {
+    background: #2d64ad;
+
+    color: white;
+}
+
+.save-btn:hover {
+    background: #245595;
+}
+
+
+/* =========================================
+   SKILL MODAL
+========================================= */
+
+.modal-overlay {
+    display: none;
+
+    position: fixed;
+
+    inset: 0;
+
+    background: rgba(0, 0, 0, 0.35);
+
+    align-items: center;
+    justify-content: center;
+
+    z-index: 2000;
+}
+
+.modal-overlay.show {
+    display: flex;
+}
+
+
+.skill-modal {
+    width: 360px;
+
+    background: white;
+
+    border-radius: 12px;
+
+    padding: 24px;
+
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.skill-modal h3 {
+    font-size: 18px;
+
+    margin-bottom: 7px;
+}
+
+.skill-modal p {
+    color: #777;
+
+    font-size: 13px;
+
+    margin-bottom: 18px;
+}
+
+.skill-modal input {
+    width: 100%;
+
+    height: 40px;
+
+    border: 1px solid #cdd2d9;
+
+    border-radius: 7px;
+
+    outline: none;
+
+    padding: 0 12px;
+
+    font-size: 14px;
+}
+
+.skill-modal input:focus {
+    border-color: #2d64ad;
+}
+
+
+/* MODAL BUTTONS */
+
+.modal-actions {
+    display: flex;
+
+    justify-content: flex-end;
+
+    gap: 8px;
+
+    margin-top: 18px;
+}
+
+.modal-cancel,
+.modal-add {
+    border: none;
+
+    border-radius: 6px;
+
+    padding: 9px 14px;
+
+    font-size: 13px;
+
+    font-weight: 600;
+}
+
+.modal-cancel {
+    background: #eeeeee;
+
+    color: #444;
+}
+
+.modal-add {
+    background: #2d64ad;
+
+    color: white;
+}
+
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 1100px) {
+
+    .search-box {
+        width: 400px;
+    }
+
+    .main-content {
+        padding-left: 30px;
+        padding-right: 30px;
+    }
+
+    .skills-container {
+        justify-content: flex-start;
+
+        flex-wrap: wrap;
+    }
+}
+
+
+@media (max-width: 800px) {
+
+    .logo {
+        width: 180px;
+
+        font-size: 25px;
+
+        padding-left: 20px;
+    }
+
+    .search-box {
+        display: none;
+    }
+
+    .sidebar {
+        width: 200px;
+    }
+
+    .main-content {
+        margin-left: 200px;
+    }
+
+    .information-grid {
+        grid-template-columns: 1fr;
+    }
+
+}
+
+
+@media (max-width: 600px) {
+
+    .sidebar {
+        width: 70px;
+    }
+
+    .menu-item {
+        justify-content: center;
+
+        padding-left: 0;
+
+        gap: 0;
+    }
+
+    .menu-item span {
+        display: none;
+    }
+
+    .main-content {
+        margin-left: 70px;
+
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+
+    .logo {
+        width: auto;
+
+        padding-left: 15px;
+
+        font-size: 20px;
+    }
+
+    .nav-actions {
+        padding-right: 10px;
+    }
+
+    .nav-user {
+        display: none;
+    }
+
+    .page-header {
+        align-items: flex-start;
+
+        gap: 10px;
+    }
+
+    .edit-profile-btn {
+        padding: 9px 12px;
+    }
+
+    .summary-stats {
+        flex-wrap: wrap;
+    }
+
+}

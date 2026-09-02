@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>JobLink - Profile</title>
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    >
+
+    <link rel="stylesheet" href="profile.css">
+</head>
+
+<body>
+
+    <!-- =========================
+         TOP NAVBAR
+    ========================== -->
+    <header class="top-navbar">
+
+        <div class="logo">
+            JOBLINK
+        </div>
+
+        <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" placeholder="Search jobs...">
+        </div>
+
+        <div class="nav-actions">
+
+            <button class="nav-icon" title="Notifications">
+                <i class="fa-regular fa-bell"></i>
+            </button>
+
+            <button class="nav-icon" title="Profile">
+                <i class="fa-regular fa-user"></i>
+            </button>
+
+            <span class="nav-user" id="navUser">Kc</span>
+
+        </div>
+
+    </header>
+
+
+    <!-- =========================
+         SIDEBAR
+    ========================== -->
+    <aside class="sidebar">
+
+        <nav class="sidebar-menu">
+
+            <a href="dashboard.html" class="menu-item">
+                <i class="fa-regular fa-file-lines"></i>
+                <span>My Resume</span>
+            </a>
+
+            <a href="jobs.html" class="menu-item">
+                <i class="fa-regular fa-newspaper"></i>
+                <span>Job Matches</span>
+            </a>
+
+            <a href="application.html" class="menu-item">
+                <i class="fa-regular fa-envelope"></i>
+                <span>Application</span>
+            </a>
+
+            <a href="profile.html" class="menu-item active">
+                <i class="fa-regular fa-user"></i>
+                <span>Profile</span>
+            </a>
+
+        </nav>
+
+    </aside>
+
+
+    <!-- =========================
+         MAIN CONTENT
+    ========================== -->
+    <main class="main-content">
+
+        <!-- Page Header -->
+        <section class="page-header">
+
+            <div>
+                <h1>Profile</h1>
+                <p>Manage your personal and professional info</p>
+            </div>
+
+            <button class="edit-profile-btn" id="editProfileBtn">
+                <i class="fa-solid fa-pen"></i>
+                Edit Profile
+            </button>
+
+        </section>
+
+
+        <!-- =========================
+             PROFILE SUMMARY
+        ========================== -->
+        <section class="profile-summary">
+
+            <div class="profile-avatar" id="profileAvatar">
+                S
+            </div>
+
+            <div class="profile-summary-info">
+
+                <h2 id="summaryName">
+                    Sean Andrew Fuertes
+                </h2>
+
+                <p id="summaryRole">
+                    Software Developer - Batangas, Philippines
+                </p>
+
+                <div class="summary-stats">
+
+                    <span id="summaryExperience">
+                        5 years Experience
+                    </span>
+
+                    <span id="summaryConnections">
+                        12 Connections
+                    </span>
+
+                    <span id="summaryScore">
+                        85% profile score
+                    </span>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =========================
+             PERSONAL + PROFESSIONAL
+        ========================== -->
+        <section class="information-grid">
+
+
+            <!-- PERSONAL INFORMATION -->
+            <div class="info-card">
+
+                <div class="card-header">
+                    <h3>Personal information</h3>
+                </div>
+
+
+                <div class="info-field">
+
+                    <label>Fullname</label>
+
+                    <div
+                        class="field-value"
+                        id="fullNameDisplay"
+                    >
+                        Sean Andrew Fuertes
+                    </div>
+
+                    <input
+                        type="text"
+                        class="edit-input"
+                        id="fullNameInput"
+                        value="Sean Andrew Fuertes"
+                    >
+
+                </div>
+
+
+                <div class="info-field">
+
+                    <label>Email</label>
+
+                    <div
+                        class="field-value"
+                        id="emailDisplay"
+                    >
+                        Trevormaykelfranks@gmail.com
+                    </div>
+
+                    <input
+                        type="email"
+                        class="edit-input"
+                        id="emailInput"
+                        value="Trevormaykelfranks@gmail.com"
+                    >
+
+                </div>
+
+
+                <div class="info-field">
+
+                    <label>Phone</label>
+
+                    <div
+                        class="field-value"
+                        id="phoneDisplay"
+                    >
+                        09696969696
+                    </div>
+
+                    <input
+                        type="text"
+                        class="edit-input"
+                        id="phoneInput"
+                        value="09696969696"
+                    >
+
+                </div>
+
+
+                <div class="info-field">
+
+                    <label>Location</label>
+
+                    <div
+                        class="field-value"
+                        id="locationDisplay"
+                    >
+                        Tanauan, Batangas - Philippines
+                    </div>
+
+                    <input
+                        type="text"
+                        class="edit-input"
+                        id="locationInput"
+                        value="Tanauan, Batangas - Philippines"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <!-- PROFESSIONAL DETAILS -->
+            <div class="info-card">
+
+                <div class="card-header">
+                    <h3>Professional Details</h3>
+                </div>
+
+
+                <div class="info-field">
+
+                    <label>Current Role</label>
+
+                    <div
+                        class="field-value"
+                        id="roleDisplay"
+                    >
+                        Software Developer
+                    </div>
+
+                    <input
+                        type="text"
+                        class="edit-input"
+                        id="roleInput"
+                        value="Software Developer"
+                    >
+
+                </div>
+
+
+                <div class="info-field">
+
+                    <label>Industry</label>
+
+                    <div
+                        class="field-value"
+                        id="industryDisplay"
+                    >
+                        Technology
+                    </div>
+
+                    <input
+                        type="text"
+                        class="edit-input"
+                        id="industryInput"
+                        value="Technology"
+                    >
+
+                </div>
+
+
+                <div class="info-field">
+
+                    <label>Experience</label>
+
+                    <div
+                        class="field-value"
+                        id="experienceDisplay"
+                    >
+                        5 Years
+                    </div>
+
+                    <input
+                        type="text"
+                        class="edit-input"
+                        id="experienceInput"
+                        value="5 Years"
+                    >
+
+                </div>
+
+
+                <div class="info-field">
+
+                    <label>Availability</label>
+
+                    <div
+                        class="field-value"
+                        id="availabilityDisplay"
+                    >
+                        Immediately
+                    </div>
+
+                    <input
+                        type="text"
+                        class="edit-input"
+                        id="availabilityInput"
+                        value="Immediately"
+                    >
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =========================
+             SKILLS
+        ========================== -->
+        <section class="skills-card">
+
+            <div class="skills-header">
+
+                <h3>Skills</h3>
+
+                <button
+                    class="add-skill-btn"
+                    id="addSkillBtn"
+                    type="button"
+                >
+                    <i class="fa-solid fa-plus"></i>
+                    Add Skill
+                </button>
+
+            </div>
+
+
+            <div
+                class="skills-container"
+                id="skillsContainer"
+            >
+
+                <div class="skill">
+                    <span>React</span>
+                    <button class="remove-skill" type="button">×</button>
+                </div>
+
+                <div class="skill">
+                    <span>TypeScript</span>
+                    <button class="remove-skill" type="button">×</button>
+                </div>
+
+                <div class="skill">
+                    <span>Figma</span>
+                    <button class="remove-skill" type="button">×</button>
+                </div>
+
+                <div class="skill">
+                    <span>Java</span>
+                    <button class="remove-skill" type="button">×</button>
+                </div>
+
+                <div class="skill">
+                    <span>Python</span>
+                    <button class="remove-skill" type="button">×</button>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =========================
+             SAVE / CANCEL
+        ========================== -->
+        <div
+            class="edit-actions"
+            id="editActions"
+        >
+
+            <button
+                class="cancel-btn"
+                id="cancelBtn"
+                type="button"
+            >
+                Cancel
+            </button>
+
+            <button
+                class="save-btn"
+                id="saveBtn"
+                type="button"
+            >
+                <i class="fa-solid fa-check"></i>
+                Save Changes
+            </button>
+
+        </div>
+
+    </main>
+
+
+    <!-- Add Skill Modal -->
+    <div
+        class="modal-overlay"
+        id="skillModal"
+    >
+
+        <div class="skill-modal">
+
+            <h3>Add Skill</h3>
+
+            <p>
+                Enter a skill you want to add to your profile.
+            </p>
+
+            <input
+                type="text"
+                id="newSkillInput"
+                placeholder="e.g. JavaScript"
+                maxlength="30"
+            >
+
+            <div class="modal-actions">
+
+                <button
+                    class="modal-cancel"
+                    id="skillCancelBtn"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    class="modal-add"
+                    id="skillAddBtn"
+                >
+                    Add Skill
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <script src="profile.js"></script>
+
+</body>
+</html>
