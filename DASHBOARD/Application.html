@@ -3,15 +3,440 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Application</title>
 
-    <link rel="stylesheet" href="Application.css">
-    <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>JobLink Application</title>
+
+    <!-- Font Awesome -->
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    >
+
+    <link rel="stylesheet" href="application.css">
 </head>
-<body>
-    
 
-    <script src="Application.js"></script>
+<body>
+
+    <!-- ==========================================
+         TOP NAVBAR
+    =========================================== -->
+    <header class="top-navbar">
+
+        <div class="logo">
+        <span class="logo-blue">JOB</span><span class="logo-black">LINK</span>
+        </div>
+
+        <div class="search-container">
+
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="Search jobs..."
+                >
+            </div>
+
+        </div>
+
+        <div class="user-controls">
+
+            <div class="icon-btn" title="Notifications">
+                <i class="fa-regular fa-bell"></i>
+            </div>
+
+            <div class="icon-btn" title="Profile">
+                <i class="fa-regular fa-user"></i>
+            </div>
+
+            <span class="user-name" id="navUser">
+                Kc
+            </span>
+
+        </div>
+
+    </header>
+
+
+    <!-- ==========================================
+         SIDEBAR
+    =========================================== -->
+    <aside class="sidebar">
+
+        <nav class="nav-links">
+
+            <a href="dashboard.html">
+                <i class="fa-solid fa-house"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <a href="jobs.html">
+                <i class="fa-regular fa-newspaper"></i>
+                <span>Jobs</span>
+            </a>
+
+            <a href="application.html" class="active">
+                <i class="fa-regular fa-envelope"></i>
+                <span>Application</span>
+            </a>
+
+            <a href="profile.html">
+                <i class="fa-regular fa-user"></i>
+                <span>Profile</span>
+            </a>
+
+            <a href="#" id="logoutBtn">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>Logout</span>
+            </a>
+
+        </nav>
+
+    </aside>
+
+
+    <!-- ==========================================
+         MAIN CONTENT
+    =========================================== -->
+    <main class="main-content">
+
+        <!-- ======================================
+             APPLICATION HEADER
+        ======================================= -->
+        <section class="application-header">
+
+            <div class="header-title">
+
+                <h1>Application</h1>
+
+                <p>
+                    Track Every Job you applied to
+                </p>
+
+            </div>
+
+
+            <!-- ==================================
+                 STATISTICS
+            =================================== -->
+            <div class="application-stats">
+
+                <div class="stat-card">
+
+                    <h3>Total Applied</h3>
+
+                    <span id="totalApplied">
+                        5
+                    </span>
+
+                </div>
+
+
+                <div class="stat-card">
+
+                    <h3>Active</h3>
+
+                    <span id="activeApplications">
+                        3
+                    </span>
+
+                </div>
+
+
+                <div class="stat-card">
+
+                    <h3>Under Review</h3>
+
+                    <span id="underReview">
+                        3
+                    </span>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ======================================
+             APPLICATION LIST
+        ======================================= -->
+        <section class="application-section">
+
+            <!-- FILTER -->
+            <div class="filter-container">
+
+                <button
+                    class="filter-btn active"
+                    data-status="all"
+                >
+                    Applied
+                </button>
+
+                <button
+                    class="filter-btn"
+                    data-status="active"
+                >
+                    Active
+                </button>
+
+                <button
+                    class="filter-btn"
+                    data-status="review"
+                >
+                    Under Review
+                </button>
+
+            </div>
+
+
+            <!-- APPLICATION CARDS -->
+            <div
+                class="applications-list"
+                id="applicationsList"
+            >
+
+
+                <!-- NETFLIX -->
+                <div
+                    class="application-card"
+                    data-status="active"
+                    data-company="Netflix"
+                    data-position="Data Engineer"
+                >
+
+                    <div class="company-logo netflix">
+                        N
+                    </div>
+
+                    <div class="application-info">
+
+                        <div class="company-row">
+
+                            <h3>
+                                Netflix
+                            </h3>
+
+                            <span class="status-badge">
+                                Applied
+                            </span>
+
+                        </div>
+
+                        <div class="job-details">
+
+                            <span>
+                                Data Engineer
+                            </span>
+
+                            <span class="separator">
+                                •
+                            </span>
+
+                            <span>
+                                Remote
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- GRAB -->
+                <div
+                    class="application-card"
+                    data-status="active"
+                    data-company="Grab"
+                    data-position="Front end Engineer"
+                >
+
+                    <div class="company-logo grab">
+                        G
+                    </div>
+
+                    <div class="application-info">
+
+                        <div class="company-row">
+
+                            <h3>
+                                Grab
+                            </h3>
+
+                            <span class="status-badge">
+                                Applied
+                            </span>
+
+                        </div>
+
+                        <div class="job-details">
+
+                            <span>
+                                Front end Engineer
+                            </span>
+
+                            <span class="separator">
+                                •
+                            </span>
+
+                            <span>
+                                Remote
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- LAZADA -->
+                <div
+                    class="application-card"
+                    data-status="review"
+                    data-company="Lazada"
+                    data-position="Front end Engineer"
+                >
+
+                    <div class="company-logo lazada">
+                        L
+                    </div>
+
+                    <div class="application-info">
+
+                        <div class="company-row">
+
+                            <h3>
+                                Lazada
+                            </h3>
+
+                            <span class="status-badge">
+                                Applied
+                            </span>
+
+                        </div>
+
+                        <div class="job-details">
+
+                            <span>
+                                Front end Engineer
+                            </span>
+
+                            <span class="separator">
+                                •
+                            </span>
+
+                            <span>
+                                Remote
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- SHOPEE -->
+                <div
+                    class="application-card"
+                    data-status="review"
+                    data-company="Shopee"
+                    data-position="Front end Engineer"
+                >
+
+                    <div class="company-logo shopee">
+                        S
+                    </div>
+
+                    <div class="application-info">
+
+                        <div class="company-row">
+
+                            <h3>
+                                Shopee
+                            </h3>
+
+                            <span class="status-badge">
+                                Applied
+                            </span>
+
+                        </div>
+
+                        <div class="job-details">
+
+                            <span>
+                                Front end Engineer
+                            </span>
+
+                            <span class="separator">
+                                •
+                            </span>
+
+                            <span>
+                                Remote
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- ==========================================
+         LOGOUT MODAL
+    =========================================== -->
+    <div
+        class="logout-overlay"
+        id="logoutOverlay"
+    >
+
+        <div class="logout-modal">
+
+            <div class="logout-icon">
+                <i class="fa-solid fa-right-from-bracket"></i>
+            </div>
+
+            <h2>Logout</h2>
+
+            <p>
+                Are you sure you want to logout?
+            </p>
+
+            <div class="logout-actions">
+
+                <button
+                    id="cancelLogout"
+                    class="cancel-logout"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    id="confirmLogout"
+                    class="confirm-logout"
+                >
+                    Logout
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <script src="application.js"></script>
+
 </body>
 </html>

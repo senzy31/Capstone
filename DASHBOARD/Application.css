@@ -1,0 +1,815 @@
+/* ==========================================
+   GLOBAL
+========================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+:root {
+    --primary-blue: #2A5BA1;
+    --dark-blue: #164fab;
+    --dark-text: #1a1a1a;
+    --light-grey: #8b8b8b;
+    --border-color: #e0e0e0;
+    --bg-light: #f6f8fb;
+    --white: #ffffff;
+}
+
+html,
+body {
+    width: 100%;
+    min-height: 100%;
+    overflow-x: hidden;
+}
+
+body {
+    background-color: var(--bg-light);
+    color: var(--dark-text);
+}
+
+
+
+/* ==========================================
+   TOP NAVBAR
+   SAME AS DASHBOARD
+========================================== */
+
+.top-navbar {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    background: linear-gradient(
+        90deg,
+        #98baeb 0%,
+        #164fab 100%
+    );
+
+    padding: 15px 30px;
+
+    height: 70px;
+
+    border-bottom: 1px solid var(--border-color);
+
+    position: fixed;
+
+    top: 0;
+    left: 0;
+
+    width: 100%;
+
+    z-index: 1000;
+}
+
+
+/* ==========================================
+   LOGO
+========================================== */
+
+.logo {
+    font-size: 28px;
+
+    font-weight: 800;
+
+    letter-spacing: 1px;
+
+    min-width: 200px;
+
+    color: #ffffff;
+}
+
+.logo-blue {
+    color: #ffffff;
+}
+
+.logo-black {
+    color: #0d1b38;
+}
+
+
+/* ==========================================
+   SEARCH
+========================================== */
+
+.search-container {
+    flex-grow: 1;
+
+    display: flex;
+
+    justify-content: center;
+}
+
+.search-box {
+    display: flex;
+
+    align-items: center;
+
+    background: #ffffff;
+
+    border: 1px solid var(--border-color);
+
+    border-radius: 8px;
+
+    padding: 10px 15px;
+
+    width: 450px;
+}
+
+.search-box i {
+    color: var(--light-grey);
+
+    margin-right: 10px;
+}
+
+.search-box input {
+    border: none;
+
+    outline: none;
+
+    width: 100%;
+
+    font-size: 14px;
+}
+
+
+/* ==========================================
+   USER CONTROLS
+========================================== */
+
+.user-controls {
+    display: flex;
+
+    align-items: center;
+
+    gap: 15px;
+
+    font-size: 18px;
+
+    min-width: 200px;
+
+    justify-content: flex-end;
+}
+
+.icon-btn {
+    cursor: pointer;
+
+    color: #ffffff;
+}
+
+.user-name {
+    font-weight: 600;
+
+    font-size: 15px;
+
+    color: #ffffff;
+}
+
+
+/* ==========================================
+   SIDEBAR
+   SAME AS DASHBOARD
+========================================== */
+
+.sidebar {
+    position: fixed;
+
+    top: 70px;
+    left: 0;
+
+    width: 250px;
+    height: calc(100vh - 70px);
+
+    background: #ffffff;
+
+    border-right: 1px solid var(--border-color);
+
+    padding-top: 25px;
+
+    z-index: 900;
+}
+
+
+/* ==========================================
+   SIDEBAR LINKS
+   SAME AS DASHBOARD
+========================================== */
+
+.nav-links a {
+    display: flex;
+    align-items: center;
+
+    padding: 15px 30px;
+
+    font-size: 16px;
+    font-weight: 600;
+
+    color: var(--dark-text);
+    text-decoration: none;
+
+    transition: 0.2s;
+}
+
+.nav-links {
+    list-style: none;
+}
+
+/* ICON */
+
+.nav-links a i {
+    font-size: 20px;
+
+    width: 35px;
+
+    flex-shrink: 0;
+}
+
+
+/* HOVER */
+
+.nav-links a:hover {
+    background: #edf4ff;
+
+    border-left: 4px solid var(--primary-blue);
+
+    padding-left: 26px;
+}
+
+
+/* ACTIVE */
+
+.nav-links a.active {
+    background: #edf4ff;
+
+    border-left: 4px solid var(--primary-blue);
+
+    color: var(--primary-blue);
+
+    padding-left: 26px;
+}
+
+
+/* ==========================================
+   MAIN CONTENT
+========================================== */
+
+.main-content {
+    margin-left: 250px;
+
+    padding: 28px 52px 50px;
+
+    padding-top: 98px;
+
+    min-height: 100vh;
+}
+
+
+/* ==========================================
+   APPLICATION HEADER
+========================================== */
+
+.application-header {
+    background: #aebbed;
+
+    border: 3px solid #aebbed;
+
+    border-radius: 18px;
+
+    padding: 14px 18px 24px;
+
+    margin-bottom: 10px;
+}
+
+
+/* TITLE */
+
+.header-title h1 {
+    font-size: 16px;
+
+    font-weight: 700;
+
+    margin-bottom: 3px;
+}
+
+.header-title p {
+    font-size: 9px;
+
+    font-weight: 600;
+
+    color: #111111;
+}
+
+
+/* ==========================================
+   STATISTICS
+========================================== */
+
+.application-stats {
+    display: grid;
+
+    grid-template-columns: repeat(3, 1fr);
+
+    gap: 20px;
+
+    margin-top: 22px;
+}
+
+.stat-card {
+    height: 58px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    justify-content: center;
+
+    align-items: center;
+
+    background: rgba(255, 255, 255, 0.12);
+
+    border: 1px solid rgba(255, 255, 255, 0.5);
+
+    border-radius: 8px;
+
+    box-shadow:
+        0 2px 3px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card h3 {
+    font-size: 13px;
+
+    font-weight: 700;
+
+    margin-bottom: 4px;
+}
+
+.stat-card span {
+    font-size: 13px;
+
+    color: #ff003d;
+
+    font-weight: 700;
+}
+
+
+/* ==========================================
+   APPLICATION SECTION
+========================================== */
+
+.application-section {
+    background: #1738e9;
+
+    border-radius: 16px;
+
+    padding: 12px 20px 20px;
+
+    min-height: 390px;
+}
+
+
+/* ==========================================
+   FILTER
+========================================== */
+
+.filter-container {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    margin-bottom: 20px;
+}
+
+.filter-btn {
+    border: none;
+
+    background: transparent;
+
+    color: #ffffff;
+
+    padding: 4px 13px;
+
+    border-radius: 10px;
+
+    font-size: 9px;
+
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+.filter-btn.active {
+    background: #ffffff;
+
+    color: #111111;
+
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.filter-btn:hover {
+    background: #ffffff;
+
+    color: #111111;
+}
+
+
+/* ==========================================
+   APPLICATION LIST
+========================================== */
+
+.applications-list {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 10px;
+
+    width: 100%;
+}
+
+
+/* ==========================================
+   APPLICATION CARD
+========================================== */
+
+.application-card {
+    width: 100%;
+
+    min-height: 72px;
+
+    background: #ffffff;
+
+    border-radius: 11px;
+
+    display: flex;
+
+    align-items: center;
+
+    padding: 12px 14px;
+
+    cursor: pointer;
+
+    transition: 0.2s ease;
+
+    box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.18);
+}
+
+.application-card:hover {
+    transform: translateY(-2px);
+
+    box-shadow:
+        0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+
+/* ==========================================
+   COMPANY LOGO
+========================================== */
+
+.company-logo {
+    width: 38px;
+
+    height: 38px;
+
+    border-radius: 9px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    flex-shrink: 0;
+
+    color: #ffffff;
+
+    font-size: 17px;
+
+    font-weight: 700;
+
+    margin-right: 18px;
+
+    box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+
+/* NETFLIX */
+
+.company-logo.netflix {
+    background: #d92f38;
+}
+
+
+/* GRAB */
+
+.company-logo.grab {
+    background: #3dcc43;
+}
+
+
+/* LAZADA */
+
+.company-logo.lazada {
+    background: #ffb83d;
+}
+
+
+/* SHOPEE */
+
+.company-logo.shopee {
+    background: #ff8500;
+}
+
+
+/* ==========================================
+   APPLICATION INFO
+========================================== */
+
+.application-info {
+    flex: 1;
+}
+
+.company-row {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    height: 17px;
+}
+
+.company-row h3 {
+    font-size: 13px;
+
+    font-weight: 700;
+}
+
+
+/* ==========================================
+   STATUS BADGE
+========================================== */
+
+.status-badge {
+    background: #aabbea;
+
+    color: #4162b2;
+
+    font-size: 7px;
+
+    font-weight: 700;
+
+    padding: 2px 7px;
+
+    border-radius: 5px;
+}
+
+
+/* ==========================================
+   JOB DETAILS
+========================================== */
+
+.job-details {
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    color: #8c8c8c;
+
+    font-size: 8px;
+}
+
+.job-details .separator {
+    color: #111111;
+
+    font-size: 10px;
+}
+
+
+/* ==========================================
+   NO RESULTS
+========================================== */
+
+.no-results {
+    text-align: center;
+
+    color: #ffffff;
+
+    font-size: 13px;
+
+    padding: 30px 0;
+}
+
+
+/* ==========================================
+   LOGOUT MODAL
+========================================== */
+
+.logout-overlay {
+    display: none;
+
+    position: fixed;
+
+    inset: 0;
+
+    background: rgba(0, 0, 0, 0.4);
+
+    align-items: center;
+
+    justify-content: center;
+
+    z-index: 2000;
+}
+
+.logout-overlay.show {
+    display: flex;
+}
+
+.logout-modal {
+    width: 340px;
+
+    background: #ffffff;
+
+    border-radius: 12px;
+
+    padding: 25px;
+
+    text-align: center;
+
+    box-shadow:
+        0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.logout-icon {
+    width: 50px;
+
+    height: 50px;
+
+    border-radius: 50%;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    margin: 0 auto 12px;
+
+    background: #edf4ff;
+
+    color: #2864ad;
+
+    font-size: 20px;
+}
+
+.logout-modal h2 {
+    font-size: 20px;
+
+    margin-bottom: 7px;
+}
+
+.logout-modal p {
+    color: #777777;
+
+    font-size: 13px;
+
+    margin-bottom: 20px;
+}
+
+.logout-actions {
+    display: flex;
+
+    justify-content: center;
+
+    gap: 10px;
+}
+
+.cancel-logout,
+.confirm-logout {
+    border: none;
+
+    border-radius: 7px;
+
+    padding: 9px 18px;
+
+    font-size: 13px;
+
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+.cancel-logout {
+    background: #eeeeee;
+
+    color: #333333;
+}
+
+.confirm-logout {
+    background: #2864ad;
+
+    color: #ffffff;
+}
+
+
+/* ==========================================
+   RESPONSIVE
+========================================== */
+
+@media (max-width: 1000px) {
+
+    .main-content {
+        padding-left: 30px;
+
+        padding-right: 30px;
+    }
+
+    .search-box {
+        width: 350px;
+    }
+
+}
+
+
+@media (max-width: 800px) {
+
+    .application-stats {
+        gap: 10px;
+    }
+
+    .search-box {
+        width: 280px;
+    }
+
+}
+
+
+@media (max-width: 650px) {
+
+    .sidebar {
+        width: 70px;
+    }
+
+    .nav-links a {
+        justify-content: center;
+
+        padding: 15px 0;
+    }
+
+    .nav-links a span {
+        display: none;
+    }
+
+    .nav-links a i {
+        width: auto;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.active {
+        padding-left: 0;
+    }
+
+    .main-content {
+        margin-left: 70px;
+
+        padding-left: 15px;
+
+        padding-right: 15px;
+    }
+
+    .logo {
+        min-width: auto;
+
+        font-size: 20px;
+    }
+
+    .search-container {
+        display: none;
+    }
+
+    .user-controls {
+        min-width: auto;
+    }
+
+    .application-stats {
+        grid-template-columns: 1fr;
+
+        gap: 8px;
+    }
+
+    .application-header {
+        padding-bottom: 15px;
+    }
+
+}

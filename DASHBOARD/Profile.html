@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>JobLink - Profile</title>
+    <title>JobLink Profile</title>
     <link
         rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
@@ -20,30 +20,40 @@
     ========================== -->
     <header class="top-navbar">
 
-        <div class="logo">
-            JOBLINK
-        </div>
+    <div class="logo">
+        <span class="logo-blue">JOB</span><span class="logo-black">LINK</span>
+    </div>
 
+    <div class="search-container">
         <div class="search-box">
             <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" placeholder="Search jobs...">
+
+            <input
+                type="text"
+                placeholder="Search jobs..."
+            >
         </div>
+    </div>
 
-        <div class="nav-actions">
+    <div class="nav-actions">
 
-            <button class="nav-icon" title="Notifications">
-                <i class="fa-regular fa-bell"></i>
-            </button>
+        <button class="nav-icon" title="Notifications">
+            <i class="fa-regular fa-bell"></i>
+        </button>
 
-            <button class="nav-icon" title="Profile">
-                <i class="fa-regular fa-user"></i>
-            </button>
+        <button class="nav-icon" title="Profile">
+            <i class="fa-regular fa-user"></i>
+        </button>
 
-            <span class="nav-user" id="navUser">Kc</span>
+        <span class="nav-user" id="navUser">
+            Kc
+        </span>
 
-        </div>
+    </div>
 
-    </header>
+</header>
+
+</header>
 
 
     <!-- =========================
@@ -51,29 +61,44 @@
     ========================== -->
     <aside class="sidebar">
 
-        <nav class="sidebar-menu">
+        <ul class="nav-links">
 
-            <a href="dashboard.html" class="menu-item">
-                <i class="fa-regular fa-file-lines"></i>
-                <span>My Resume</span>
-            </a>
+            <li>
+                <a href="Dashboard.html">
+                    <i class="fa-solid fa-house"></i>
+                    Dashboard
+                </a>
+            </li>
 
-            <a href="jobs.html" class="menu-item">
-                <i class="fa-regular fa-newspaper"></i>
-                <span>Job Matches</span>
-            </a>
+            <li>
+                <a href="#">
+                    <i class="fa-regular fa-newspaper"></i>
+                    Jobs
+                </a>
+            </li>
 
-            <a href="application.html" class="menu-item">
-                <i class="fa-regular fa-envelope"></i>
-                <span>Application</span>
-            </a>
+            <li>
+                <a href="Application.html">
+                    <i class="fa-regular fa-envelope-open"></i>
+                    Application
+                </a>
+            </li>
 
-            <a href="profile.html" class="menu-item active">
-                <i class="fa-regular fa-user"></i>
-                <span>Profile</span>
-            </a>
+            <li class="active">
+                <a href="Profile.html">
+                    <i class="fa-regular fa-user"></i>
+                    Profile
+                </a>
+            </li>
 
-        </nav>
+            <li>
+                <a href="#" id="logoutBtn">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    Logout
+                </a>
+            </li>
+
+        </ul>
 
     </aside>
 
