@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Joblink/Joblink.csproj" />
+  <Project Path="JobLinkv2/JobLinkv2.csproj" />
+</Solution>

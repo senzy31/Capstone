@@ -1,0 +1,14 @@
+# .NET build output
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+
+# Rider / VS Code local
+.idea/
+
+# OS junk
+Thumbs.db
+.DS_Store

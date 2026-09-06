@@ -1,0 +1,14 @@
+{
+    "mssql.connections": [
+        {
+            "profileName": "Joblinkv2 (LocalDB)",
+            "server": "(localdb)\\MSSQLLocalDB",
+            "database": "Joblinkv2",
+            "authenticationType": "Integrated",
+            "encrypt": "Optional",
+            "trustServerCertificate": true,
+            "groupId": "ROOT",
+            "id": "e068bd21-d4a6-40ea-9a93-676e53948771"
+        }
+    ]
+}
