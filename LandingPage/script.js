@@ -125,8 +125,8 @@ document.getElementById('searchFilter')?.addEventListener('click', () => {
     renderJobs(currentCategory, jobSearchInput?.value || '');
     closeFilterModal();
 });
-startNowBtn?.addEventListener('click', () => {
-    document.getElementById('home')?.scrollIntoView({ behavior: 'smooth' });
+document.getElementById('exploreJobsBtn')?.addEventListener('click', () => {
+    document.getElementById('jobs')?.scrollIntoView({ behavior: 'smooth' });
 });
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -135,6 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 // ================= LOGIN BUTTON =================
+// Not tracked as a conversion - existing users signing in aren't a new lead.
 
 document.getElementById("loginBtn")
 ?.addEventListener("click", () => {
@@ -145,12 +146,64 @@ document.getElementById("loginBtn")
 });
 
 
+// ================= GOOGLE ADS CONVERSION TRACKING =================
+// Fires the "Sign Up" conversion for every button that leads into the
+// signup flow, then navigates. Uses event_callback + a fallback timeout
+// (Google's documented pattern for tracking a click that immediately
+// leaves the page) so the conversion ping has a chance to send via
+// gtag's beacon before the browser navigates away.
+//
+// Replace the send_to value below with the one Google Ads gives you for
+// your "Sign Up" conversion action (Google Ads > Goals > Conversions >
+// your action > Tag setup).
+
+const SIGNUP_CONVERSION_SEND_TO = "AW-CONVERSION_ID/REPLACE_WITH_CONVERSION_LABEL";
+
+function goToSignupWithConversionTracking() {
+
+    const destination = "../LOGIN/signup.html";
+
+    if (typeof gtag !== "function") {
+        window.location.href = destination;
+        return;
+    }
+
+    let navigated = false;
+
+    const goToDestination = () => {
+        if (navigated) {
+            return;
+        }
+        navigated = true;
+        window.location.href = destination;
+    };
+
+    gtag("event", "conversion", {
+        send_to: SIGNUP_CONVERSION_SEND_TO,
+        event_callback: goToDestination,
+        event_timeout: 2000
+    });
+
+    setTimeout(goToDestination, 2000);
+
+}
+
+
 // ================= REGISTER BUTTON =================
 
 document.getElementById("registerBtn")
-?.addEventListener("click", () => {
+?.addEventListener("click", goToSignupWithConversionTracking);
 
-    window.location.href =
-        "../LOGIN/signup.html";
 
-});
+// ================= HERO "GET STARTED" BUTTON =================
+// Previously had no click handler at all - the page's primary CTA did nothing.
+
+document.getElementById("heroGetStartedBtn")
+?.addEventListener("click", goToSignupWithConversionTracking);
+
+
+// ================= "START NOW" CTA BUTTON =================
+// Previously just scrolled back up to the hero section instead of leading
+// anywhere near a signup - fixed to match what the button actually says.
+
+startNowBtn?.addEventListener("click", goToSignupWithConversionTracking);

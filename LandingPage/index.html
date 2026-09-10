@@ -9,6 +9,21 @@
 
     <link rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <!-- ================= GOOGLE ADS CONVERSION TRACKING =================
+         Replace AW-CONVERSION_ID (both places below) with the real Conversion
+         ID from your Google Ads account: Goals > Conversions > your action >
+         Tag setup > "Install the tag yourself". No account yet? Create one
+         free at https://ads.google.com - this ID isn't a secret, it's
+         designed to sit in public page source like this.
+    ================================================================== -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=AW-CONVERSION_ID"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'AW-CONVERSION_ID');
+    </script>
 </head>
 <body>
 
@@ -48,11 +63,11 @@
             </p>
 
             <div class="hero-buttons">
-                <button class="btn btn-primary btn-large">
+                <button id="heroGetStartedBtn" class="btn btn-primary btn-large">
                     Get Started
                 </button>
 
-                <button class="btn btn-secondary btn-large">
+                <button id="exploreJobsBtn" class="btn btn-secondary btn-large">
                     Explore Jobs
                 </button>
             </div>
