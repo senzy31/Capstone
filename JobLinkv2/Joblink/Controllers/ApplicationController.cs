@@ -23,6 +23,12 @@ namespace Joblink.Controllers
             return applicationServices.GetById(id);
         }
 
+        [HttpGet("by-user/{userId}")]
+        public ActionResult GetByUserId(int userId)
+        {
+            return Ok(applicationServices.GetByUserId(userId));
+        }
+
         [HttpPost]
         public bool Add(ApplicationModel application)
         {

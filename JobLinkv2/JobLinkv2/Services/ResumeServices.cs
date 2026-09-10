@@ -22,6 +22,12 @@ namespace JobLinkv2.Services
             return ResumeRepository.GetById(id);
         }
 
+        public IEnumerable<ResumeModel> GetByUserId(int userId)
+        {
+            return ResumeRepository.GetAll()
+                .Where(resume => resume.UserId == userId);
+        }
+
         public bool Add(ResumeModel resume)
         {
             return ResumeRepository.Add(resume);

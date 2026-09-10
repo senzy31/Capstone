@@ -283,6 +283,55 @@ body {
     padding: 14px 18px 24px;
 
     margin-bottom: 10px;
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    justify-content: space-between;
+
+    align-items: flex-start;
+
+    gap: 12px;
+}
+
+.application-stats {
+    flex-basis: 100%;
+}
+
+
+/* LOG APPLICATION BUTTON */
+
+.log-application-btn {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 6px;
+
+    background: #1738e9;
+
+    color: #ffffff;
+
+    border: none;
+
+    padding: 8px 16px;
+
+    border-radius: 9px;
+
+    font-size: 11px;
+
+    font-weight: 700;
+
+    cursor: pointer;
+
+    transition: 0.2s;
+
+    white-space: nowrap;
+}
+
+.log-application-btn:hover {
+    background: #122bbd;
 }
 
 
@@ -530,6 +579,13 @@ body {
 }
 
 
+/* GENERIC - used for real (non-demo) applications */
+
+.company-logo.generic {
+    background: #4162b2;
+}
+
+
 /* ==========================================
    APPLICATION INFO
 ========================================== */
@@ -571,6 +627,102 @@ body {
     padding: 2px 7px;
 
     border-radius: 5px;
+
+    white-space: nowrap;
+}
+
+.status-badge.status-under-review {
+    background: #ffe9c2;
+
+    color: #b5730c;
+}
+
+.status-badge.status-interview {
+    background: #e6dcff;
+
+    color: #6741d9;
+}
+
+.status-badge.status-offer {
+    background: #d3f5df;
+
+    color: #1a8a4a;
+}
+
+.status-badge.status-rejected {
+    background: #ffd6da;
+
+    color: #c0392b;
+}
+
+
+/* ==========================================
+   APPLICATION ACTIONS
+   (status select + withdraw, per card)
+========================================== */
+
+.application-actions {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    flex-shrink: 0;
+
+    margin-left: 10px;
+}
+
+.status-select {
+    border: 1px solid #d6dcf5;
+
+    border-radius: 6px;
+
+    padding: 4px 6px;
+
+    font-size: 9px;
+
+    font-weight: 600;
+
+    color: #111111;
+
+    background: #f5f7ff;
+
+    cursor: pointer;
+}
+
+.withdraw-btn {
+    width: 26px;
+
+    height: 26px;
+
+    border: none;
+
+    border-radius: 50%;
+
+    background: #f5f5f5;
+
+    color: #999999;
+
+    font-size: 11px;
+
+    cursor: pointer;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    transition: 0.2s;
+
+    flex-shrink: 0;
+}
+
+.withdraw-btn:hover {
+    background: #dc3545;
+
+    color: #ffffff;
 }
 
 
@@ -649,6 +801,65 @@ body {
 
     box-shadow:
         0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+
+/* LOG APPLICATION MODAL - wider, left-aligned form fields */
+
+.log-application-modal {
+    width: 380px;
+
+    text-align: left;
+}
+
+.log-application-modal p {
+    text-align: left;
+
+    color: #777777;
+
+    font-size: 12px;
+
+    margin-bottom: 18px;
+}
+
+.log-form-field {
+    display: flex;
+
+    flex-direction: column;
+
+    margin-bottom: 14px;
+}
+
+.log-form-field label {
+    font-size: 12px;
+
+    font-weight: 600;
+
+    color: #444444;
+
+    margin-bottom: 6px;
+}
+
+.log-form-field input,
+.log-form-field select {
+    border: 1px solid #d6dcf5;
+
+    border-radius: 7px;
+
+    padding: 9px 11px;
+
+    font-size: 13px;
+
+    outline: none;
+
+    transition: 0.2s;
+}
+
+.log-form-field input:focus,
+.log-form-field select:focus {
+    border-color: #1738e9;
+
+    box-shadow: 0 0 0 3px rgba(23, 56, 233, 0.1);
 }
 
 .logout-icon {

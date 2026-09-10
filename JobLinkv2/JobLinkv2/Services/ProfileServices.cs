@@ -21,6 +21,12 @@ namespace JobLinkv2.Services
             return ProfileRepository.GetById(id);
         }
 
+        public ProfileModel GetByUserId(int userId)
+        {
+            return ProfileRepository.GetAll()
+                .FirstOrDefault(profile => profile.UserId == userId);
+        }
+
         public bool Add(ProfileModel model)
         {
             return ProfileRepository.Add(model);

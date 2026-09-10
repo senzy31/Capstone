@@ -20,22 +20,25 @@ namespace JobLinkv2.Models
         public int UserId { get; set; }
 
         [Column("title")]
-        public string Title { get; set; }
+        public string? Title { get; set; }
 
         [Column("template_type")]
-        public string TemplateType { get; set; }
+        public string? TemplateType { get; set; }
 
         [Column("ai_generated_content")]
-        public string AiGeneratedContent { get; set; }
+        public string? AiGeneratedContent { get; set; }
 
         [Column("created_at")]
-        public DateTime CreatedAt { get; set; }
+        public DateTime? CreatedAt { get; set; }
 
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }
 
+        // Navigation property only - nullable so the implicit "non-nullable
+        // reference type is required" model validation doesn't reject
+        // POST/PUT bodies that (correctly) never send it.
         [ForeignKey("UserId")]
-        public UserModel User { get; set; }
+        public UserModel? User { get; set; }
 
         //public ICollection<EducationModel> Educations { get; set; }
         //public ICollection<ExperienceModel> Experiences { get; set; }

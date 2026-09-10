@@ -23,6 +23,12 @@ namespace Joblink.Controllers
             return resumeSkillsServices.GetById(id);
         }
 
+        [HttpGet("by-resume/{resumeId}")]
+        public ActionResult GetByResumeId(int resumeId)
+        {
+            return Ok(resumeSkillsServices.GetByResumeId(resumeId));
+        }
+
         [HttpPost]
         public bool Add(ResumeSkillsModel resumeSkills)
         {
@@ -39,6 +45,19 @@ namespace Joblink.Controllers
         public bool Delete(int id)
         {
             return resumeSkillsServices.Delete(id);
+        }
+
+        // Resume_Skills has a composite key (resume_id, skill_id) - the plain
+        // Delete(int) above can't target a row here, this is the real one.
+        [HttpDelete("{resumeId}/{skillId}")]
+        public IActionResult Remove(int resumeId, int skillId)
+        {
+            var removed = resumeSkillsServices.Remove(resumeId, skillId);
+
+            if (!removed)
+                return NotFound();
+
+            return Ok(new { message = "Skill removed from resume" });
         }
     }
 }

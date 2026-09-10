@@ -20,24 +20,25 @@ namespace JobLinkv2.Models
         public int ResumeId { get; set; }
 
         [Column("company_name")]
-        public string CompanyName { get; set; }
+        public string? CompanyName { get; set; }
 
         [Column("position")]
-        public string Position { get; set; }
+        public string? Position { get; set; }
 
         [Column("description")]
-        public string Description { get; set; }
+        public string? Description { get; set; }
 
         [Column("start_date")]
-        public DateTime StartDate { get; set; }
+        public DateTime? StartDate { get; set; }
 
         [Column("end_date")]
-        public DateTime EndDate { get; set; }
+        public DateTime? EndDate { get; set; }
 
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }
 
+        // Navigation property only - nullable, see ResumeModel.User for why.
         [ForeignKey("ResumeId")]
-        public ResumeModel Resume { get; set; }
+        public ResumeModel? Resume { get; set; }
     }
 }

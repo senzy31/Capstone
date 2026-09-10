@@ -19,10 +19,11 @@ namespace JobLinkv2.Models
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }
 
+        // Navigation properties only - nullable, see ResumeModel.User for why.
         [ForeignKey("ResumeId")]
-        public ResumeModel Resume { get; set; }
+        public ResumeModel? Resume { get; set; }
 
         [ForeignKey("SkillId")]
-        public SkillsModel Skill { get; set; }
+        public SkillsModel? Skill { get; set; }
     }
 }

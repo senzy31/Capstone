@@ -6,7 +6,7 @@
 // Replace this with your NEW RapidAPI key.
 // Do not expose production API keys in frontend applications.
 
-const RAPIDAPI_KEY = "YOUR_RAPIDAPI_KEY";
+const RAPIDAPI_KEY = "1048e4062emsh0047ff33972e545p1e02b7jsnf90a9bd422e1";
 
 const RAPIDAPI_HOST = "jsearch.p.rapidapi.com";
 

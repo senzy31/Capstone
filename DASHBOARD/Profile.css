@@ -938,6 +938,67 @@ body.editing .edit-actions {
     color: white;
 }
 
+.modal-danger {
+    background: #dc3545;
+
+    color: white;
+}
+
+
+/* LOGOUT CONFIRM MODAL */
+
+.logout-confirm-modal {
+    width: 340px;
+
+    background: white;
+
+    border-radius: 12px;
+
+    padding: 25px;
+
+    text-align: center;
+
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.logout-confirm-modal h3 {
+    font-size: 18px;
+
+    margin-bottom: 7px;
+}
+
+.logout-confirm-modal p {
+    color: #777;
+
+    font-size: 13px;
+}
+
+.logout-confirm-icon {
+    width: 46px;
+
+    height: 46px;
+
+    border-radius: 50%;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    margin: 0 auto 12px;
+
+    background: #fdecee;
+
+    color: #dc3545;
+
+    font-size: 18px;
+}
+
+.logout-confirm-modal .modal-actions {
+    justify-content: center;
+}
+
 
 /* =========================================
    RESPONSIVE

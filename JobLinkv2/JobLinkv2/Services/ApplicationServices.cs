@@ -22,6 +22,12 @@ namespace JobLinkv2.Services
             return ApplicationRepository.GetById(id);
         }
 
+        public IEnumerable<ApplicationModel> GetByUserId(int userId)
+        {
+            return ApplicationRepository.GetAll()
+                .Where(application => application.UserId == userId);
+        }
+
         public bool Add(ApplicationModel model)
         {
             return ApplicationRepository.Add(model);

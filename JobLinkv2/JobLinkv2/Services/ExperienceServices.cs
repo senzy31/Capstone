@@ -21,6 +21,12 @@ namespace JobLinkv2.Services
             return ExperienceRepository.GetById(id);
         }
 
+        public IEnumerable<ExperienceModel> GetByResumeId(int resumeId)
+        {
+            return ExperienceRepository.GetAll()
+                .Where(exp => exp.ResumeId == resumeId);
+        }
+
         public bool Add(ExperienceModel model)
         {
             return ExperienceRepository.Add(model);

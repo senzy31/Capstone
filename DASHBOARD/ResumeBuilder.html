@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>JobLink Resume Builder</title>
+
+    <!-- Font Awesome -->
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    >
+
+    <link rel="stylesheet" href="ResumeBuilder.css">
+</head>
+
+<body>
+
+    <!-- ==========================================
+         TOP NAVBAR
+    =========================================== -->
+    <header class="top-navbar">
+
+        <div class="logo">
+            <span class="logo-blue">JOB</span><span class="logo-black">LINK</span>
+        </div>
+
+        <div class="search-container">
+
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="Search jobs..."
+                >
+            </div>
+
+        </div>
+
+        <div class="user-controls">
+
+            <div class="icon-btn" title="Notifications">
+                <i class="fa-regular fa-bell"></i>
+            </div>
+
+            <div class="icon-btn" title="Profile">
+                <i class="fa-regular fa-user"></i>
+            </div>
+
+            <span class="user-name" id="navUser">
+                Kc
+            </span>
+
+        </div>
+
+    </header>
+
+
+    <!-- ==========================================
+         SIDEBAR
+    =========================================== -->
+    <aside class="sidebar">
+
+        <nav class="nav-links">
+
+            <a href="dashboard.html">
+                <i class="fa-solid fa-house"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <a href="jobs.html">
+                <i class="fa-regular fa-newspaper"></i>
+                <span>Jobs</span>
+            </a>
+
+            <a href="Application.html">
+                <i class="fa-regular fa-envelope"></i>
+                <span>Application</span>
+            </a>
+
+            <a href="ResumeBuilder.html" class="active">
+                <i class="fa-solid fa-file-pen"></i>
+                <span>Resume Builder</span>
+            </a>
+
+            <a href="Profile.html">
+                <i class="fa-regular fa-user"></i>
+                <span>Profile</span>
+            </a>
+
+            <a href="#" id="logoutBtn">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>Logout</span>
+            </a>
+
+        </nav>
+
+    </aside>
+
+
+    <!-- ==========================================
+         MAIN CONTENT
+    =========================================== -->
+    <main class="main-content">
+
+        <!-- ======================================
+             BUILDER HEADER
+        ======================================= -->
+        <section class="builder-header">
+
+            <div class="header-title">
+
+                <h1>Resume Builder</h1>
+
+                <p>
+                    Fill in your details and watch your resume take shape in real time.
+                </p>
+
+            </div>
+
+
+            <div class="header-actions">
+
+                <button type="button" id="printBtn" class="btn btn-secondary">
+                    <i class="fa-solid fa-print"></i>
+                    Print / Save as PDF
+                </button>
+
+                <button type="button" id="saveBtn" class="btn btn-primary">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    Save Resume
+                </button>
+
+            </div>
+
+        </section>
+
+        <span class="save-status" id="saveStatus">
+            Saved!
+        </span>
+
+
+        <!-- ======================================
+             BUILDER LAYOUT
+        ======================================= -->
+        <section class="builder-layout">
+
+
+            <!-- ==================================
+                 FORM PANEL
+            =================================== -->
+            <div class="form-panel">
+
+
+                <!-- PERSONAL INFORMATION -->
+                <div class="builder-card">
+
+                    <h3>
+                        <i class="fa-solid fa-id-card"></i>
+                        Personal Information
+                    </h3>
+
+                    <div class="form-grid">
+
+                        <div class="form-field half">
+                            <label>Full Name</label>
+                            <input type="text" id="fullName" placeholder="e.g. Sean Andrew Fuertes">
+                        </div>
+
+                        <div class="form-field half">
+                            <label>Professional Title</label>
+                            <input type="text" id="headline" placeholder="e.g. Software Developer">
+                        </div>
+
+                        <div class="form-field half">
+                            <label>Email</label>
+                            <input type="email" id="email" placeholder="e.g. sean@email.com">
+                        </div>
+
+                        <div class="form-field half">
+                            <label>Phone</label>
+                            <input type="text" id="phone" placeholder="e.g. 0917 000 0000">
+                        </div>
+
+                        <div class="form-field half">
+                            <label>Location</label>
+                            <input type="text" id="location" placeholder="e.g. Batangas, Philippines">
+                        </div>
+
+                        <div class="form-field half">
+                            <label>LinkedIn / Portfolio</label>
+                            <input type="text" id="links" placeholder="e.g. linkedin.com/in/yourname">
+                        </div>
+
+                    </div>
+
+                    <div class="form-field">
+                        <label>Professional Summary</label>
+                        <textarea
+                            id="summary"
+                            rows="4"
+                            placeholder="A short summary of your experience, skills, and career goals..."
+                        ></textarea>
+                    </div>
+
+                </div>
+
+
+                <!-- WORK EXPERIENCE -->
+                <div class="builder-card">
+
+                    <div class="card-header-row">
+
+                        <h3>
+                            <i class="fa-solid fa-briefcase"></i>
+                            Work Experience
+                        </h3>
+
+                        <button type="button" class="add-entry-btn" id="addExperienceBtn">
+                            <i class="fa-solid fa-plus"></i>
+                            Add Experience
+                        </button>
+
+                    </div>
+
+                    <div class="entry-list" id="experienceList"></div>
+
+                </div>
+
+
+                <!-- EDUCATION -->
+                <div class="builder-card">
+
+                    <div class="card-header-row">
+
+                        <h3>
+                            <i class="fa-solid fa-graduation-cap"></i>
+                            Education
+                        </h3>
+
+                        <button type="button" class="add-entry-btn" id="addEducationBtn">
+                            <i class="fa-solid fa-plus"></i>
+                            Add Education
+                        </button>
+
+                    </div>
+
+                    <div class="entry-list" id="educationList"></div>
+
+                </div>
+
+
+                <!-- SKILLS -->
+                <div class="builder-card">
+
+                    <h3>
+                        <i class="fa-solid fa-star"></i>
+                        Skills
+                    </h3>
+
+                    <div class="skill-input-row">
+
+                        <input
+                            type="text"
+                            id="skillInput"
+                            placeholder="e.g. JavaScript"
+                            maxlength="30"
+                        >
+
+                        <button type="button" class="add-entry-btn" id="addSkillBtn">
+                            <i class="fa-solid fa-plus"></i>
+                            Add
+                        </button>
+
+                    </div>
+
+                    <div class="skills-container" id="skillsContainer"></div>
+
+                </div>
+
+
+                <div class="form-panel-footer">
+
+                    <button type="button" id="resetBtn" class="btn btn-danger-outline">
+                        <i class="fa-solid fa-rotate-left"></i>
+                        Reset All
+                    </button>
+
+                </div>
+
+
+            </div>
+
+
+            <!-- ==================================
+                 PREVIEW PANEL
+            =================================== -->
+            <div class="preview-panel">
+
+                <div class="preview-panel-label">
+                    Live Preview
+                </div>
+
+                <div class="resume-preview">
+
+                    <div class="resume-doc" id="resumeDoc">
+                        <!-- Rendered by ResumeBuilder.js -->
+                    </div>
+
+                </div>
+
+            </div>
+
+
+        </section>
+
+    </main>
+
+
+    <!-- ==========================================
+         LOGOUT MODAL
+    =========================================== -->
+    <div class="logout-overlay" id="logoutOverlay">
+
+        <div class="logout-modal">
+
+            <div class="logout-icon">
+                <i class="fa-solid fa-right-from-bracket"></i>
+            </div>
+
+            <h2>Logout</h2>
+
+            <p>
+                Are you sure you want to logout?
+            </p>
+
+            <div class="logout-actions">
+
+                <button id="cancelLogout" class="cancel-logout">
+                    Cancel
+                </button>
+
+                <button id="confirmLogout" class="confirm-logout">
+                    Logout
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <script src="ResumeBuilder.js"></script>
+
+</body>
+</html>

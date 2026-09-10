@@ -81,6 +81,11 @@
                 <span>Application</span>
             </a>
 
+            <a href="ResumeBuilder.html">
+                <i class="fa-solid fa-file-pen"></i>
+                <span>Resume Builder</span>
+            </a>
+
             <a href="profile.html">
                 <i class="fa-regular fa-user"></i>
                 <span>Profile</span>
@@ -115,6 +120,12 @@
                 </p>
 
             </div>
+
+
+            <button type="button" class="log-application-btn" id="logApplicationBtn">
+                <i class="fa-solid fa-plus"></i>
+                Log Application
+            </button>
 
 
             <!-- ==================================
@@ -171,7 +182,7 @@
                     class="filter-btn active"
                     data-status="all"
                 >
-                    Applied
+                    All
                 </button>
 
                 <button
@@ -191,206 +202,77 @@
             </div>
 
 
-            <!-- APPLICATION CARDS -->
+            <!-- APPLICATION CARDS - rendered by Application.js -->
             <div
                 class="applications-list"
                 id="applicationsList"
-            >
-
-
-                <!-- NETFLIX -->
-                <div
-                    class="application-card"
-                    data-status="active"
-                    data-company="Netflix"
-                    data-position="Data Engineer"
-                >
-
-                    <div class="company-logo netflix">
-                        N
-                    </div>
-
-                    <div class="application-info">
-
-                        <div class="company-row">
-
-                            <h3>
-                                Netflix
-                            </h3>
-
-                            <span class="status-badge">
-                                Applied
-                            </span>
-
-                        </div>
-
-                        <div class="job-details">
-
-                            <span>
-                                Data Engineer
-                            </span>
-
-                            <span class="separator">
-                                •
-                            </span>
-
-                            <span>
-                                Remote
-                            </span>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <!-- GRAB -->
-                <div
-                    class="application-card"
-                    data-status="active"
-                    data-company="Grab"
-                    data-position="Front end Engineer"
-                >
-
-                    <div class="company-logo grab">
-                        G
-                    </div>
-
-                    <div class="application-info">
-
-                        <div class="company-row">
-
-                            <h3>
-                                Grab
-                            </h3>
-
-                            <span class="status-badge">
-                                Applied
-                            </span>
-
-                        </div>
-
-                        <div class="job-details">
-
-                            <span>
-                                Front end Engineer
-                            </span>
-
-                            <span class="separator">
-                                •
-                            </span>
-
-                            <span>
-                                Remote
-                            </span>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <!-- LAZADA -->
-                <div
-                    class="application-card"
-                    data-status="review"
-                    data-company="Lazada"
-                    data-position="Front end Engineer"
-                >
-
-                    <div class="company-logo lazada">
-                        L
-                    </div>
-
-                    <div class="application-info">
-
-                        <div class="company-row">
-
-                            <h3>
-                                Lazada
-                            </h3>
-
-                            <span class="status-badge">
-                                Applied
-                            </span>
-
-                        </div>
-
-                        <div class="job-details">
-
-                            <span>
-                                Front end Engineer
-                            </span>
-
-                            <span class="separator">
-                                •
-                            </span>
-
-                            <span>
-                                Remote
-                            </span>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <!-- SHOPEE -->
-                <div
-                    class="application-card"
-                    data-status="review"
-                    data-company="Shopee"
-                    data-position="Front end Engineer"
-                >
-
-                    <div class="company-logo shopee">
-                        S
-                    </div>
-
-                    <div class="application-info">
-
-                        <div class="company-row">
-
-                            <h3>
-                                Shopee
-                            </h3>
-
-                            <span class="status-badge">
-                                Applied
-                            </span>
-
-                        </div>
-
-                        <div class="job-details">
-
-                            <span>
-                                Front end Engineer
-                            </span>
-
-                            <span class="separator">
-                                •
-                            </span>
-
-                            <span>
-                                Remote
-                            </span>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-            </div>
+            ></div>
 
         </section>
 
     </main>
+
+
+    <!-- ==========================================
+         LOG APPLICATION MODAL
+    =========================================== -->
+    <div class="logout-overlay" id="logApplicationOverlay">
+
+        <div class="logout-modal log-application-modal">
+
+            <h2>Log Application</h2>
+
+            <p>
+                Track a job you applied to. This creates a real job listing
+                and application in your account.
+            </p>
+
+            <div class="log-form-field">
+                <label>Company</label>
+                <input type="text" id="logCompany" placeholder="e.g. Netflix">
+            </div>
+
+            <div class="log-form-field">
+                <label>Position</label>
+                <input type="text" id="logPosition" placeholder="e.g. Data Engineer">
+            </div>
+
+            <div class="log-form-field">
+                <label>Location</label>
+                <input type="text" id="logLocation" placeholder="e.g. Remote">
+            </div>
+
+            <div class="log-form-field">
+                <label>Status</label>
+                <select id="logStatus">
+                    <option value="Applied">Applied</option>
+                    <option value="Under Review">Under Review</option>
+                    <option value="Interview">Interview</option>
+                    <option value="Offer">Offer</option>
+                    <option value="Rejected">Rejected</option>
+                </select>
+            </div>
+
+            <div class="log-form-field">
+                <label>Date Applied</label>
+                <input type="date" id="logDate">
+            </div>
+
+            <div class="logout-actions">
+
+                <button id="cancelLogApplication" class="cancel-logout" type="button">
+                    Cancel
+                </button>
+
+                <button id="submitLogApplication" class="confirm-logout" type="button">
+                    Log Application
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
 
 
     <!-- ==========================================

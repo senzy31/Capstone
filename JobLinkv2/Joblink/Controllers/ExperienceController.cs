@@ -23,6 +23,12 @@ namespace Joblink.Controllers
             return experienceServices.GetById(id);
         }
 
+        [HttpGet("by-resume/{resumeId}")]
+        public ActionResult GetByResumeId(int resumeId)
+        {
+            return Ok(experienceServices.GetByResumeId(resumeId));
+        }
+
         [HttpPost]
         public bool Add(ExperienceModel exp)
         {

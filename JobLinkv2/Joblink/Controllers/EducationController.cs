@@ -23,6 +23,12 @@ namespace Joblink.Controllers
             return educationServices.GetById(id);
         }
 
+        [HttpGet("by-resume/{resumeId}")]
+        public ActionResult GetByResumeId(int resumeId)
+        {
+            return Ok(educationServices.GetByResumeId(resumeId));
+        }
+
         [HttpPost]
         public bool Add(EducationModel education)
         {

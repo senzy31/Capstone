@@ -23,6 +23,17 @@ namespace Joblink.Controllers
             return profileServices.GetById(id);
         }
 
+        [HttpGet("by-user/{userId}")]
+        public ActionResult GetByUserId(int userId)
+        {
+            var profile = profileServices.GetByUserId(userId);
+
+            if (profile == null)
+                return NotFound();
+
+            return Ok(profile);
+        }
+
         [HttpPost]
         public bool Add(ProfileModel profile)
         {

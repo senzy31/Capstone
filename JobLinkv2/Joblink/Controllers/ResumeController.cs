@@ -23,6 +23,12 @@ namespace Joblink.Controllers
             return resumeServices.GetById(id);
         }
 
+        [HttpGet("by-user/{userId}")]
+        public ActionResult GetByUserId(int userId)
+        {
+            return Ok(resumeServices.GetByUserId(userId));
+        }
+
         [HttpPost]
         public bool Add(ResumeModel resume)
         {

@@ -17,7 +17,7 @@ namespace JobLinkv2.Models
         public int SkillId { get; set; }
 
         [Column("skill_name")]
-        public string SkillName { get; set; }
+        public string? SkillName { get; set; }
 
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }

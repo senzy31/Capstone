@@ -98,7 +98,7 @@ namespace JobLinkv2.Repositories
         public string GetSetClause()
         {
             var properties = typeof(T).GetProperties()
-                .Where(p => !Attribute.IsDefined(p, typeof(KeyAttribute)));
+                .Where(IsMappedColumn);
 
             var setClause = string.Join(", ", properties.Select(p =>
             {
@@ -109,6 +109,21 @@ namespace JobLinkv2.Repositories
             }));
 
             return setClause;
+        }
+
+
+        /// <summary>
+        /// True for scalar, database-backed properties. Excludes the [Key] column
+        /// (handled separately in WHERE clauses) and navigation properties -
+        /// e.g. [ForeignKey("UserId")] public UserModel User { get; set; } - which
+        /// have no matching column in the table and would otherwise be emitted
+        /// as a bogus "User = @User" and blow up every INSERT/UPDATE.
+        /// </summary>
+        private static bool IsMappedColumn(PropertyInfo p)
+        {
+            return !Attribute.IsDefined(p, typeof(KeyAttribute))
+                && !Attribute.IsDefined(p, typeof(ForeignKeyAttribute))
+                && !Attribute.IsDefined(p, typeof(NotMappedAttribute));
         }
 
 
@@ -138,7 +153,7 @@ namespace JobLinkv2.Repositories
         private string GetColumnNames()
         {
             var properties = typeof(T).GetProperties()
-                .Where(p => !Attribute.IsDefined(p, typeof(KeyAttribute))); // skip PK
+                .Where(IsMappedColumn); // skip PK + navigation properties
 
             return string.Join(", ", properties.Select(p =>
             {
@@ -152,6 +167,7 @@ namespace JobLinkv2.Repositories
         {
 
             var columnValues = typeof(T).GetProperties()
+                .Where(p => !Attribute.IsDefined(p, typeof(ForeignKeyAttribute)) && !Attribute.IsDefined(p, typeof(NotMappedAttribute)))
                 .Where(p => !excludeKey || p.GetCustomAttribute<KeyAttribute>() == null);
             var values = string.Join(",", columnValues.Select(p =>
             {

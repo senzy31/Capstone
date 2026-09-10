@@ -17,22 +17,22 @@ namespace JobLinkv2.Models
         public int JobId { get; set; }
 
         [Column("external_job_id")]
-        public string ExternalJobId { get; set; }
+        public string? ExternalJobId { get; set; }
 
         [Column("title")]
-        public string Title { get; set; }
+        public string? Title { get; set; }
 
         [Column("company")]
-        public string Company { get; set; }
+        public string? Company { get; set; }
 
         [Column("location")]
-        public string Location { get; set; }
+        public string? Location { get; set; }
 
         [Column("description")]
-        public string Description { get; set; }
+        public string? Description { get; set; }
 
         [Column("source_api")]
-        public string SourceApi { get; set; }
+        public string? SourceApi { get; set; }
 
         [Column("posted_date")]
         public DateTime? PostedDate { get; set; }

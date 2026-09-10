@@ -22,22 +22,31 @@ namespace JobLinkv2.Models
         [Column("job_id")]
         public int JobId { get; set; }
 
+        // Nullable: the DB column allows NULL for applications logged
+        // before the applicant has built a resume in Resume Builder.
         [Column("resume_id")]
-        public int ResumeId { get; set; }
+        public int? ResumeId { get; set; }
 
         [Column("status")]
-        public string Status { get; set; }
+        public string? Status { get; set; }
 
         [Column("applied_at")]
-        public DateTime AppliedAt { get; set; }
+        public DateTime? AppliedAt { get; set; }
 
-        [Column("deleted_at")]
-        public DateTime? DeletedAt { get; set; }
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
 
+        // Note: a "deleted_at" DateTime property used to be here, mapped via
+        // [Column("deleted_at")] - but the Applications table has no such
+        // column, only is_deleted (bit), like every other table. It was dead,
+        // broken code (blew up every INSERT/UPDATE). Removed.
+
+        // Navigation property only - nullable, see ResumeModel.User for why.
         [ForeignKey("ResumeId")]
-        public ResumeModel Resume { get; set; }
+        public ResumeModel? Resume { get; set; }
 
-        [ForeignKey("SkillId")]
-        public SkillsModel Skill { get; set; }
+        // Note: a "Skill" nav property with [ForeignKey("SkillId")] used to be
+        // here, but ApplicationModel has no SkillId column/property for it to
+        // point at - it was dead, broken code. Removed.
     }
 }

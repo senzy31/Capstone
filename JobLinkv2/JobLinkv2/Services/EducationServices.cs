@@ -22,6 +22,12 @@ namespace JobLinkv2.Services
             return EducationRepository.GetById(id);
         }
 
+        public IEnumerable<EducationModel> GetByResumeId(int resumeId)
+        {
+            return EducationRepository.GetAll()
+                .Where(edu => edu.ResumeId == resumeId);
+        }
+
         public bool Add(EducationModel model)
         {
             return EducationRepository.Add(model);
