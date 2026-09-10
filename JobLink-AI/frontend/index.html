@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JobLink AI Resume Builder</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ============================================
+         TOP BAR
+    ============================================= -->
+    <header class="top-bar">
+
+        <div class="logo">
+            <span class="logo-blue">JOB</span><span class="logo-black">LINK</span>
+            <span class="logo-sub">AI Resume Builder</span>
+        </div>
+
+        <div class="top-bar-actions">
+
+            <select id="templateSelect" class="template-select">
+                <option value="reverse_chronological">Reverse Chronological</option>
+                <option value="harvard">Harvard</option>
+                <option value="functional">Functional</option>
+            </select>
+
+            <button type="button" class="btn btn-secondary" id="saveBtn">
+                <i class="fa-solid fa-floppy-disk"></i>
+                <span class="btn-label">Save</span>
+            </button>
+
+            <button type="button" class="btn btn-secondary" id="downloadPdfBtn">
+                <i class="fa-solid fa-file-pdf"></i>
+                <span class="btn-label">PDF</span>
+            </button>
+
+            <button type="button" class="btn btn-primary" id="downloadDocxBtn">
+                <i class="fa-solid fa-file-word"></i>
+                <span class="btn-label">DOCX</span>
+            </button>
+
+        </div>
+
+        <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-label="Toggle navigation">
+            <i class="fa-solid fa-bars"></i>
+        </button>
+
+    </header>
+
+
+    <div class="app-shell">
+
+        <!-- ============================================
+             SIDEBAR
+        ============================================= -->
+        <aside class="sidebar" id="sidebar">
+
+            <nav class="nav-links">
+
+                <button type="button" class="nav-link active" data-panel="builder">
+                    <i class="fa-solid fa-file-pen"></i>
+                    Resume Builder
+                </button>
+
+                <button type="button" class="nav-link" data-panel="ats">
+                    <i class="fa-solid fa-gauge-high"></i>
+                    ATS Analyzer
+                </button>
+
+                <button type="button" class="nav-link" data-panel="match">
+                    <i class="fa-solid fa-bullseye"></i>
+                    Job Match
+                </button>
+
+                <button type="button" class="nav-link" data-panel="upload">
+                    <i class="fa-solid fa-upload"></i>
+                    Upload &amp; Analyze
+                </button>
+
+            </nav>
+
+            <!-- PROGRESS INDICATOR -->
+            <div class="progress-block">
+
+                <div class="progress-label">
+                    <span>Resume completeness</span>
+                    <span id="progressPercent">0%</span>
+                </div>
+
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="progressBarFill"></div>
+                </div>
+
+                <ul class="progress-checklist" id="progressChecklist"></ul>
+
+            </div>
+
+        </aside>
+
+
+        <!-- ============================================
+             MAIN CONTENT
+        ============================================= -->
+        <main class="main-content">
+
+            <div id="statusBanner" class="status-banner"></div>
+
+
+            <!-- ==========================================
+                 PANEL: BUILDER
+            =========================================== -->
+            <section class="panel active" id="panel-builder">
+
+                <div class="builder-layout">
+
+                    <!-- ================= FORM ================= -->
+                    <div class="form-column">
+
+                        <!-- PERSONAL INFORMATION -->
+                        <section class="card" id="section-personal">
+                            <h2><i class="fa-solid fa-id-card"></i> Personal Information</h2>
+
+                            <div class="field-grid">
+                                <div class="field">
+                                    <label>Full Name *</label>
+                                    <input type="text" id="fullName" placeholder="e.g. Juan Dela Cruz">
+                                </div>
+                                <div class="field">
+                                    <label>Email *</label>
+                                    <input type="email" id="email" placeholder="e.g. juan@email.com">
+                                </div>
+                                <div class="field">
+                                    <label>Phone Number</label>
+                                    <input type="text" id="phone" placeholder="e.g. 0917 000 0000">
+                                </div>
+                                <div class="field">
+                                    <label>Location</label>
+                                    <input type="text" id="location" placeholder="e.g. Manila, Philippines">
+                                </div>
+                                <div class="field">
+                                    <label>LinkedIn</label>
+                                    <input type="text" id="linkedin" placeholder="linkedin.com/in/yourname">
+                                </div>
+                                <div class="field">
+                                    <label>Portfolio / GitHub</label>
+                                    <input type="text" id="portfolio" placeholder="github.com/yourname">
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- CAREER INFORMATION -->
+                        <section class="card" id="section-career">
+                            <h2><i class="fa-solid fa-briefcase"></i> Career Information</h2>
+
+                            <div class="field">
+                                <label>Target Job Position</label>
+                                <input type="text" id="targetPosition" placeholder="e.g. Backend Developer">
+                            </div>
+
+                            <div class="field">
+                                <label>Career Objective</label>
+                                <textarea id="careerObjective" rows="2" placeholder="What are you looking for in your next role?"></textarea>
+                            </div>
+
+                            <div class="field">
+                                <div class="field-label-row">
+                                    <label>Professional Summary</label>
+                                    <button type="button" class="ai-btn" id="generateSummaryBtn">
+                                        <i class="fa-solid fa-wand-magic-sparkles"></i> Generate with AI
+                                    </button>
+                                </div>
+                                <textarea id="professionalSummary" rows="4" placeholder="A 3-5 sentence summary of your background..."></textarea>
+                                <div class="ai-warning" id="summaryWarning" hidden></div>
+                            </div>
+                        </section>
+
+                        <!-- EDUCATION -->
+                        <section class="card" id="section-education">
+                            <div class="card-header-row">
+                                <h2><i class="fa-solid fa-graduation-cap"></i> Education</h2>
+                                <button type="button" class="add-btn" data-add="education"><i class="fa-solid fa-plus"></i> Add</button>
+                            </div>
+                            <div id="educationList" class="entry-list"></div>
+                        </section>
+
+                        <!-- WORK EXPERIENCE -->
+                        <section class="card" id="section-experience">
+                            <div class="card-header-row">
+                                <h2><i class="fa-solid fa-building"></i> Work Experience</h2>
+                                <button type="button" class="add-btn" data-add="experience"><i class="fa-solid fa-plus"></i> Add</button>
+                            </div>
+                            <div id="experienceList" class="entry-list"></div>
+                        </section>
+
+                        <!-- SKILLS -->
+                        <section class="card" id="section-skills">
+                            <h2><i class="fa-solid fa-star"></i> Skills</h2>
+
+                            <div class="skills-grid">
+                                <div class="skill-category" data-category="programming_languages">
+                                    <label>Programming Languages</label>
+                                    <div class="tag-input-row">
+                                        <input type="text" placeholder="e.g. Python" class="skill-input">
+                                        <button type="button" class="add-tag-btn"><i class="fa-solid fa-plus"></i></button>
+                                    </div>
+                                    <div class="tag-container"></div>
+                                </div>
+
+                                <div class="skill-category" data-category="technical_skills">
+                                    <label>Technical Skills</label>
+                                    <div class="tag-input-row">
+                                        <input type="text" placeholder="e.g. REST API Design" class="skill-input">
+                                        <button type="button" class="add-tag-btn"><i class="fa-solid fa-plus"></i></button>
+                                    </div>
+                                    <div class="tag-container"></div>
+                                </div>
+
+                                <div class="skill-category" data-category="tools">
+                                    <label>Tools</label>
+                                    <div class="tag-input-row">
+                                        <input type="text" placeholder="e.g. Git" class="skill-input">
+                                        <button type="button" class="add-tag-btn"><i class="fa-solid fa-plus"></i></button>
+                                    </div>
+                                    <div class="tag-container"></div>
+                                </div>
+
+                                <div class="skill-category" data-category="technologies">
+                                    <label>Technologies</label>
+                                    <div class="tag-input-row">
+                                        <input type="text" placeholder="e.g. FastAPI" class="skill-input">
+                                        <button type="button" class="add-tag-btn"><i class="fa-solid fa-plus"></i></button>
+                                    </div>
+                                    <div class="tag-container"></div>
+                                </div>
+
+                                <div class="skill-category" data-category="soft_skills">
+                                    <label>Soft Skills</label>
+                                    <div class="tag-input-row">
+                                        <input type="text" placeholder="e.g. Communication" class="skill-input">
+                                        <button type="button" class="add-tag-btn"><i class="fa-solid fa-plus"></i></button>
+                                    </div>
+                                    <div class="tag-container"></div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- CERTIFICATIONS -->
+                        <section class="card" id="section-certifications">
+                            <div class="card-header-row">
+                                <h2><i class="fa-solid fa-certificate"></i> Certifications</h2>
+                                <button type="button" class="add-btn" data-add="certifications"><i class="fa-solid fa-plus"></i> Add</button>
+                            </div>
+                            <div id="certificationsList" class="entry-list"></div>
+                        </section>
+
+                        <!-- PROJECTS -->
+                        <section class="card" id="section-projects">
+                            <div class="card-header-row">
+                                <h2><i class="fa-solid fa-diagram-project"></i> Projects</h2>
+                                <button type="button" class="add-btn" data-add="projects"><i class="fa-solid fa-plus"></i> Add</button>
+                            </div>
+                            <div id="projectsList" class="entry-list"></div>
+                        </section>
+
+                        <!-- ACHIEVEMENTS -->
+                        <section class="card" id="section-achievements">
+                            <div class="card-header-row">
+                                <h2><i class="fa-solid fa-trophy"></i> Achievements</h2>
+                                <button type="button" class="add-btn" data-add="achievements"><i class="fa-solid fa-plus"></i> Add</button>
+                            </div>
+                            <div id="achievementsList" class="entry-list"></div>
+                        </section>
+
+                    </div>
+
+                    <!-- ================= LIVE PREVIEW ================= -->
+                    <div class="preview-column">
+                        <div class="preview-label">Live Preview</div>
+                        <div class="preview-frame">
+                            <div class="preview-doc" id="previewDoc"></div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- ==========================================
+                 PANEL: ATS ANALYZER
+            =========================================== -->
+            <section class="panel" id="panel-ats">
+
+                <div class="card">
+                    <h2><i class="fa-solid fa-gauge-high"></i> ATS Analyzer</h2>
+                    <p class="card-subtitle">Paste a job description to see how well your current resume matches it.</p>
+
+                    <div class="field">
+                        <label>Job Description</label>
+                        <textarea id="atsJobDescription" rows="8" placeholder="Paste the full job description here..."></textarea>
+                    </div>
+
+                    <button type="button" class="btn btn-primary" id="runAtsBtn">
+                        <i class="fa-solid fa-magnifying-glass-chart"></i> Analyze
+                    </button>
+                </div>
+
+                <div class="card" id="atsResults" hidden>
+
+                    <div class="ats-score-row">
+                        <div class="ats-score-circle" id="atsOverallScore">--%</div>
+                        <div class="ats-score-breakdown" id="atsBreakdown"></div>
+                    </div>
+
+                    <div class="ats-lists">
+                        <div>
+                            <h3><i class="fa-solid fa-check"></i> Matched Skills</h3>
+                            <div class="chip-list" id="atsMatchedSkills"></div>
+                        </div>
+                        <div>
+                            <h3><i class="fa-solid fa-xmark"></i> Missing Keywords</h3>
+                            <div class="chip-list missing" id="atsMissingKeywords"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3><i class="fa-solid fa-lightbulb"></i> Suggestions</h3>
+                        <ul class="suggestion-list" id="atsSuggestions"></ul>
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- ==========================================
+                 PANEL: JOB MATCH
+            =========================================== -->
+            <section class="panel" id="panel-match">
+
+                <div class="card">
+                    <h2><i class="fa-solid fa-bullseye"></i> Job-Specific Match</h2>
+                    <p class="card-subtitle">Compare your resume against a specific job posting.</p>
+
+                    <div class="field">
+                        <label>Job Description</label>
+                        <textarea id="matchJobDescription" rows="8" placeholder="Paste the full job description here..."></textarea>
+                    </div>
+
+                    <button type="button" class="btn btn-primary" id="runMatchBtn">
+                        <i class="fa-solid fa-magnifying-glass-chart"></i> Compare
+                    </button>
+                </div>
+
+                <div class="card" id="matchResults" hidden>
+
+                    <div class="ats-score-row">
+                        <div class="ats-score-circle" id="matchScore">--%</div>
+                        <div class="ats-score-breakdown">
+                            <p>Compatibility score - how well your skills and experience line up with this posting.</p>
+                        </div>
+                    </div>
+
+                    <div class="ats-lists">
+                        <div>
+                            <h3><i class="fa-solid fa-check"></i> Matching Skills</h3>
+                            <div class="chip-list" id="matchSkills"></div>
+                        </div>
+                        <div>
+                            <h3><i class="fa-solid fa-xmark"></i> Missing Keywords</h3>
+                            <div class="chip-list missing" id="matchMissingKeywords"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3><i class="fa-solid fa-briefcase"></i> Relevant Experience</h3>
+                        <ul class="suggestion-list" id="matchExperience"></ul>
+                    </div>
+
+                    <div>
+                        <h3><i class="fa-solid fa-lightbulb"></i> Recommended Improvements</h3>
+                        <ul class="suggestion-list" id="matchSuggestions"></ul>
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- ==========================================
+                 PANEL: UPLOAD & ANALYZE
+            =========================================== -->
+            <section class="panel" id="panel-upload">
+
+                <div class="card">
+                    <h2><i class="fa-solid fa-upload"></i> Upload an Existing Resume</h2>
+                    <p class="card-subtitle">Upload a PDF or DOCX resume to get a structural and ATS-readiness analysis.</p>
+
+                    <div class="upload-dropzone" id="uploadDropzone">
+                        <i class="fa-solid fa-file-arrow-up"></i>
+                        <p>Click to choose a file, or drag and drop</p>
+                        <p class="upload-hint">PDF or DOCX only</p>
+                        <input type="file" id="uploadInput" accept=".pdf,.docx" hidden>
+                    </div>
+
+                    <div id="uploadFileName" class="upload-filename"></div>
+                </div>
+
+                <div class="card" id="uploadResults" hidden>
+
+                    <h3>Detected Sections</h3>
+                    <div class="chip-list" id="uploadSections"></div>
+
+                    <h3>Skills Found</h3>
+                    <div class="chip-list" id="uploadSkills"></div>
+
+                    <h3>Missing Sections</h3>
+                    <div class="chip-list missing" id="uploadMissingSections"></div>
+
+                    <h3>Formatting Issues</h3>
+                    <ul class="suggestion-list" id="uploadFormattingIssues"></ul>
+
+                    <h3>Suggestions</h3>
+                    <ul class="suggestion-list" id="uploadSuggestions"></ul>
+
+                </div>
+
+            </section>
+
+        </main>
+
+    </div>
+
+
+    <!-- ============================================
+         ENTRY TEMPLATE (cloned by JS for repeatable sections)
+    ============================================= -->
+    <template id="entryTemplate">
+        <div class="entry-card">
+            <button type="button" class="remove-entry-btn"><i class="fa-solid fa-xmark"></i></button>
+            <div class="entry-fields"></div>
+        </div>
+    </template>
+
+
+    <!-- ============================================
+         IMPROVE-WITH-AI POPUP
+    ============================================= -->
+    <div class="modal-overlay" id="improveModal">
+        <div class="modal-box">
+            <h3><i class="fa-solid fa-wand-magic-sparkles"></i> Improve with AI</h3>
+            <p class="modal-subtitle">Original</p>
+            <div class="modal-original-text" id="improveOriginalText"></div>
+            <p class="modal-subtitle">Improved</p>
+            <textarea id="improveResultText" rows="5"></textarea>
+            <div class="ai-warning" id="improveWarning" hidden></div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" id="improveCancelBtn">Cancel</button>
+                <button type="button" class="btn btn-primary" id="improveAcceptBtn">Use This</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
