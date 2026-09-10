@@ -153,6 +153,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const printBtn = document.getElementById("printBtn");
     const resetBtn = document.getElementById("resetBtn");
 
+    const generateSummaryBtn = document.getElementById("generateSummaryBtn");
+
 
     /* ======================================
        INITIAL LOAD
@@ -203,6 +205,15 @@ document.addEventListener("DOMContentLoaded", () => {
     educationList.addEventListener("input", event => handleEntryInput(event, "education"));
     educationList.addEventListener("change", event => handleEntryInput(event, "education"));
     educationList.addEventListener("click", event => handleEntryRemove(event, "education"));
+
+
+    /* ======================================
+       AI GENERATE
+    ======================================= */
+
+    generateSummaryBtn.addEventListener("click", generateSummary);
+
+    experienceList.addEventListener("click", handleGenerateDescriptionClick);
 
 
     /* ======================================
@@ -714,9 +725,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 if (field.type === "textarea") {
 
+                    const aiButton = field.key === "description" && type === "experience" ? `
+                        <button
+                            type="button"
+                            class="ai-generate-btn small ai-generate-description-btn"
+                            data-entry-id="${entryId}"
+                        >
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            Generate with AI
+                        </button>
+                    ` : "";
+
                     return `
                         <div class="form-field">
-                            <label>${field.label}</label>
+                            <div class="field-label-row">
+                                <label>${field.label}</label>
+                                ${aiButton}
+                            </div>
                             <textarea
                                 rows="3"
                                 data-entry-id="${entryId}"
@@ -881,6 +906,129 @@ document.addEventListener("DOMContentLoaded", () => {
             flashSaveStatus("Couldn't reach the server - check the API is running.", true);
 
             removeBtn.disabled = false;
+
+        }
+
+    }
+
+
+    /* ======================================
+       AI GENERATE
+    ======================================= */
+
+    async function generateSummary() {
+
+        generateSummaryBtn.disabled = true;
+
+        generateSummaryBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...';
+
+        try {
+
+            const payload = {
+                headline: state.personal.headline,
+                skills: getSkillNames().map(s => s.skillName),
+                experienceHighlights: state.experience
+                    .map(e => [e.position, e.companyName].filter(Boolean).join(" at "))
+                    .filter(Boolean),
+                educationHighlights: state.education
+                    .map(e => [e.degree, e.schoolName].filter(Boolean).join(" from "))
+                    .filter(Boolean)
+            };
+
+            const response = await fetch(`${API_BASE}/AiResume/summary`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data.message || `AI request failed (${response.status})`);
+            }
+
+            state.personal.summary = data.summary;
+
+            personalInputs.summary.value = data.summary;
+
+            renderPreview();
+
+            await syncPersonalInfo();
+
+        } catch (error) {
+
+            console.error("Unable to generate summary:", error);
+
+            flashSaveStatus(error.message || "Couldn't generate a summary.", true);
+
+        } finally {
+
+            generateSummaryBtn.disabled = false;
+
+            generateSummaryBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Generate with AI';
+
+        }
+
+    }
+
+
+    async function handleGenerateDescriptionClick(event) {
+
+        const button = event.target.closest(".ai-generate-description-btn");
+
+        if (!button) {
+            return;
+        }
+
+        const entryId = Number(button.dataset.entryId);
+        const entry = state.experience.find(e => e.experienceId === entryId);
+
+        if (!entry) {
+            return;
+        }
+
+        button.disabled = true;
+
+        const originalHtml = button.innerHTML;
+
+        button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+        try {
+
+            const payload = {
+                position: entry.position,
+                companyName: entry.companyName,
+                notes: entry.description || undefined
+            };
+
+            const response = await fetch(`${API_BASE}/AiResume/experience-description`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data.message || `AI request failed (${response.status})`);
+            }
+
+            entry.description = data.description;
+
+            renderEntries("experience");
+            renderPreview();
+
+            await syncEntry("experience", entry);
+
+        } catch (error) {
+
+            console.error("Unable to generate description:", error);
+
+            flashSaveStatus(error.message || "Couldn't generate a description.", true);
+
+            button.disabled = false;
+
+            button.innerHTML = originalHtml;
 
         }
 
