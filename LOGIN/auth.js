@@ -101,13 +101,6 @@ document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
             const result =
                 await response.json();
 
-            if (result.user?.role === "employer") {
-                alert("Employer accounts must use the Employer Login page.");
-                loginBtn.disabled = false;
-                loginBtn.innerHTML = "Login";
-                return;
-            }
-
             localStorage.setItem(
                 "user",
                 JSON.stringify(result.user)
@@ -125,11 +118,16 @@ document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
             loginBtn.innerHTML =
                 "Login Successful ✓";
 
+            // Same login form for every role - route by what the account
+            // actually is, same as the "already logged in" redirect above.
+            const destination =
+                result.user?.role === "employer"
+                    ? "../Employer Dashboard/dashboard.html"
+                    : "../DASHBOARD/dashboard.html";
+
             setTimeout(() => {
 
-                window.location.replace(
-                    "../DASHBOARD/dashboard.html"
-                );
+                window.location.replace(destination);
 
             }, 1000);
 
@@ -161,120 +159,122 @@ document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
 
 });
 
-// ================= SIGNUP MODE SELECTOR =================
+// ================= ROLE SELECTOR (Jobseeker / Employer) =================
+// Minimal signup, LinkedIn/Indeed-style: pick a role up front, only ask for
+// what actually gets saved (name, email, password, + company name for
+// employers). Detailed profile info (skills, experience, education) lives
+// in the Profile / Resume Builder pages after account creation, same as
+// how LinkedIn and Indeed separate "create an account" from "build a
+// profile" instead of front-loading everything into one long form.
 
-const employerOnlyBtn = document.getElementById("employerOnlyBtn");
-const employerLoginForm = document.getElementById("employerLoginForm");
-const employerSignUpBtn = document.getElementById("employerSignUpBtn");
+const roleUserBtn = document.getElementById("roleUserBtn");
+const roleEmployerBtn = document.getElementById("roleEmployerBtn");
 const accountRoleInput = document.getElementById("accountRole");
-const accountTypeIndicator = document.getElementById("accountTypeIndicator");
-const employerFields = document.getElementById("employerFields");
-const candidateFields = document.getElementById("candidateFields");
-const candidateExtra = document.getElementById("candidateExtra");
-const emailInput = document.getElementById("signupEmail");
-const emailHint = document.getElementById("emailHint");
+const companyNameGroup = document.getElementById("companyNameGroup");
+const companyNameInput = document.getElementById("companyName");
 const signupSubmit = document.getElementById("signupSubmit");
+const heroTitle = document.getElementById("heroTitle");
+const heroSubtitle = document.getElementById("heroSubtitle");
 
-let isEmployerMode = false;
+const ROLE_COPY = {
+    user: {
+        title: "Find Your Next Opportunity",
+        subtitle: "Join thousands of job seekers and let JobLink's AI connect you with opportunities that match your skills.",
+        submitLabel: "Create Account",
+    },
+    employer: {
+        title: "Find Your Next Great Hire",
+        subtitle: "Post jobs, manage applicants, and connect with candidates matched to your open roles.",
+        submitLabel: "Create Employer Account",
+    },
+};
 
-function updateSignupMode(mode) {
-    isEmployerMode = mode;
-    accountRoleInput.value = mode ? "employer" : "user";
-    accountTypeIndicator.textContent = mode ? "Account type: Employer" : "Account type: User";
-    employerFields.style.display = mode ? "block" : "none";
-    candidateFields.style.display = mode ? "none" : "block";
-    candidateExtra.style.display = mode ? "none" : "block";
-    emailHint.style.display = mode ? "block" : "none";
-    emailInput.placeholder = mode ? "Company Email Address (company domain only)" : "Email Address";
-    employerSignUpBtn.textContent = mode ? "Switch to User Signup" : "Switch to Employer Signup";
-    signupSubmit.textContent = mode ? "Create Employer Account" : "Create Account";
-    employerSignUpBtn.classList.toggle("active", mode);
+function setSignupRole(role) {
+    accountRoleInput.value = role;
+
+    roleUserBtn?.classList.toggle("active", role === "user");
+    roleEmployerBtn?.classList.toggle("active", role === "employer");
+
+    if (companyNameGroup) {
+        companyNameGroup.hidden = role !== "employer";
+    }
+
+    const copy = ROLE_COPY[role];
+
+    if (copy) {
+        if (heroTitle) heroTitle.textContent = copy.title;
+        if (heroSubtitle) heroSubtitle.textContent = copy.subtitle;
+        if (signupSubmit) signupSubmit.textContent = copy.submitLabel;
+    }
 }
 
-if (employerSignUpBtn && accountRoleInput && accountTypeIndicator && employerFields && candidateFields && candidateExtra && signupSubmit) {
-    employerSignUpBtn.addEventListener("click", () => {
-        updateSignupMode(!isEmployerMode);
-    });
+roleUserBtn?.addEventListener("click", () => setSignupRole("user"));
+roleEmployerBtn?.addEventListener("click", () => setSignupRole("employer"));
 
-    updateSignupMode(false);
+// The Terms/Privacy links sit inside the <label> that wraps #agreeTerms, so
+// clicking them would also toggle the checkbox (default label behavior).
+// Stop that bubbling so opening a policy page never silently checks/unchecks
+// the box.
+document.querySelectorAll(".terms-row a").forEach(link => {
+    link.addEventListener("click", (e) => e.stopPropagation());
+});
+
+if (roleUserBtn && roleEmployerBtn) {
+    setSignupRole("user");
 }
 
-if (employerOnlyBtn) {
-    employerOnlyBtn.addEventListener("click", () => {
-        window.location.href = "employeelogin.html";
-    });
+
+// ================= PASSWORD STRENGTH METER =================
+
+const strengthEl = document.getElementById("passwordStrength");
+const strengthFill = document.getElementById("strengthFill");
+const strengthLabel = document.getElementById("strengthLabel");
+
+function scorePasswordStrength(password) {
+    if (!password) return 0;
+
+    // Any non-empty password is at least "Weak" (level 1) - the extra
+    // checks below only add on top of that floor, so a short password
+    // shows a visible red bar instead of no bar at all.
+    let score = 1;
+
+    if (password.length >= 8) score++;
+    if (password.length >= 12) score++;
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
+    if (/\d/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+
+    return Math.min(score, 4);
 }
 
-if (employerLoginForm) {
-    employerLoginForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
+const STRENGTH_LEVELS = [
+    { label: "", color: "transparent", width: "0%" },
+    { label: "Weak", color: "#e04b4b", width: "25%" },
+    { label: "Fair", color: "#e0a23b", width: "50%" },
+    { label: "Good", color: "#4c9be0", width: "75%" },
+    { label: "Strong", color: "#3fb56f", width: "100%" },
+];
 
-        const loginBtn =
-            document.getElementById("employerLoginBtn");
+document.getElementById("signupPass")?.addEventListener("input", (e) => {
+    const value = e.target.value;
 
-        const email =
-            document.getElementById("employerEmail").value.trim();
+    if (!strengthEl) return;
 
-        const password =
-            document.getElementById("employerPassword").value;
+    if (!value) {
+        strengthEl.hidden = true;
+        return;
+    }
 
-        loginBtn.disabled = true;
-        loginBtn.innerHTML = "Signing In...";
+    strengthEl.hidden = false;
 
-        try {
-            const response = await fetch(
-                "https://localhost:7142/api/User/login",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        email,
-                        password
-                    })
-                }
-            );
+    const level = STRENGTH_LEVELS[scorePasswordStrength(value)];
 
-            if (response.ok) {
-                const result = await response.json();
+    strengthFill.style.width = level.width;
+    strengthFill.style.backgroundColor = level.color;
+    strengthLabel.textContent = level.label;
+    strengthLabel.style.color = level.color;
+});
 
-                if (result.user?.role !== "employer") {
-                    alert("This page is for employer accounts only.");
-                    loginBtn.disabled = false;
-                    loginBtn.innerHTML = "Employer Login";
-                    return;
-                }
-
-                localStorage.setItem(
-                    "user",
-                    JSON.stringify(result.user)
-                );
-                if (result.token) {
-                    localStorage.setItem("token", result.token);
-                }
-
-                loginBtn.innerHTML = "Login Successful ✓";
-
-                setTimeout(() => {
-                    window.location.replace("../Employer Dashboard/dashboard.html");
-                }, 1000);
-                return;
-            }
-
-            const error = await response.text();
-            alert(error || "Invalid email or password");
-        }
-        catch (error) {
-            console.error(error);
-            alert("Cannot connect to server.\n\nMake sure your ASP.NET API is running.");
-        }
-        finally {
-            loginBtn.disabled = false;
-            loginBtn.innerHTML = "Employer Login";
-        }
-    });
-}
 
 // ================= SIGNUP =================
 
@@ -298,21 +298,13 @@ document.getElementById("signupForm")?.addEventListener("submit", async (e) => {
         document.getElementById("signupConfirm").value;
 
     const accountRole =
-        document.getElementById("accountRole").value || "user";
+        accountRoleInput?.value || "user";
 
     const isEmployer = accountRole === "employer";
-    const companyName =
-        document.getElementById("companyName").value.trim();
-    const companyWebsite =
-        document.getElementById("companyWebsite").value.trim();
-    const companyEmailDomain =
-        document.getElementById("companyEmailDomain").value.trim();
-    const companyIndustry =
-        document.getElementById("companyIndustry").value.trim();
-    const companySize =
-        document.getElementById("companySize").value.trim();
-    const companyPhone =
-        document.getElementById("companyPhone").value.trim();
+    const companyName = companyNameInput?.value.trim() || "";
+
+    const agreeTerms =
+        document.getElementById("agreeTerms")?.checked;
 
     if (!fullName) {
         alert("Please enter your full name");
@@ -324,27 +316,24 @@ document.getElementById("signupForm")?.addEventListener("submit", async (e) => {
         return;
     }
 
+    if (password.length < 8) {
+        alert("Password must be at least 8 characters.");
+        return;
+    }
+
     if (password !== confirmPassword) {
         alert("Passwords do not match");
         return;
     }
 
     if (isEmployer && !companyName) {
-        alert("Please enter your company name for employer signup.");
+        alert("Please enter your company name.");
         return;
     }
 
-    if (isEmployer && !companyEmailDomain) {
-        alert("Please enter your company email domain, for example: company.com");
+    if (!agreeTerms) {
+        alert("Please agree to the Terms of Service and Privacy Policy to continue.");
         return;
-    }
-
-    if (isEmployer) {
-        const emailParts = email.split("@");
-        if (emailParts.length !== 2 || emailParts[1].toLowerCase() !== companyEmailDomain.toLowerCase()) {
-            alert("Employer email must use your company domain: " + companyEmailDomain);
-            return;
-        }
     }
 
     signupBtn.disabled = true;
@@ -354,24 +343,9 @@ document.getElementById("signupForm")?.addEventListener("submit", async (e) => {
         fullName: fullName,
         email: email,
         passwordHash: password,
-        role: accountRole
+        role: accountRole,
+        companyName: isEmployer ? companyName : null,
     };
-
-    if (isEmployer) {
-        payload.companyName = companyName;
-        payload.companyWebsite = companyWebsite;
-        payload.companyIndustry = companyIndustry;
-        payload.companySize = companySize;
-        payload.companyPhone = companyPhone;
-    } else {
-        payload.jobTitle = document.getElementById("jobTitle").value.trim();
-        payload.education = document.getElementById("education").value;
-        payload.experience = document.getElementById("experience").value;
-        payload.workSetup = document.getElementById("workSetup").value;
-        payload.technicalSkills = Array.from(document.querySelectorAll(".skills-grid input:checked")).map(el => el.value);
-        payload.achievements = document.getElementById("achievements").value.trim();
-        payload.salaryRange = document.getElementById("salaryRange").value;
-    }
 
     try {
 
@@ -389,14 +363,46 @@ document.getElementById("signupForm")?.addEventListener("submit", async (e) => {
         if (response.ok) {
 
             signupBtn.innerHTML =
-                "Account Created ✓";
+                "Account Created ✓ Signing you in...";
 
-            setTimeout(() => {
+            // Straight into the account, no separate login step -
+            // matches how LinkedIn/Indeed drop you right into the app
+            // after signup instead of asking you to re-type what you
+            // just typed.
+            const loginResponse = await fetch(
+                "https://localhost:7142/api/User/login",
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password })
+                }
+            );
 
-                window.location.href =
-                    "login.html";
+            if (loginResponse.ok) {
 
-            }, 1000);
+                const loginResult = await loginResponse.json();
+
+                localStorage.setItem("user", JSON.stringify(loginResult.user));
+
+                if (loginResult.token) {
+                    localStorage.setItem("token", loginResult.token);
+                }
+
+                const destination =
+                    loginResult.user?.role === "employer"
+                        ? "../Employer Dashboard/dashboard.html"
+                        : "../DASHBOARD/dashboard.html";
+
+                window.location.replace(destination);
+
+                return;
+
+            }
+
+            // Account was created but auto-login failed for some reason -
+            // fall back to sending them to the login page manually rather
+            // than leaving them stuck on a broken redirect.
+            window.location.href = "login.html";
 
             return;
 
@@ -420,7 +426,9 @@ document.getElementById("signupForm")?.addEventListener("submit", async (e) => {
     finally {
 
         signupBtn.disabled = false;
-        signupBtn.innerHTML = "Sign Up";
+
+        const copy = ROLE_COPY[accountRoleInput?.value || "user"];
+        signupBtn.innerHTML = copy ? copy.submitLabel : "Create Account";
 
     }
 

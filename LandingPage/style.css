@@ -312,18 +312,47 @@ body{
     padding:40px 0;
 }
 
+.job-card{
+    background:white;
+    padding:30px;
+    border-radius:15px;
+    border:1px solid var(--border);
+    box-shadow:0 5px 15px rgba(0,0,0,.08);
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    transition:.25s;
+}
+
+.job-card:hover{
+    transform:translateY(-6px);
+    box-shadow:0 15px 30px rgba(0,0,0,.12);
+    border-color:var(--primary);
+}
+
 .job-card h3{
     margin-bottom:10px;
 }
 
 .job-card p{
     margin-bottom:10px;
+    color:#555;
 }
 
 .job-card span{
     display:inline-block;
     margin-bottom:20px;
-    color:#666;
+    padding:4px 12px;
+    border-radius:999px;
+    background:var(--light);
+    color:var(--primary);
+    font-size:.85rem;
+    font-weight:600;
+}
+
+.job-card .btn{
+    margin-top:auto;
+    width:100%;
 }
 
 .cta{

@@ -28,25 +28,24 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
             Job<span>Link</span>
         </div>
 
-        <h1>Create Your Professional Profile</h1>
+        <h1 id="heroTitle">Find Your Next Opportunity</h1>
 
-        <p>
+        <p id="heroSubtitle">
             Join thousands of job seekers and let JobLink's AI
-            connect you with opportunities that match your skills,
-            achievements, and salary expectations.
+            connect you with opportunities that match your skills.
         </p>
 
-        <div class="feature">
+        <div class="feature" id="feature1">
             <i class="fa-solid fa-robot"></i>
             AI Resume Builder
         </div>
 
-        <div class="feature">
+        <div class="feature" id="feature2">
             <i class="fa-solid fa-briefcase"></i>
             Smart Job Matching
         </div>
 
-        <div class="feature">
+        <div class="feature" id="feature3">
             <i class="fa-solid fa-chart-line"></i>
             Career Growth Insights
         </div>
@@ -57,154 +56,69 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
 
         <div class="signup-card">
 
-            <h2>Create Account</h2>
+            <h2>Join JobLink</h2>
+            <p class="signup-subtitle">Create your free account in under a minute.</p>
+
+            <!-- ================= ROLE SELECTOR ================= -->
+            <div class="role-selector">
+
+                <button type="button" class="role-card active" id="roleUserBtn" data-role="user">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <span class="role-title">I'm looking for a job</span>
+                    <span class="role-subtitle">Build a resume, get matched, apply</span>
+                </button>
+
+                <button type="button" class="role-card" id="roleEmployerBtn" data-role="employer">
+                    <i class="fa-solid fa-building"></i>
+                    <span class="role-title">I'm hiring</span>
+                    <span class="role-subtitle">Post jobs, find candidates</span>
+                </button>
+
+            </div>
 
             <form id="signupForm">
 
-                <div class="section-title">
-                    Account Information
+                <div class="input-group">
+                    <label for="signupName">Full Name</label>
+                    <input type="text" id="signupName" placeholder="e.g. Juan Dela Cruz" required>
                 </div>
 
-                <input type="text"
-                       id="signupName"
-                       placeholder="Full Name"
-                       required>
-
-                <input type="email"
-                       id="signupEmail"
-                       placeholder="Email Address"
-                       required>
-
-                <p id="emailHint" class="input-hint" style="display:none;">
-                    Use your company email domain when signing up as an employer.
-                </p>
-
-                <div class="password-wrapper">
-
-                    <input type="password"
-                           id="signupPass"
-                           placeholder="Password"
-                           required>
-
-                    <i class="fa-solid fa-eye"
-                       id="togglePassword"></i>
-
+                <div class="input-group" id="companyNameGroup" hidden>
+                    <label for="companyName">Company Name</label>
+                    <input type="text" id="companyName" placeholder="e.g. Acme Corporation">
                 </div>
 
-                <input type="password"
-                       id="signupConfirm"
-                       placeholder="Confirm Password"
-                       required>
+                <div class="input-group">
+                    <label for="signupEmail">Email</label>
+                    <input type="email" id="signupEmail" placeholder="e.g. juan@email.com" required>
+                </div>
 
-                <div id="employerFields" class="employer-fields" style="display:none;">
-                    <div class="section-title">
-                        Employer Business Info
+                <div class="input-group">
+                    <label for="signupPass">Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="signupPass" placeholder="At least 8 characters" required minlength="8">
+                        <i class="fa-solid fa-eye" id="togglePassword"></i>
                     </div>
-                    <input type="text"
-                           id="companyName"
-                           placeholder="Company Name">
-                    <input type="text"
-                           id="companyWebsite"
-                           placeholder="Company Website (optional)">
-                    <input type="text"
-                           id="companyEmailDomain"
-                           placeholder="Company Email Domain (e.g. company.com)">
-                    <input type="text"
-                           id="companyIndustry"
-                           placeholder="Industry">
-                    <input type="text"
-                           id="companySize"
-                           placeholder="Company Size">
-                    <input type="tel"
-                           id="companyPhone"
-                           placeholder="Contact Phone">
+                    <div class="password-strength" id="passwordStrength" hidden>
+                        <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
+                        <span class="strength-label" id="strengthLabel"></span>
+                    </div>
                 </div>
 
-                <div id="candidateFields" class="candidate-only">
-                    <div class="section-title">
-                        Career Information
-                    </div>
-
-                    <input type="text"
-                           id="jobTitle"
-                           placeholder="Current Job Title">
-
-                    <select id="education">
-                        <option value="">Highest Education</option>
-                        <option>Bachelor's Degree</option>
-                        <option>Master's Degree</option>
-                        <option>Doctorate Degree</option>
-                        <option>Senior High School</option>
-                    </select>
-
-                    <select id="experience">
-                        <option value="">Years of Experience</option>
-                        <option>Fresh Graduate</option>
-                        <option>1-2 Years</option>
-                        <option>3-5 Years</option>
-                        <option>5+ Years</option>
-                    </select>
-
-                    <select id="workSetup">
-                        <option value="">Preferred Work Setup</option>
-                        <option>Remote</option>
-                        <option>Hybrid</option>
-                        <option>On-Site</option>
-                    </select>
+                <div class="input-group">
+                    <label for="signupConfirm">Confirm Password</label>
+                    <input type="password" id="signupConfirm" placeholder="Re-enter your password" required>
                 </div>
 
-                <div id="candidateExtra" class="candidate-only">
-                    <div class="section-title">
-                        Technical Skills
-                    </div>
-
-                    <div class="skills-grid">
-
-                    <label><input type="checkbox" value="Java"> Java</label>
-                    <label><input type="checkbox" value="C#"> C#</label>
-                    <label><input type="checkbox" value="Python"> Python</label>
-                    <label><input type="checkbox" value="JavaScript"> JavaScript</label>
-                    <label><input type="checkbox" value="SQL"> SQL</label>
-                    <label><input type="checkbox" value="Networking"> Networking</label>
-                    <label><input type="checkbox" value="Cybersecurity"> Cybersecurity</label>
-                    <label><input type="checkbox" value="React"> React</label>
-
-                </div>
-
-                    <div class="section-title">
-                        Achievements & Certifications
-                    </div>
-
-                    <textarea
-                        id="achievements"
-                        rows="4"
-                        placeholder="Example: Dean's Lister, Cisco CCNA, TESDA NC II">
-                    </textarea>
-
-                    <div class="section-title">
-                        Expected Salary
-                    </div>
-
-                    <select id="salaryRange">
-                    <option value="">Select Salary Range</option>
-                    <option>₱15,000 - ₱25,000</option>
-                    <option>₱25,000 - ₱40,000</option>
-                    <option>₱40,000 - ₱60,000</option>
-                    <option>₱60,000+</option>
-                </select>
-                </div>
                 <input type="hidden" id="accountRole" value="user">
 
-                <p id="accountTypeIndicator" class="account-type-indicator">
-                    Account type: User
-                </p>
+                <label class="terms-row">
+                    <input type="checkbox" id="agreeTerms" required>
+                    <span>I agree to JobLink's <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a> and <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a></span>
+                </label>
 
                 <button type="submit" id="signupSubmit" class="btn">
                     Create Account
-                </button>
-
-                <button type="button" id="employerSignUpBtn" class="btn btn-secondary">
-                    Switch to Employer Signup
                 </button>
 
             </form>

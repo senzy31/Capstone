@@ -28,6 +28,10 @@ namespace JobLinkv2.Models
         [Column("role")]
         public string Role { get; set; }
 
+        // Only meaningful for role == "employer" - null for jobseekers.
+        [Column("company_name")]
+        public string? CompanyName { get; set; }
+
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }
 
