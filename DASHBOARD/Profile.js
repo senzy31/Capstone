@@ -154,12 +154,40 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     /* =====================================
+       JOB PREFERENCE ELEMENTS
+    ===================================== */
+
+    const prefInputs = {
+        location: document.getElementById("prefLocation"),
+        arrangement: document.getElementById("prefArrangement"),
+        minSalary: document.getElementById("prefMinSalary"),
+        maxSalary: document.getElementById("prefMaxSalary")
+    };
+
+    const prefSaveBtn = document.getElementById("prefSaveBtn");
+    const prefStatus = document.getElementById("prefStatus");
+
+
+    /* =====================================
        INITIAL LOAD
     ===================================== */
 
     renderProfile();
 
     loadProfile();
+
+    loadPreferences();
+
+
+    /* =====================================
+       SAVE JOB PREFERENCES
+    ===================================== */
+
+    prefSaveBtn.addEventListener("click", () => {
+
+        savePreferences();
+
+    });
 
 
     /* =====================================
@@ -919,6 +947,133 @@ document.addEventListener("DOMContentLoaded", () => {
             message.remove();
 
         }, type === "error" ? 4000 : 2500);
+
+    }
+
+
+    /* =====================================
+       JOB PREFERENCES
+       Saved through their own endpoint, independent of the profile form
+       above. The dashboard scores recommended jobs against them.
+    ===================================== */
+
+    function setPrefStatus(text, isError = false) {
+
+        prefStatus.textContent = text;
+
+        prefStatus.classList.toggle("error", isError);
+
+    }
+
+
+    async function loadPreferences() {
+
+        try {
+
+            const response = await fetch(`${API_BASE}/JobPreference/by-user/${userId}`);
+
+            /* 404 = nothing saved yet - leave the form empty */
+
+            if (response.status === 404) {
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error(`Failed to load preferences (${response.status})`);
+            }
+
+            const saved = await response.json();
+
+            prefInputs.location.value = saved.preferredLocation || "";
+            prefInputs.arrangement.value = saved.workArrangement || "";
+            prefInputs.minSalary.value = saved.minSalary ?? "";
+            prefInputs.maxSalary.value = saved.maxSalary ?? "";
+
+        } catch (error) {
+
+            console.error("Unable to load job preferences:", error);
+
+            setPrefStatus("Couldn't load your saved preferences.", true);
+
+        }
+
+    }
+
+
+    async function savePreferences() {
+
+        const minText = prefInputs.minSalary.value.trim();
+        const maxText = prefInputs.maxSalary.value.trim();
+
+        const minSalary = minText === "" ? null : Number(minText);
+        const maxSalary = maxText === "" ? null : Number(maxText);
+
+
+        if (
+            [minSalary, maxSalary].some(value => value !== null && (Number.isNaN(value) || value < 0))
+        ) {
+
+            setPrefStatus("Salary must be a positive number.", true);
+
+            return;
+
+        }
+
+        if (minSalary !== null && maxSalary !== null && minSalary > maxSalary) {
+
+            setPrefStatus("Minimum salary can't be higher than maximum salary.", true);
+
+            return;
+
+        }
+
+
+        prefSaveBtn.disabled = true;
+
+        prefSaveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+        setPrefStatus("");
+
+        try {
+
+            const response = await fetch(`${API_BASE}/JobPreference/by-user/${userId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    preferredLocation: prefInputs.location.value.trim(),
+                    workArrangement: prefInputs.arrangement.value,
+                    minSalary,
+                    maxSalary
+                })
+            });
+
+            if (!response.ok) {
+
+                const errorBody = await response.json().catch(() => null);
+
+                throw new Error(errorBody?.message || `Save failed (${response.status})`);
+
+            }
+
+            setPrefStatus("Saved - your dashboard matches will use these.");
+
+            showToast("Job preferences saved!", "success");
+
+        } catch (error) {
+
+            console.error("Unable to save job preferences:", error);
+
+            setPrefStatus(error.message, true);
+
+            showToast("Couldn't save your preferences.", "error");
+
+        } finally {
+
+            prefSaveBtn.disabled = false;
+
+            prefSaveBtn.innerHTML = '<i class="fa-solid fa-check"></i> Save Preferences';
+
+        }
 
     }
 

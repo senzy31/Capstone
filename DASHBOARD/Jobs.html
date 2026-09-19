@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>JobLink Dashboard</title>
+    <title>JobLink Jobs</title>
 
     <link rel="stylesheet" href="dashboard.css">
     <link rel="stylesheet"
@@ -53,14 +53,14 @@
 
         <ul class="nav-links">
 
-            <li class="active">
+            <li>
                 <a href="dashboard.html">
                     <i class="fa-solid fa-house"></i>
                     Dashboard
                 </a>
             </li>
 
-            <li>
+            <li class="active">
                 <a href="Jobs.html">
                     <i class="fa-regular fa-newspaper"></i>
                     Jobs
@@ -104,68 +104,154 @@
     <main class="content">
 
 
-        <!-- ================= WELCOME ================= -->
+        <!-- ================= TITLE ================= -->
         <section class="welcome-section">
 
-            <h1 id="welcomeText">
-                Welcome!
+            <h1>
+                Find Jobs
             </h1>
 
             <p>
-                Your career journey starts here.
+                Search live openings from job boards across the web.
             </p>
 
         </section>
 
 
-        <!-- ================= STATS ================= -->
-        <section class="stat-cards">
+        <!-- ================= FILTER SECTION ================= -->
+        <section class="filter-section">
 
-            <div class="card stat-card">
-
-                <div class="stat-icon resume-icon">
-                    <i class="fa-solid fa-file"></i>
-                </div>
+            <div class="filter-header">
 
                 <div>
-                    <h3>Resume Score</h3>
-                    <span class="number">0%</span>
+                    <h2>
+                        <i class="fa-solid fa-sliders"></i>
+                        Find Your Ideal Job
+                    </h2>
+
+                    <p>
+                        Customize your preferences to discover jobs that match you.
+                    </p>
                 </div>
 
             </div>
 
 
-            <div class="card stat-card">
+            <div class="filter-grid">
 
-                <div class="stat-icon job-icon">
-                    <i class="fa-solid fa-briefcase"></i>
+
+                <!-- WORK ARRANGEMENT -->
+                <div class="filter-group">
+
+                    <label for="workSetup">
+                        <i class="fa-solid fa-building"></i>
+                        Work Arrangement
+                    </label>
+
+                    <select id="workSetup">
+                        <option value="">All Work Setups</option>
+                        <option value="onsite">On-site</option>
+                        <option value="remote">Remote / WFH</option>
+                        <option value="hybrid">Hybrid</option>
+                    </select>
+
                 </div>
 
-                <div>
-                    <h3>Job Matches</h3>
-                    <span class="number" id="jobCount">0</span>
+
+                <!-- LOCATION -->
+                <div class="filter-group">
+
+                    <label for="locationInput">
+                        <i class="fa-solid fa-location-dot"></i>
+                        Preferred Location
+                    </label>
+
+                    <input
+                        type="text"
+                        id="locationInput"
+                        placeholder="e.g. Manila, Makati, Quezon City"
+                    >
+
                 </div>
+
+
+                <!-- MIN SALARY -->
+                <div class="filter-group">
+
+                    <label for="minSalary">
+                        <i class="fa-solid fa-peso-sign"></i>
+                        Minimum Salary
+                    </label>
+
+                    <input
+                        type="number"
+                        id="minSalary"
+                        placeholder="e.g. 30000"
+                        min="0"
+                    >
+
+                </div>
+
+
+                <!-- MAX SALARY -->
+                <div class="filter-group">
+
+                    <label for="maxSalary">
+                        <i class="fa-solid fa-peso-sign"></i>
+                        Maximum Salary
+                    </label>
+
+                    <input
+                        type="number"
+                        id="maxSalary"
+                        placeholder="e.g. 60000"
+                        min="0"
+                    >
+
+                </div>
+
+
+                <!-- JOB TYPE -->
+                <div class="filter-group">
+
+                    <label for="jobType">
+                        <i class="fa-solid fa-briefcase"></i>
+                        Job Type
+                    </label>
+
+                    <select id="jobType">
+                        <option value="">All Job Types</option>
+                        <option value="FULLTIME">Full-time</option>
+                        <option value="PARTTIME">Part-time</option>
+                        <option value="CONTRACTOR">Contract</option>
+                        <option value="INTERN">Internship</option>
+                    </select>
+
+                </div>
+
 
             </div>
 
 
-            <div class="card stat-card">
+            <!-- FILTER BUTTONS -->
+            <div class="filter-actions">
 
-                <div class="stat-icon application-icon">
-                    <i class="fa-solid fa-paper-plane"></i>
-                </div>
+                <button id="applyFilters" class="btn-filter apply-filter-btn">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    Apply Filters
+                </button>
 
-                <div>
-                    <h3>Applications</h3>
-                    <span class="number">0</span>
-                </div>
+                <button id="resetFilters" class="btn-filter reset-filter-btn">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    Reset
+                </button>
 
             </div>
 
         </section>
 
 
-        <!-- ================= RECOMMENDED JOBS ================= -->
+        <!-- ================= JOB SECTION ================= -->
         <section class="job-matches-section">
 
             <div class="job-section-header">
@@ -173,30 +259,21 @@
                 <div>
 
                     <h2>
-                        Recommended Jobs
+                        Available Jobs
                     </h2>
 
                     <p id="jobResultText">
-                        Matching jobs to your resume...
+                        Finding jobs for you...
                     </p>
 
                 </div>
 
-                <a href="Jobs.html" class="browse-jobs-link">
-                    Browse all jobs
-                    <i class="fa-solid fa-arrow-right"></i>
-                </a>
-
             </div>
-
-
-            <!-- SETUP HINTS (no skills yet / no preferences yet) -->
-            <div id="recommendNotice"></div>
 
 
             <!-- JOB CONTAINER -->
             <div
-                class="job-vertical-container expanded"
+                class="job-vertical-container"
                 id="jobContainer"
             >
 
@@ -205,7 +282,7 @@
                     <i class="fa-solid fa-spinner fa-spin"></i>
 
                     <p>
-                        Finding jobs that suit your resume...
+                        Loading jobs...
                     </p>
 
                 </div>
@@ -381,8 +458,7 @@
 
 
 <script src="JobsShared.js"></script>
-<script src="Suitability.js"></script>
-<script src="dashboard.js"></script>
+<script src="Jobs.js"></script>
 
 </body>
 </html>

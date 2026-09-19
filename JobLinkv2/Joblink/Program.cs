@@ -6,6 +6,10 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Used by JobSearchController to call JSearch (RapidAPI) server-side.
+builder.Services.AddHttpClient();
+builder.Services.AddMemoryCache();
+
 // ✅ Add CORS here
 builder.Services.AddCors(options =>
 {

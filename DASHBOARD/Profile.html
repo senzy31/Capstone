@@ -64,14 +64,14 @@
         <ul class="nav-links">
 
             <li>
-                <a href="Dashboard.html">
+                <a href="dashboard.html">
                     <i class="fa-solid fa-house"></i>
                     Dashboard
                 </a>
             </li>
 
             <li>
-                <a href="#">
+                <a href="Jobs.html">
                     <i class="fa-regular fa-newspaper"></i>
                     Jobs
                 </a>
@@ -361,6 +361,101 @@
                     >
 
                 </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =========================
+             JOB PREFERENCES
+             Scores how well each recommended job on the dashboard suits you.
+             Saved on its own, separate from the Edit Profile form.
+        ========================== -->
+        <section class="info-card preferences-card" id="preferences">
+
+            <div class="card-header">
+                <h3>Job Preferences</h3>
+            </div>
+
+            <p class="pref-intro">
+                Your dashboard scores recommended jobs against your resume skills
+                and these preferences. Leave a field empty to ignore it.
+            </p>
+
+            <div class="preferences-grid">
+
+                <div class="pref-field">
+
+                    <label for="prefLocation">Preferred location</label>
+
+                    <input
+                        type="text"
+                        class="pref-input"
+                        id="prefLocation"
+                        maxlength="255"
+                        placeholder="e.g. Makati, Manila"
+                    >
+
+                    <small>Separate several places with commas.</small>
+
+                </div>
+
+                <div class="pref-field">
+
+                    <label for="prefArrangement">Work arrangement</label>
+
+                    <select class="pref-input" id="prefArrangement">
+                        <option value="">No preference</option>
+                        <option value="onsite">On-site</option>
+                        <option value="remote">Remote / WFH</option>
+                        <option value="hybrid">Hybrid</option>
+                    </select>
+
+                </div>
+
+                <div class="pref-field">
+
+                    <label for="prefMinSalary">Minimum salary (₱ per month)</label>
+
+                    <input
+                        type="number"
+                        class="pref-input"
+                        id="prefMinSalary"
+                        min="0"
+                        placeholder="e.g. 30000"
+                    >
+
+                </div>
+
+                <div class="pref-field">
+
+                    <label for="prefMaxSalary">Maximum salary (₱ per month)</label>
+
+                    <input
+                        type="number"
+                        class="pref-input"
+                        id="prefMaxSalary"
+                        min="0"
+                        placeholder="e.g. 60000"
+                    >
+
+                </div>
+
+            </div>
+
+            <div class="pref-actions">
+
+                <span class="pref-status" id="prefStatus"></span>
+
+                <button
+                    class="save-btn"
+                    id="prefSaveBtn"
+                    type="button"
+                >
+                    <i class="fa-solid fa-check"></i>
+                    Save Preferences
+                </button>
 
             </div>
 

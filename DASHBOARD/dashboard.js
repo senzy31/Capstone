@@ -1,435 +1,224 @@
 // ======================================================
 // JOBLINK DASHBOARD
+// Recommended jobs: live JSearch results (through the JobLink backend),
+// scored against the jobseeker's resume skills and saved preferences
+// (see Suitability.js). Searching all jobs lives on the Jobs page.
+// Shared helpers live in JobsShared.js.
 // ======================================================
 
-// IMPORTANT:
-// Replace this with your NEW RapidAPI key.
-// Do not expose production API keys in frontend applications.
+// "Job Matches" counts recommended jobs scoring at least this much.
+const MATCH_THRESHOLD = 50;
 
-const RAPIDAPI_KEY = "1048e4062emsh0047ff33972e545p1e02b7jsnf90a9bd422e1";
+const SKILL_CHIPS_SHOWN = 6;
 
-const RAPIDAPI_HOST = "jsearch.p.rapidapi.com";
-
-let currentJobs = [];
-let debounceTimer;
-
-
-// ======================================================
-// DOM READY
-// ======================================================
 
 document.addEventListener("DOMContentLoaded", () => {
 
-    loadUser();
+    const user = requireUser();
 
-    loadJobs();
+    if (!user) {
+        return;
+    }
 
-    setupEventListeners();
+    showUserName(user);
+
+    document.getElementById("welcomeText").textContent = `Welcome, ${user.firstName}!`;
+
+    setupSharedListeners();
+
+    setupDashboardListeners();
+
+    loadRecommendations(user.userId);
 
 });
 
 
-// ======================================================
-// LOAD USER
-// ======================================================
+function setupDashboardListeners() {
 
-function loadUser() {
+    // Searching happens on the Jobs page - the navbar search hands over to it.
+    document.getElementById("searchInput").addEventListener("keydown", (event) => {
 
-    const storedUser = localStorage.getItem("user");
-
-    if (!storedUser) {
-
-        window.location.href = "../LOGIN/login.html";
-
-        return;
-    }
-
-    try {
-
-        const user = JSON.parse(storedUser);
-
-        const fullName =
-            user.fullName ||
-            user.full_name ||
-            user.username ||
-            "User";
-
-        const firstName = fullName.split(" ")[0];
-
-        const welcomeText =
-            document.getElementById("welcomeText");
-
-        const userName =
-            document.getElementById("userName");
-
-
-        if (welcomeText) {
-
-            welcomeText.textContent =
-                `Welcome, ${firstName}!`;
-
+        if (event.key !== "Enter") {
+            return;
         }
 
+        const keyword = event.target.value.trim();
 
-        if (userName) {
-
-            userName.textContent =
-                firstName;
-
-        }
-
-    } catch (error) {
-
-        console.error("Error loading user:", error);
-
-    }
-
-}
-
-
-// ======================================================
-// EVENT LISTENERS
-// ======================================================
-
-function setupEventListeners() {
-
-    // SEARCH
-
-    const searchInput =
-        document.getElementById("searchInput");
-
-    searchInput.addEventListener("input", function () {
-
-        clearTimeout(debounceTimer);
-
-        debounceTimer = setTimeout(() => {
-
-            applyFilters();
-
-        }, 600);
+        window.location.href = keyword
+            ? `Jobs.html?q=${encodeURIComponent(keyword)}`
+            : "Jobs.html";
 
     });
 
-
-    // APPLY FILTERS
-
-    document
-        .getElementById("applyFilters")
-        .addEventListener("click", () => {
-
-            applyFilters();
-
-        });
-
-
-    // RESET FILTERS
-
-    document
-        .getElementById("resetFilters")
-        .addEventListener("click", resetFilters);
-
-
-    // LOGOUT
-
-    document
-        .getElementById("logoutBtn")
-        ?.addEventListener("click", (event) => {
-
-            event.preventDefault();
-
-            document
-                .getElementById("logoutModal")
-                .classList.add("show");
-
-        });
-
-
-    document
-        .getElementById("cancelLogout")
-        ?.addEventListener("click", () => {
-
-            document
-                .getElementById("logoutModal")
-                .classList.remove("show");
-
-        });
-
-
-    document
-        .getElementById("confirmLogout")
-        ?.addEventListener("click", () => {
-
-            localStorage.clear();
-
-            window.location.href =
-                "../LOGIN/login.html";
-
-        });
-
-
-    // CLOSE JOB POPUP
-
-    document
-        .getElementById("closeJobPopup")
-        ?.addEventListener("click", closePopup);
-
-
-    document
-        .getElementById("closePopupBtn")
-        ?.addEventListener("click", closePopup);
-
-
-    // CLOSE POPUP WHEN CLICKING OUTSIDE
-
-    window.addEventListener("click", (event) => {
-
-        const jobPopup =
-            document.getElementById("jobPopup");
-
-        const logoutModal =
-            document.getElementById("logoutModal");
-
-
-        if (event.target === jobPopup) {
-
-            closePopup();
-
-        }
-
-
-        if (event.target === logoutModal) {
-
-            logoutModal.classList.remove("show");
-
-        }
-
-    });
+    setupJobCardActions(document.getElementById("jobContainer"));
 
 }
 
 
 // ======================================================
-// APPLY FILTERS
+// LOAD THE JOBSEEKER'S RESUME + PREFERENCES
 // ======================================================
 
-function applyFilters() {
+// -> { skills: string[], role: string, preferences: object | null }
+// Reads the same resume the Resume Builder edits (the user's first one).
+async function loadResumeProfile(userId) {
 
-    const keyword =
-        document
-            .getElementById("searchInput")
-            .value
-            .trim();
+    const [resumesResponse, skillsResponse, preferenceResponse] = await Promise.all([
+        fetch(`${API_BASE}/Resume/by-user/${userId}`),
+        fetch(`${API_BASE}/Skills`),
+        fetch(`${API_BASE}/JobPreference/by-user/${userId}`)
+    ]);
 
-    const location =
-        document
-            .getElementById("locationInput")
-            .value
-            .trim();
-
-    const workSetup =
-        document
-            .getElementById("workSetup")
-            .value;
-
-    const jobType =
-        document
-            .getElementById("jobType")
-            .value;
-
-
-    // Build search query
-
-    let searchQuery =
-        keyword || "jobs";
-
-
-    // Add work arrangement
-
-    if (workSetup === "remote") {
-
-        searchQuery += " remote work from home";
-
+    if (!resumesResponse.ok) {
+        throw new Error(`Couldn't load your resume (${resumesResponse.status})`);
     }
 
-    else if (workSetup === "onsite") {
+    // 404 just means they haven't saved any preferences yet.
+    const preferences = preferenceResponse.ok ? await preferenceResponse.json() : null;
 
-        searchQuery += " onsite";
+    const resumes = await resumesResponse.json();
 
+    if (resumes.length === 0) {
+        return { skills: [], role: "", preferences };
     }
 
-    else if (workSetup === "hybrid") {
+    const resumeId = resumes[0].resumeId;
 
-        searchQuery += " hybrid";
+    const [linksResponse, experienceResponse] = await Promise.all([
+        fetch(`${API_BASE}/ResumeSkills/by-resume/${resumeId}`),
+        fetch(`${API_BASE}/Experience/by-resume/${resumeId}`)
+    ]);
 
-    }
+    const links = linksResponse.ok ? await linksResponse.json() : [];
 
+    const catalog = skillsResponse.ok ? await skillsResponse.json() : [];
 
-    // Add job type
+    const experience = experienceResponse.ok ? await experienceResponse.json() : [];
 
-    if (jobType) {
+    const skillNames = new Map(catalog.map(skill => [skill.skillId, skill.skillName]));
 
-        searchQuery += " " +
-            jobType.toLowerCase();
+    const skills = [...new Set(
+        links
+            .map(link => (skillNames.get(link.skillId) || "").trim())
+            .filter(Boolean)
+    )];
 
-    }
+    return { skills, role: getLatestRole(experience), preferences };
 
-
-    // Add location
-
-    if (location) {
-
-        searchQuery +=
-            " in " + location;
-
-    }
-
-    else {
-
-        searchQuery +=
-            " philippines";
-
-    }
+}
 
 
-    loadJobs(searchQuery);
+// Their current job (no end date), otherwise the most recently ended one.
+function getLatestRole(experience) {
+
+    const end = item => item.endDate ? new Date(item.endDate).getTime() : Number.MAX_SAFE_INTEGER;
+
+    const start = item => item.startDate ? new Date(item.startDate).getTime() : 0;
+
+    const withTitle = experience.filter(item => (item.position || "").trim());
+
+    withTitle.sort((a, b) => (end(b) - end(a)) || (start(b) - start(a)));
+
+    return withTitle.length > 0 ? withTitle[0].position.trim() : "";
+
+}
+
+
+// The search sent to JSearch: their latest role (or top skills) near where
+// they want to work.
+function buildRecommendationQuery(profile) {
+
+    const preferences = profile.preferences || {};
+
+    const place = (preferences.preferredLocation || "").split(",")[0].trim() || "Philippines";
+
+    const focus = profile.role || profile.skills.slice(0, 3).join(" ");
+
+    const remote = preferences.workArrangement === "remote" ? " remote" : "";
+
+    return `${focus}${remote} jobs in ${place}`;
 
 }
 
 
 // ======================================================
-// RESET FILTERS
+// LOAD + SCORE RECOMMENDED JOBS
 // ======================================================
 
-function resetFilters() {
+async function loadRecommendations(userId) {
 
-    document
-        .getElementById("searchInput")
-        .value = "";
+    const container = document.getElementById("jobContainer");
 
-    document
-        .getElementById("locationInput")
-        .value = "";
-
-    document
-        .getElementById("workSetup")
-        .value = "";
-
-    document
-        .getElementById("jobType")
-        .value = "";
-
-    document
-        .getElementById("minSalary")
-        .value = "";
-
-    document
-        .getElementById("maxSalary")
-        .value = "";
-
-
-    loadJobs("jobs philippines");
-
-}
-
-
-// ======================================================
-// LOAD JOBS FROM API
-// ======================================================
-
-async function loadJobs(search = "jobs philippines") {
-
-    const container =
-        document.getElementById("jobContainer");
-
-
-    container.innerHTML = `
-
-        <div class="loading-jobs">
-
-            <i class="fa-solid fa-spinner fa-spin"></i>
-
-            <p>
-                Searching for available jobs...
-            </p>
-
-        </div>
-
-    `;
-
+    const resultText = document.getElementById("jobResultText");
 
     try {
 
-        const url =
-            `https://jsearch.p.rapidapi.com/search` +
-            `?query=${encodeURIComponent(search)}` +
-            `&page=1`;
+        const profile = await loadResumeProfile(userId);
 
+        if (profile.skills.length === 0) {
 
-        const response =
-            await fetch(url, {
+            resultText.textContent = "Add your skills to get recommendations.";
 
-                method: "GET",
+            container.innerHTML = `
+                <div class="no-jobs">
+                    <i class="fa-solid fa-file-pen"></i>
+                    <h3>We need your skills to find matches</h3>
+                    <p>
+                        Recommendations are based on the skills on your resume.
+                        Add them in the Resume Builder and your matches will appear here.
+                    </p>
+                    <a href="ResumeBuilder.html" class="notice-btn">Open Resume Builder</a>
+                </div>
+            `;
 
-                headers: {
+            return;
 
-                    "X-RapidAPI-Key":
-                        RAPIDAPI_KEY,
+        }
 
-                    "X-RapidAPI-Host":
-                        RAPIDAPI_HOST
+        showPreferenceNotice(profile.preferences);
 
-                }
+        const query = buildRecommendationQuery(profile);
 
-            });
-
+        const response = await fetch(
+            `${JOB_API}/search?query=${encodeURIComponent(query)}&page=1`
+        );
 
         if (!response.ok) {
 
-            throw new Error(
-                `API Error: ${response.status}`
-            );
+            const errorBody = await response.json().catch(() => null);
+
+            throw new Error(errorBody?.message || `API Error: ${response.status}`);
 
         }
 
+        const data = await response.json();
 
-        const data =
-            await response.json();
+        currentJobs = data.data || [];
 
+        // Best match first; more matched skills breaks a tie.
+        const recommendations = currentJobs
+            .map(job => ({ job, match: scoreJob(job, profile) }))
+            .sort((a, b) =>
+                (b.match.score - a.match.score) ||
+                (b.match.skills.matched.length - a.match.skills.matched.length)
+            );
 
-        currentJobs =
-            data.data || [];
-
-
-        // APPLY LOCAL FILTERS
-
-        const filteredJobs =
-            filterJobs(currentJobs);
-
-
-        renderJobs(filteredJobs);
-
+        renderRecommendations(recommendations, profile, query);
 
     } catch (error) {
 
-        console.error(
-            "Error fetching jobs:",
-            error
-        );
+        console.error("Error loading recommendations:", error);
 
+        resultText.textContent = "Couldn't load recommendations.";
 
         container.innerHTML = `
-
             <div class="no-jobs">
-
                 <i class="fa-solid fa-circle-exclamation"></i>
-
                 <p>
-                    Unable to load jobs.
-                    Please check your API key or internet connection.
+                    Unable to load recommended jobs.
+                    ${escapeHtml(error.message)}
                 </p>
-
             </div>
-
         `;
 
     }
@@ -437,1050 +226,199 @@ async function loadJobs(search = "jobs philippines") {
 }
 
 
-// ======================================================
-// LOCAL FILTERING
-// ======================================================
-
-function filterJobs(jobs) {
-
-    const workSetup =
-        document
-            .getElementById("workSetup")
-            .value
-            .toLowerCase();
-
-    const location =
-        document
-            .getElementById("locationInput")
-            .value
-            .trim()
-            .toLowerCase();
-
-    const minSalary =
-        parseFloat(
-            document
-                .getElementById("minSalary")
-                .value
-        );
-
-    const maxSalary =
-        parseFloat(
-            document
-                .getElementById("maxSalary")
-                .value
-        );
-
-    const jobType =
-        document
-            .getElementById("jobType")
-            .value;
-
-
-    return jobs.filter(job => {
-
-
-        // ==========================================
-        // WORK SETUP FILTER
-        // ==========================================
-
-        if (workSetup) {
-
-            const jobIsRemote =
-                job.job_is_remote;
-
-            const jobDescription =
-                (
-                    job.job_description ||
-                    ""
-                ).toLowerCase();
-
-
-            if (workSetup === "remote") {
-
-                if (!jobIsRemote &&
-                    !jobDescription.includes("remote") &&
-                    !jobDescription.includes("work from home") &&
-                    !jobDescription.includes("wfh")) {
-
-                    return false;
-
-                }
-
-            }
-
-
-            if (workSetup === "onsite") {
-
-                if (jobIsRemote) {
-
-                    return false;
-
-                }
-
-            }
-
-
-            if (workSetup === "hybrid") {
-
-                if (
-                    !jobDescription.includes("hybrid")
-                ) {
-
-                    return false;
-
-                }
-
-            }
-
-        }
-
-
-        // ==========================================
-        // LOCATION FILTER
-        // ==========================================
-
-        if (location) {
-
-            const jobLocation =
-                `${job.job_city || ""}
-                 ${job.job_state || ""}
-                 ${job.job_country || ""}`
-                    .toLowerCase();
-
-
-            if (
-                !jobLocation.includes(location)
-            ) {
-
-                return false;
-
-            }
-
-        }
-
-
-        // ==========================================
-        // JOB TYPE FILTER
-        // ==========================================
-
-        if (jobType) {
-
-            const employmentType =
-                (
-                    job.job_employment_type ||
-                    ""
-                ).toUpperCase();
-
-
-            if (
-                employmentType !== jobType
-            ) {
-
-                return false;
-
-            }
-
-        }
-
-
-        // ==========================================
-        // SALARY FILTER
-        // ==========================================
-
-        const jobMinSalary =
-            Number(job.job_min_salary);
-
-        const jobMaxSalary =
-            Number(job.job_max_salary);
-
-
-        if (
-            !isNaN(minSalary) &&
-            jobMaxSalary
-        ) {
-
-            if (
-                jobMaxSalary < minSalary
-            ) {
-
-                return false;
-
-            }
-
-        }
-
-
-        if (
-            !isNaN(maxSalary) &&
-            jobMinSalary
-        ) {
-
-            if (
-                jobMinSalary > maxSalary
-            ) {
-
-                return false;
-
-            }
-
-        }
-
-
-        return true;
-
-    });
-
-}
-
-
-// ======================================================
-// RENDER JOBS
-// ======================================================
-
-function renderJobs(jobs) {
-
-    const container =
-        document.getElementById("jobContainer");
-
-    const jobCount =
-        document.getElementById("jobCount");
-
-    const jobResultText =
-        document.getElementById("jobResultText");
-
-
-    container.innerHTML = "";
-
-
-    jobCount.textContent =
-        jobs.length;
-
-
-    jobResultText.textContent =
-        `${jobs.length} jobs found based on your preferences`;
-
-
-    if (jobs.length === 0) {
-
-        container.innerHTML = `
-
-            <div class="no-jobs">
-
-                <i class="fa-solid fa-magnifying-glass"></i>
-
-                <h3>
-                    No matching jobs found
-                </h3>
-
+// Without preferences the score is skills-only, so say how to sharpen it.
+function showPreferenceNotice(preferences) {
+
+    const hasPreferences = preferences && (
+        preferences.preferredLocation ||
+        preferences.workArrangement ||
+        preferences.minSalary ||
+        preferences.maxSalary
+    );
+
+    document.getElementById("recommendNotice").innerHTML = hasPreferences ? "" : `
+        <div class="recommend-notice">
+            <i class="fa-solid fa-sliders"></i>
+            <div>
+                <strong>Get a more accurate score</strong>
                 <p>
-                    Try adjusting your filters or search preferences.
+                    Tell us your preferred location and salary. Until then,
+                    your matches are based on your skills only.
                 </p>
-
             </div>
-
-        `;
-
-        return;
-
-    }
-
-
-    jobs
-        .slice(0, 20)
-        .forEach(job => {
-
-
-            const company =
-                job.employer_name ||
-                "Unknown Company";
-
-
-            const title =
-                job.job_title ||
-                "Job Position";
-
-
-            const location =
-                getJobLocation(job);
-
-
-            const workSetup =
-                getWorkSetup(job);
-
-
-            const employmentType =
-                formatJobType(
-                    job.job_employment_type
-                );
-
-
-            const workBadge =
-                getWorkBadge(
-                    workSetup
-                );
-
-
-            const safeTitle =
-                escapeHtml(title);
-
-
-            const safeCompany =
-                escapeHtml(company);
-
-
-            container.innerHTML += `
-
-                <div class="job-card">
-
-                    <div class="job-card-content">
-
-
-                        <div class="job-main-info">
-
-                            <p class="company-name">
-
-                                ${safeCompany}
-
-                            </p>
-
-
-                            <h3 class="job-title">
-
-                                ${safeTitle}
-
-                            </h3>
-
-
-                            <div class="job-meta">
-
-
-                                <span>
-
-                                    <i class="fa-solid fa-location-dot"></i>
-
-                                    ${escapeHtml(location)}
-
-                                </span>
-
-
-                                <span>
-
-                                    <i class="fa-solid fa-briefcase"></i>
-
-                                    ${employmentType}
-
-                                </span>
-
-
-                                ${workBadge}
-
-
-                            </div>
-
-                        </div>
-
-
-                        <div class="job-card-actions">
-
-
-                            <button
-                                class="btn btn-secondary view-details-btn"
-                                data-job-id="${escapeHtml(job.job_id || "")}"
-                            >
-
-                                View Details
-
-                            </button>
-
-
-                            <button
-                                class="btn btn-primary apply-job-btn"
-                                data-apply-link="${escapeHtml(job.job_apply_link || "")}"
-                            >
-
-                                Apply
-
-                            </button>
-
-
-                        </div>
-
-
-                    </div>
-
-                </div>
-
-            `;
-
-        });
-
-
-    // VIEW DETAILS BUTTONS
-
-    document
-        .querySelectorAll(".view-details-btn")
-        .forEach(button => {
-
-            button.addEventListener(
-                "click",
-                () => {
-
-                    const jobId =
-                        button.dataset.jobId;
-
-
-                    const selectedJob =
-                        currentJobs.find(
-                            job =>
-                                job.job_id === jobId
-                        );
-
-
-                    if (selectedJob) {
-
-                        openPopup(
-                            selectedJob
-                        );
-
-                    }
-
-                }
-            );
-
-        });
-
-
-    // APPLY BUTTONS
-
-    document
-        .querySelectorAll(".apply-job-btn")
-        .forEach(button => {
-
-            button.addEventListener(
-                "click",
-                () => {
-
-                    const applyLink =
-                        button.dataset.applyLink;
-
-
-                    if (applyLink) {
-
-                        window.open(
-                            applyLink,
-                            "_blank"
-                        );
-
-                    }
-
-                }
-            );
-
-        });
-
-}
-
-
-// ======================================================
-// GET JOB LOCATION
-// ======================================================
-
-function getJobLocation(job) {
-
-    const locationParts = [];
-
-
-    if (job.job_city) {
-
-        locationParts.push(
-            job.job_city
-        );
-
-    }
-
-
-    if (job.job_state) {
-
-        locationParts.push(
-            job.job_state
-        );
-
-    }
-
-
-    if (job.job_country) {
-
-        locationParts.push(
-            job.job_country
-        );
-
-    }
-
-
-    if (locationParts.length === 0) {
-
-        return "Location not specified";
-
-    }
-
-
-    return locationParts.join(", ");
-
-}
-
-
-// ======================================================
-// GET WORK SETUP
-// ======================================================
-
-function getWorkSetup(job) {
-
-    const description =
-        (
-            job.job_description ||
-            ""
-        ).toLowerCase();
-
-
-    if (
-        job.job_is_remote === true ||
-        description.includes("remote") ||
-        description.includes("work from home") ||
-        description.includes("wfh")
-    ) {
-
-        return "Remote / WFH";
-
-    }
-
-
-    if (
-        description.includes("hybrid")
-    ) {
-
-        return "Hybrid";
-
-    }
-
-
-    return "On-site";
-
-}
-
-
-// ======================================================
-// WORK BADGE
-// ======================================================
-
-function getWorkBadge(workSetup) {
-
-    if (workSetup === "Remote / WFH") {
-
-        return `
-
-            <span class="badge remote-badge">
-
-                <i class="fa-solid fa-house"></i>
-
-                Remote / WFH
-
-            </span>
-
-        `;
-
-    }
-
-
-    if (workSetup === "Hybrid") {
-
-        return `
-
-            <span class="badge hybrid-badge">
-
-                <i class="fa-solid fa-arrows-rotate"></i>
-
-                Hybrid
-
-            </span>
-
-        `;
-
-    }
-
-
-    return `
-
-        <span class="badge onsite-badge">
-
-            <i class="fa-solid fa-building"></i>
-
-            On-site
-
-        </span>
-
+            <a href="Profile.html#preferences" class="notice-btn">Set preferences</a>
+        </div>
     `;
 
 }
 
 
 // ======================================================
-// FORMAT JOB TYPE
+// RENDER
 // ======================================================
 
-function formatJobType(type) {
+function renderRecommendations(recommendations, profile, query) {
 
-    if (!type) {
+    const container = document.getElementById("jobContainer");
 
-        return "Not specified";
+    const matches = recommendations.filter(item => item.match.score >= MATCH_THRESHOLD).length;
+
+    document.getElementById("jobCount").textContent = matches;
+
+    document.getElementById("jobResultText").textContent =
+        `${recommendations.length} jobs scored against your ${profile.skills.length} resume ` +
+        `${profile.skills.length === 1 ? "skill" : "skills"} · searched "${query}"`;
+
+
+    if (recommendations.length === 0) {
+
+        container.innerHTML = `
+            <div class="no-jobs">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <h3>No jobs found for "${escapeHtml(query)}"</h3>
+                <p>Try the Jobs page to search with your own keywords.</p>
+                <a href="Jobs.html" class="notice-btn">Browse all jobs</a>
+            </div>
+        `;
+
+        return;
 
     }
 
-
-    const types = {
-
-        "FULLTIME":
-            "Full-time",
-
-        "PARTTIME":
-            "Part-time",
-
-        "CONTRACTOR":
-            "Contract",
-
-        "INTERN":
-            "Internship"
-
-    };
-
-
-    return types[type.toUpperCase()]
-        || type;
+    container.innerHTML = recommendations
+        .map(item => renderRecommendationCard(item, profile))
+        .join("");
 
 }
 
 
-// ======================================================
-// OPEN JOB DETAILS POPUP
-// ======================================================
+function renderRecommendationCard({ job, match }, profile) {
 
-async function openPopup(job) {
+    const preferences = profile.preferences || {};
 
-    const popup =
-        document.getElementById("jobPopup");
+    const jobId = escapeHtml(job.job_id || "");
 
+    const listedSalary = (job.job_min_salary || job.job_max_salary)
+        ? `<span><i class="fa-solid fa-money-bill-wave"></i> ${escapeHtml(getJobSalary(job))}</span>`
+        : "";
 
-    popup.classList.add("show");
+    const chips = match.skills.matched
+        .slice(0, SKILL_CHIPS_SHOWN)
+        .map(skill => `<span class="skill-chip">${escapeHtml(skill)}</span>`)
+        .join("");
 
-
-    document
-        .getElementById("popupTitle")
-        .textContent =
-            job.job_title ||
-            "Job Title";
-
-
-    document
-        .getElementById("popupCompany")
-        .textContent =
-            job.employer_name ||
-            "Unknown Company";
+    const moreChips = match.skills.matched.length > SKILL_CHIPS_SHOWN
+        ? `<span class="skill-chip more">+${match.skills.matched.length - SKILL_CHIPS_SHOWN} more</span>`
+        : "";
 
 
-    document
-        .getElementById("popupLocation")
-        .textContent =
-            getJobLocation(job);
+    return `
+        <div class="job-card recommended-card">
+            <div class="job-card-content">
 
+                <div class="score-ring level-${match.band.level}" style="--pct:${match.score}"
+                     title="Suitability score: ${match.score}%">
+                    <span>${match.score}%</span>
+                </div>
 
-    document
-        .getElementById("popupWorkSetup")
-        .textContent =
-            getWorkSetup(job);
+                <div class="job-main-info">
 
+                    <p class="company-name">${escapeHtml(job.employer_name || "Unknown Company")}</p>
 
-    document
-        .getElementById("popupJobType")
-        .textContent =
-            formatJobType(
-                job.job_employment_type
-            );
+                    <h3 class="job-title">
+                        ${escapeHtml(job.job_title || "Job Position")}
+                        <span class="match-label level-${match.band.level}">${match.band.label}</span>
+                    </h3>
 
+                    <div class="job-meta">
+                        <span>
+                            <i class="fa-solid fa-location-dot"></i>
+                            ${escapeHtml(getJobLocation(job))}
+                        </span>
 
-    document
-        .getElementById("popupDescription")
-        .textContent =
-            "Loading job details...";
+                        <span>
+                            <i class="fa-solid fa-briefcase"></i>
+                            ${escapeHtml(formatJobType(job.job_employment_type))}
+                        </span>
 
+                        ${getWorkBadge(getWorkSetup(job))}
 
-    document
-        .getElementById("popupSalary")
-        .textContent =
-            "Loading salary information...";
+                        ${listedSalary}
+                    </div>
 
+                    <div class="match-breakdown level-${match.band.level}">
+                        ${matchRow("Skills", match.skills, "", describeSkills(match.skills))}
+                        ${matchRow("Location", match.location, "No location preference set")}
+                        ${matchRow("Salary", match.salary, describeMissingSalary(job, preferences))}
+                    </div>
 
-    // APPLY BUTTON
+                    ${chips ? `<div class="matched-skills">${chips}${moreChips}</div>` : ""}
 
-    const applyButton =
-        document.getElementById("applyBtn");
+                </div>
 
+                <div class="job-card-actions">
+                    <button class="btn btn-secondary view-details-btn" data-job-id="${jobId}">
+                        View Details
+                    </button>
 
-    applyButton.onclick = () => {
+                    <button class="btn btn-primary apply-job-btn" data-job-id="${jobId}">
+                        Apply
+                    </button>
+                </div>
 
-        if (job.job_apply_link) {
-
-            window.open(
-                job.job_apply_link,
-                "_blank"
-            );
-
-        }
-
-    };
-
-
-    // LOAD DETAILS
-
-    try {
-
-        const headers = {
-
-            "X-RapidAPI-Key":
-                RAPIDAPI_KEY,
-
-            "X-RapidAPI-Host":
-                RAPIDAPI_HOST
-
-        };
-
-
-        // JOB DETAILS
-
-        if (job.job_id) {
-
-            const detailsResponse =
-                await fetch(
-
-                    `https://jsearch.p.rapidapi.com/job-details?job_id=${encodeURIComponent(job.job_id)}`,
-
-                    {
-                        method: "GET",
-                        headers
-                    }
-
-                );
-
-
-            const detailsData =
-                await detailsResponse.json();
-
-
-            const jobDetails =
-                detailsData?.data?.[0];
-
-
-            const description =
-                jobDetails?.job_description ||
-                job.job_description ||
-                "No job description available.";
-
-
-            document
-                .getElementById("popupDescription")
-                .textContent =
-                    description;
-
-        }
-
-
-        // SALARY
-
-        loadSalary(
-            job
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "Error loading job details:",
-            error
-        );
-
-
-        document
-            .getElementById("popupDescription")
-            .textContent =
-                job.job_description ||
-                "Unable to load job description.";
-
-
-        document
-            .getElementById("popupSalary")
-            .textContent =
-                getJobSalary(job);
-
-    }
+            </div>
+        </div>
+    `;
 
 }
 
 
-// ======================================================
-// LOAD ESTIMATED SALARY
-// ======================================================
-
-async function loadSalary(job) {
-
-    try {
-
-        // Use API salary if already available
-
-        if (
-            job.job_min_salary ||
-            job.job_max_salary
-        ) {
-
-            document
-                .getElementById("popupSalary")
-                .textContent =
-                    getJobSalary(job);
-
-            return;
-
-        }
-
-
-        const headers = {
-
-            "X-RapidAPI-Key":
-                RAPIDAPI_KEY,
-
-            "X-RapidAPI-Host":
-                RAPIDAPI_HOST
-
-        };
-
-
-        const location =
-            getJobLocation(job);
-
-
-        const salaryURL =
-
-            `https://jsearch.p.rapidapi.com/estimated-salary` +
-
-            `?job_title=${encodeURIComponent(job.job_title)}` +
-
-            `&location=${encodeURIComponent(location)}` +
-
-            `&location_type=ANY` +
-
-            `&years_of_experience=ALL`;
-
-
-        const response =
-            await fetch(
-
-                salaryURL,
-
-                {
-                    method: "GET",
-                    headers
-                }
-
-            );
-
-
-        const data =
-            await response.json();
-
-
-        const salary =
-            data?.data?.[0];
-
-
-        if (!salary) {
-
-            document
-                .getElementById("popupSalary")
-                .textContent =
-                    "Salary information not available.";
-
-            return;
-
-        }
-
-
-        const min =
-            salary.min_salary;
-
-        const max =
-            salary.max_salary;
-
-        const median =
-            salary.median_salary;
-
-        const currency =
-            salary.salary_currency ||
-            "PHP";
-
-        const period =
-            salary.salary_period ||
-            "year";
-
-
-        let salaryText =
-            "Not available";
-
-
-        if (min && max) {
-
-            salaryText =
-
-                `${currency} ` +
-
-                `${Number(min).toLocaleString()}` +
-
-                ` - ` +
-
-                `${Number(max).toLocaleString()}` +
-
-                ` per ${period}`;
-
-        }
-
-        else if (median) {
-
-            salaryText =
-
-                `${currency} ` +
-
-                `${Number(median).toLocaleString()}` +
-
-                ` per ${period}`;
-
-        }
-
-
-        document
-            .getElementById("popupSalary")
-            .textContent =
-                salaryText;
-
-
-    } catch (error) {
-
-        console.error(
-            "Salary error:",
-            error
-        );
-
-
-        document
-            .getElementById("popupSalary")
-            .textContent =
-                "Salary information unavailable.";
+// One line of the score breakdown. A part with nothing to compare shows why
+// instead of a bar (see Suitability.js: such parts don't affect the score).
+function matchRow(label, part, missingNote, noteOverride) {
+
+    if (!part) {
+
+        return `
+            <div class="match-row muted">
+                <span class="match-name">${label}</span>
+                <span class="match-note">${escapeHtml(missingNote)}</span>
+            </div>
+        `;
 
     }
+
+    return `
+        <div class="match-row">
+            <span class="match-name">${label}</span>
+            <div class="match-bar"><div class="match-fill" style="width:${part.score}%"></div></div>
+            <span class="match-pct">${part.score}%</span>
+            <span class="match-note">${escapeHtml(noteOverride || part.note)}</span>
+        </div>
+    `;
 
 }
 
 
-// ======================================================
-// GET JOB SALARY
-// ======================================================
+function describeSkills(skills) {
 
-function getJobSalary(job) {
-
-    const min =
-        job.job_min_salary;
-
-    const max =
-        job.job_max_salary;
-
-    const currency =
-        job.job_salary_currency ||
-        "PHP";
-
-
-    if (min && max) {
-
-        return
-
-            `${currency} ` +
-
-            `${Number(min).toLocaleString()}` +
-
-            ` - ` +
-
-            `${Number(max).toLocaleString()}`;
-
-    }
-
-
-    if (min) {
-
-        return
-
-            `Starting at ${currency} ` +
-
-            `${Number(min).toLocaleString()}`;
-
-    }
-
-
-    if (max) {
-
-        return
-
-            `Up to ${currency} ` +
-
-            `${Number(max).toLocaleString()}`;
-
-    }
-
-
-    return "Salary not specified";
+    return skills.matched.length > 0
+        ? `Mentions ${skills.matched.length} of your ${skills.total} ${skills.total === 1 ? "skill" : "skills"}`
+        : `Mentions none of your ${skills.total} ${skills.total === 1 ? "skill" : "skills"}`;
 
 }
 
 
-// ======================================================
-// CLOSE POPUP
-// ======================================================
+function describeMissingSalary(job, preferences) {
 
-function closePopup() {
-
-    document
-        .getElementById("jobPopup")
-        .classList.remove("show");
-
-}
-
-
-// ======================================================
-// ESCAPE HTML
-// ======================================================
-
-function escapeHtml(value) {
-
-    if (value === null ||
-        value === undefined) {
-
-        return "";
-
+    if (!preferences.minSalary && !preferences.maxSalary) {
+        return "No salary preference set";
     }
 
+    if (!job.job_min_salary && !job.job_max_salary) {
+        return "Salary not listed";
+    }
 
-    return String(value)
-
-        .replace(/&/g, "&amp;")
-
-        .replace(/</g, "&lt;")
-
-        .replace(/>/g, "&gt;")
-
-        .replace(/"/g, "&quot;")
-
-        .replace(/'/g, "&#039;");
+    return "Listed in a currency we can't compare";
 
 }
