@@ -655,6 +655,72 @@ body {
     color: #c0392b;
 }
 
+/* Internal (employer-owned) statuses */
+
+.status-badge.status-submitted {
+    background: #dbe7ff;
+
+    color: #2A5BA1;
+}
+
+.status-badge.status-viewed {
+    background: #dcf3fa;
+
+    color: #0b7a9e;
+}
+
+.status-badge.status-shortlisted {
+    background: #e6dcff;
+
+    color: #6741d9;
+}
+
+/* Sent to the original posting (LinkedIn, Indeed, ...) */
+
+.status-badge.status-redirected {
+    background: #fff1cc;
+
+    color: #a16207;
+}
+
+.status-badge.status-applied-externally {
+    background: #d3f5df;
+
+    color: #1a8a4a;
+}
+
+.mark-applied-btn {
+    border: none;
+
+    border-radius: 6px;
+
+    padding: 5px 9px;
+
+    font-size: 9px;
+
+    font-weight: 700;
+
+    color: #ffffff;
+
+    background: #2d64ad;
+
+    cursor: pointer;
+
+    white-space: nowrap;
+
+    transition: 0.2s;
+}
+
+.mark-applied-btn:hover:not(:disabled) {
+    background: #245595;
+}
+
+.mark-applied-btn:disabled {
+    opacity: 0.6;
+
+    cursor: not-allowed;
+}
+
 
 /* ==========================================
    APPLICATION ACTIONS

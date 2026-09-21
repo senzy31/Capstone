@@ -4,8 +4,20 @@
      - Applications  -> GET/POST/PUT/DELETE /api/Application
      - Job listings   -> GET/POST /api/Joblisting
        ("Log Application" creates a minimal listing on the fly,
-       since every application needs a real job to point at -
-       there's no live job search wired up on this page yet.)
+       since every application needs a real job to point at.)
+     - Confirm       -> PATCH /api/applications/{id}/confirm-external
+
+   Three kinds of application show up here:
+     - Internal   applied to a JobLink employer's job; the employer
+                  owns the status (Submitted / Viewed / Shortlisted /
+                  Rejected), so there's no status dropdown.
+     - Redirected sent to the original posting (e.g. LinkedIn);
+                  Redirected until the user says they finished
+                  ("Mark as applied" -> Applied Externally).
+     - Logged     typed in by hand; the user owns the status.
+
+   Every request that reads or changes applications carries the
+   login token (ApplyFlow.authFetch).
 ========================================== */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -57,7 +69,6 @@ document.addEventListener("DOMContentLoaded", () => {
     ======================================= */
 
     let applications = []; // enriched: { ...applicationModel, job }
-    let primaryResumeId = null;
 
 
     /* ======================================
@@ -90,6 +101,12 @@ document.addEventListener("DOMContentLoaded", () => {
     loadUser();
 
     loadApplications();
+
+    // "Did you finish applying?" - and refresh when it (or the Apply button
+    // elsewhere on the page) changes an application.
+    ApplyFlow.initReturnPrompt();
+
+    window.addEventListener("joblink:application-updated", loadApplications);
 
 
     /* ======================================
@@ -253,24 +270,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
 
-            const [applicationsResponse, resumesResponse] = await Promise.all([
-                fetch(`${API_BASE}/Application/by-user/${userId}`),
-                fetch(`${API_BASE}/Resume/by-user/${userId}`)
-            ]);
+            const applicationsResponse = await ApplyFlow.authFetch(`${API_BASE}/Application/by-user/${userId}`);
 
             if (!applicationsResponse.ok) {
                 throw new Error(`Failed to load applications (${applicationsResponse.status})`);
             }
 
             const rawApplications = await applicationsResponse.json();
-
-            if (resumesResponse.ok) {
-
-                const resumes = await resumesResponse.json();
-
-                primaryResumeId = resumes[0]?.resumeId || null;
-
-            }
 
             applications = await Promise.all(rawApplications.map(async application => {
 
@@ -298,6 +304,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
             }));
 
+            // Newest first: by the date applied, or - for someone who was sent to
+            // the job site but hasn't confirmed yet - the date they were redirected.
+            applications.sort((a, b) => (sortTime(b) - sortTime(a)) || (b.applicationId - a.applicationId));
+
             updateStatistics();
 
             const currentFilter = document.querySelector(".filter-btn.active")?.dataset.status || "all";
@@ -315,6 +325,15 @@ document.addEventListener("DOMContentLoaded", () => {
             `;
 
         }
+
+    }
+
+
+    function sortTime(application) {
+
+        const time = new Date(application.appliedAt || application.redirectedAt || 0).getTime();
+
+        return Number.isNaN(time) ? 0 : time;
 
     }
 
@@ -390,6 +409,13 @@ document.addEventListener("DOMContentLoaded", () => {
             const location = application.job?.location || "Not specified";
             const status = application.status || "Applied";
 
+            // Sent to the original posting (e.g. LinkedIn) - JobLink tracks it
+            // but doesn't own the outcome.
+            const isRedirect = application.applicationType === "External" &&
+                (status === "Redirected" || status === "Applied Externally");
+
+            const publisher = isRedirect ? (application.job?.publisher || "") : "";
+
             const card = document.createElement("div");
 
             card.className = "application-card";
@@ -420,17 +446,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
                         <span>${escapeHTML(location)}</span>
 
+                        ${publisher ? `<span class="separator">•</span><span>via ${escapeHTML(publisher)}</span>` : ""}
+
                     </div>
 
                 </div>
 
                 <div class="application-actions">
 
-                    <select class="status-select" data-application-id="${application.applicationId}">
-                        ${["Applied", "Under Review", "Interview", "Offer", "Rejected"].map(option => `
-                            <option value="${option}" ${option === status ? "selected" : ""}>${option}</option>
-                        `).join("")}
-                    </select>
+                    ${statusControlHtml(application, status)}
 
                     <button
                         type="button"
@@ -445,13 +469,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
             `;
 
-            card.querySelector(".status-select").addEventListener("click", event => {
+            card.querySelector(".status-select")?.addEventListener("click", event => {
                 event.stopPropagation();
             });
 
-            card.querySelector(".status-select").addEventListener("change", event => {
+            card.querySelector(".status-select")?.addEventListener("change", event => {
 
                 updateApplicationStatus(application.applicationId, event.target.value);
+
+            });
+
+            card.querySelector(".mark-applied-btn")?.addEventListener("click", event => {
+
+                event.stopPropagation();
+
+                markApplied(application, event.currentTarget);
 
             });
 
@@ -477,6 +509,88 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
+    // Who may change the status decides the control:
+    //   logged by hand   -> a dropdown (the user owns the status)
+    //   redirected       -> "Mark as applied" until they confirm
+    //   confirmed / internal -> nothing (JobLink or the employer owns it)
+    function statusControlHtml(application, status) {
+
+        if (application.applicationType === "External" && status === "Redirected") {
+
+            return `
+                <button
+                    type="button"
+                    class="mark-applied-btn"
+                    data-application-id="${application.applicationId}"
+                >
+                    Mark as applied
+                </button>
+            `;
+
+        }
+
+        if (application.applicationType === "External" && status !== "Applied Externally") {
+
+            return `
+                <select class="status-select" data-application-id="${application.applicationId}">
+                    ${["Applied", "Under Review", "Interview", "Offer", "Rejected"].map(option => `
+                        <option value="${option}" ${option === status ? "selected" : ""}>${option}</option>
+                    `).join("")}
+                </select>
+            `;
+
+        }
+
+        return "";
+
+    }
+
+
+    /* ======================================
+       MARK AS APPLIED (after being sent to the job site)
+    ======================================= */
+
+    async function markApplied(application, button) {
+
+        button.disabled = true;
+
+        try {
+
+            const response = await ApplyFlow.authFetch(
+                `${API_BASE}/applications/${application.applicationId}/confirm-external`,
+                {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ applied: true })
+                }
+            );
+
+            // 409: it was already confirmed (e.g. from the pop-up in another tab).
+            if (!response.ok && response.status !== 409) {
+
+                const body = await response.json().catch(() => ({}));
+
+                throw new Error(body.message || `Update failed (${response.status})`);
+
+            }
+
+            ApplyFlow.forgetPending(application.applicationId);
+
+            await loadApplications();
+
+        } catch (error) {
+
+            console.error("Unable to mark as applied:", error);
+
+            button.disabled = false;
+
+            alert(error.message || "Couldn't update that application. Please try again.");
+
+        }
+
+    }
+
+
     /* ======================================
        UPDATE STATUS
     ======================================= */
@@ -491,14 +605,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
 
-            const response = await fetch(`${API_BASE}/Application`, {
+            // Only the status can change, so that's all we send.
+            const response = await ApplyFlow.authFetch(`${API_BASE}/Application`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...application, status: newStatus })
+                body: JSON.stringify({ applicationId, status: newStatus })
             });
 
             if (!response.ok) {
-                throw new Error(`Update failed (${response.status})`);
+                const body = await response.json().catch(() => ({}));
+                throw new Error(body.message || `Update failed (${response.status})`);
             }
 
             application.status = newStatus;
@@ -513,7 +629,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
             console.error("Unable to update status:", error);
 
-            alert("Couldn't update the status. Check that the API is running and try again.");
+            alert(error.message && !error.message.startsWith("Update failed")
+                ? error.message
+                : "Couldn't update the status. Check that the API is running and try again.");
 
             loadApplications();
 
@@ -536,7 +654,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
 
-            const response = await fetch(`${API_BASE}/Application?id=${applicationId}`, {
+            const response = await ApplyFlow.authFetch(`${API_BASE}/Application?id=${applicationId}`, {
                 method: "DELETE"
             });
 
@@ -601,50 +719,40 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
 
-            const externalJobId = `manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-            const createJobResponse = await fetch(`${API_BASE}/Joblisting`, {
+            // The server sets everything about the listing except what you typed,
+            // and hands back the saved job.
+            const createJobResponse = await ApplyFlow.authFetch(`${API_BASE}/Joblisting`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    externalJobId,
                     title: position,
                     company,
-                    location: location || null,
-                    sourceApi: "manual",
-                    isDeleted: false
+                    location: location || null
                 })
             });
 
             if (!createJobResponse.ok) {
-                throw new Error(`Create job listing failed (${createJobResponse.status})`);
+                const body = await createJobResponse.json().catch(() => ({}));
+                throw new Error(body.message || `Create job listing failed (${createJobResponse.status})`);
             }
 
-            const allJobsResponse = await fetch(`${API_BASE}/Joblisting`);
+            const createdJob = await createJobResponse.json();
 
-            const allJobs = await allJobsResponse.json();
-
-            const createdJob = allJobs.find(job => job.externalJobId === externalJobId);
-
-            if (!createdJob) {
-                throw new Error("Created job listing could not be found afterward.");
-            }
-
-            const createApplicationResponse = await fetch(`${API_BASE}/Application`, {
+            // The user and resume come from the login token; only the job,
+            // status and date are ours to say.
+            const createApplicationResponse = await ApplyFlow.authFetch(`${API_BASE}/Application`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    userId,
                     jobId: createdJob.jobId,
-                    resumeId: primaryResumeId,
                     status,
-                    appliedAt,
-                    isDeleted: false
+                    appliedAt
                 })
             });
 
             if (!createApplicationResponse.ok) {
-                throw new Error(`Create application failed (${createApplicationResponse.status})`);
+                const body = await createApplicationResponse.json().catch(() => ({}));
+                throw new Error(body.message || `Create application failed (${createApplicationResponse.status})`);
             }
 
             logApplicationOverlay.classList.remove("show");
@@ -655,7 +763,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
             console.error("Unable to log application:", error);
 
-            alert("Couldn't log that application. Check that the API is running and try again.");
+            alert(error.message && !/failed \(\d+\)$/.test(error.message)
+                ? error.message
+                : "Couldn't log that application. Check that the API is running and try again.");
 
         } finally {
 

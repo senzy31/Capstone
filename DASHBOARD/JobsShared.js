@@ -33,6 +33,17 @@ function requireUser() {
             throw new Error("No saved session");
         }
 
+        if (!localStorage.getItem("token")) {
+
+            // Signed in before login tokens existed - log in once more to get one.
+            localStorage.removeItem("user");
+
+            sessionStorage.setItem("joblink.sessionExpired", "1");
+
+            throw new Error("No login token");
+
+        }
+
         const fullName = user.fullName || user.full_name || user.username || "User";
 
         return {
@@ -122,7 +133,7 @@ function setupJobCardActions(container) {
         if (button.classList.contains("view-details-btn")) {
             openPopup(job);
         } else if (button.classList.contains("apply-job-btn")) {
-            openExternal(job.job_apply_link);
+            ApplyFlow.apply(job);
         }
 
     });
@@ -146,16 +157,6 @@ function escapeHtml(value) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
-
-}
-
-
-// Apply links come from a third-party API, so only ever open http(s) URLs.
-function openExternal(url) {
-
-    if (/^https?:\/\//i.test(url || "")) {
-        window.open(url, "_blank", "noopener");
-    }
 
 }
 
@@ -329,7 +330,31 @@ async function openPopup(job) {
     setText("popupDescription", "Loading job details...");
     setText("popupSalary", "Loading salary information...");
 
-    document.getElementById("applyBtn").onclick = () => openExternal(job.job_apply_link);
+    // "Apply" for employer-posted jobs, "Apply on LinkedIn [icon]" for external ones.
+    const applyButton = document.getElementById("applyBtn");
+
+    applyButton.innerHTML = ApplyFlow.isExternal(job)
+        ? `Apply on ${escapeHtml(ApplyFlow.publisherLabel(job))} <i class="fa-solid fa-arrow-up-right-from-square"></i>`
+        : "Apply";
+
+    applyButton.onclick = () => ApplyFlow.apply(job);
+
+    let applyNote = document.getElementById("popupApplyNote");
+
+    if (!applyNote) {
+
+        applyNote = document.createElement("div");
+
+        applyNote.id = "popupApplyNote";
+        applyNote.className = "popup-apply-note";
+
+        const footer = document.querySelector("#jobPopup .popup-footer");
+
+        footer.parentNode.insertBefore(applyNote, footer);
+
+    }
+
+    applyNote.innerHTML = ApplyFlow.externalNoteHtml(job);
 
     try {
 

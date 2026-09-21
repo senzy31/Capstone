@@ -26,6 +26,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     setupSharedListeners();
 
+    ApplyFlow.initReturnPrompt();
+
     setupDashboardListeners();
 
     loadRecommendations(user.userId);
@@ -354,6 +356,8 @@ function renderRecommendationCard({ job, match }, profile) {
 
                     ${chips ? `<div class="matched-skills">${chips}${moreChips}</div>` : ""}
 
+                    ${ApplyFlow.externalNoteHtml(job)}
+
                 </div>
 
                 <div class="job-card-actions">
@@ -361,9 +365,7 @@ function renderRecommendationCard({ job, match }, profile) {
                         View Details
                     </button>
 
-                    <button class="btn btn-primary apply-job-btn" data-job-id="${jobId}">
-                        Apply
-                    </button>
+                    ${ApplyFlow.applyButtonHtml(job)}
                 </div>
 
             </div>

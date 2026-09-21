@@ -24,6 +24,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     setupSharedListeners();
 
+    ApplyFlow.initReturnPrompt();
+
     setupJobListeners();
 
 
@@ -359,6 +361,8 @@ function renderJobs(jobs) {
                             ${getWorkBadge(getWorkSetup(job))}
                         </div>
 
+                        ${ApplyFlow.externalNoteHtml(job)}
+
                     </div>
 
                     <div class="job-card-actions">
@@ -366,9 +370,7 @@ function renderJobs(jobs) {
                             View Details
                         </button>
 
-                        <button class="btn btn-primary apply-job-btn" data-job-id="${jobId}">
-                            Apply
-                        </button>
+                        ${ApplyFlow.applyButtonHtml(job)}
                     </div>
 
                 </div>
