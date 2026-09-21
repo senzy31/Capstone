@@ -1,5 +1,6 @@
 using Dapper;
 using JobLinkv2.Models;
+using JobLinkv2.Repositories;
 using Microsoft.Data.SqlClient;
 
 namespace JobLinkv2.Services.MyData
@@ -7,7 +8,8 @@ namespace JobLinkv2.Services.MyData
     public enum SaveJobOutcome
     {
         Saved,
-        JobNotFound
+        JobNotFound,
+        LimitReached
     }
 
     // The things that belong to one user and aren't part of a resume: their
@@ -107,30 +109,58 @@ namespace JobLinkv2.Services.MyData
                 "SELECT COUNT(*) FROM Saved_Jobs WHERE user_id = @userId AND is_deleted = 0", new { userId });
         }
 
-        // Saves a job for the caller - or brings back one they un-saved. Saving what
-        // is already saved is fine. The job has to exist.
-        public SaveJobOutcome SaveJob(int userId, int jobId)
+        // Saves a job for the caller - or brings back one they un-saved. Saving what is
+        // already saved is fine (and never counts against a limit). The job has to exist.
+        //
+        // maxLive is the plan's cap on live saved jobs (null = no cap). Counting and saving
+        // are one step under a per-user lock, so parallel requests can't both take the last
+        // slot. Saved jobs they already have above the cap are left alone.
+        public SaveJobOutcome SaveJob(int userId, int jobId, int? maxLive = null)
         {
             using var db = Open();
 
-            if (db.ExecuteScalar<int>("SELECT COUNT(*) FROM Job_Listings WHERE job_id = @jobId AND is_deleted = 0", new { jobId }) != 1)
-                return SaveJobOutcome.JobNotFound;
+            var code = db.QuerySingle<int>($@"
+                SET XACT_ABORT ON;
+                BEGIN TRANSACTION;
+                {SqlLocks.Take}
 
-            try
+                IF NOT EXISTS (SELECT 1 FROM Job_Listings WHERE job_id = @jobId AND is_deleted = 0)
+                BEGIN
+                    ROLLBACK TRANSACTION;
+                    SELECT 1;   -- the job doesn't exist
+                    RETURN;
+                END
+
+                IF EXISTS (SELECT 1 FROM Saved_Jobs WHERE user_id = @userId AND job_id = @jobId AND is_deleted = 0)
+                BEGIN
+                    ROLLBACK TRANSACTION;
+                    SELECT 0;   -- already saved
+                    RETURN;
+                END
+
+                IF @maxLive IS NOT NULL
+                   AND (SELECT COUNT(*) FROM Saved_Jobs WHERE user_id = @userId AND is_deleted = 0) >= @maxLive
+                BEGIN
+                    ROLLBACK TRANSACTION;
+                    SELECT 2;   -- at the limit
+                    RETURN;
+                END
+
+                UPDATE Saved_Jobs SET is_deleted = 0 WHERE user_id = @userId AND job_id = @jobId;
+
+                IF @@ROWCOUNT = 0
+                    INSERT INTO Saved_Jobs (user_id, job_id, is_deleted) VALUES (@userId, @jobId, 0);
+
+                COMMIT TRANSACTION;
+                SELECT 0;",
+                new { LockName = SqlLocks.Name("savedjob", userId), userId, jobId, maxLive });
+
+            return code switch
             {
-                db.Execute(@"
-                    UPDATE Saved_Jobs SET is_deleted = 0 WHERE user_id = @userId AND job_id = @jobId;
-
-                    IF @@ROWCOUNT = 0
-                        INSERT INTO Saved_Jobs (user_id, job_id, is_deleted) VALUES (@userId, @jobId, 0);",
-                    new { userId, jobId });
-            }
-            catch (SqlException ex) when (ex.Number is UniqueIndexViolation or UniqueConstraintViolation)
-            {
-                // two requests saved the same job at once - it is saved either way
-            }
-
-            return SaveJobOutcome.Saved;
+                1 => SaveJobOutcome.JobNotFound,
+                2 => SaveJobOutcome.LimitReached,
+                _ => SaveJobOutcome.Saved
+            };
         }
 
         public bool UnsaveJob(int userId, int jobId)

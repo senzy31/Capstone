@@ -1,6 +1,7 @@
 using Joblink.Security;
 using Joblink.Services.MyData;
 using JobLinkv2.Services.MyData;
+using JobLinkv2.Services.Subscriptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,10 +16,12 @@ namespace Joblink.Controllers
     public class SavedJobsController : ControllerBase
     {
         private readonly UserDataStore _data;
+        private readonly IPlanReader _plans;
 
-        public SavedJobsController(UserDataStore data)
+        public SavedJobsController(UserDataStore data, IPlanReader plans)
         {
             _data = data;
+            _plans = plans;
         }
 
         // Your saved jobs (this used to return everyone's).
@@ -41,9 +44,19 @@ namespace Joblink.Controllers
             if (request?.JobId is not int jobId)
                 return BadRequest(new { message = "A job id is required.", code = "invalid" });
 
-            return _data.SaveJob(userId, jobId) == SaveJobOutcome.Saved
-                ? Ok(new { userId, jobId })
-                : NotFound(new { message = "That job doesn't exist." });
+            // Free plans can keep 10 saved jobs, Premium any number. Saving one that is already
+            // saved is always fine.
+            var premium = _plans.IsPremium(userId);
+            var limit = PlanLimits.For(premium).SavedJobs;
+
+            return _data.SaveJob(userId, jobId, limit) switch
+            {
+                SaveJobOutcome.Saved => Ok(new { userId, jobId }),
+                SaveJobOutcome.LimitReached => PlanResponses.LimitReached(this, premium, "savedJobs", limit ?? 0,
+                    freeMessage: $"Free accounts can save up to {limit} jobs. Upgrade to Premium for unlimited saved jobs.",
+                    premiumMessage: "You've reached your saved jobs limit."),
+                _ => NotFound(new { message = "That job doesn't exist." })
+            };
         }
 
         [HttpDelete("{jobId}")]

@@ -245,6 +245,65 @@ namespace Joblink.Tests
         }
 
         [DbFact]
+        public void A_limited_add_stops_at_the_limit_counts_only_live_resumes_and_leaves_extras_alone()
+        {
+            var a = NewUser();
+
+            // three already (more than the limit below): they stay, nothing is removed
+            var made = Enumerable.Range(0, 3).Select(i => _store.AddResume(a, $"CV{i}", "standard", Now)).ToList();
+
+            Assert.Null(_store.TryAddResume(a, "Nope", "standard", Now, maxLive: 2));
+            Assert.Equal(3, _store.ListResumes(a).Count);
+
+            // removed ones don't count: down to 1 live, two more fit under a limit of 3... one more up to the limit of 2
+            _store.DeleteResume(a, made[0].ResumeId);
+            _store.DeleteResume(a, made[1].ResumeId);
+
+            Assert.NotNull(_store.TryAddResume(a, "Fits", "standard", Now, maxLive: 2));    // 1 live -> 2
+            Assert.Null(_store.TryAddResume(a, "Nope", "standard", Now, maxLive: 2));       // at 2: full
+            Assert.Equal(2, _store.ListResumes(a).Count);
+        }
+
+        [DbFact]
+        public void A_limited_add_counts_each_users_own_resumes()
+        {
+            var (a, b) = (NewUser(), NewUser());
+
+            Assert.NotNull(_store.TryAddResume(a, "A1", "standard", Now, maxLive: 1));
+            Assert.Null(_store.TryAddResume(a, "A2", "standard", Now, maxLive: 1));
+            Assert.NotNull(_store.TryAddResume(b, "B1", "standard", Now, maxLive: 1));       // A being full doesn't block B
+        }
+
+        [DbFact]
+        public void Twenty_parallel_limited_adds_take_exactly_the_free_slots()
+        {
+            var a = NewUser();
+            ThreadPool.SetMinThreads(100, 100);
+
+            var results = Task.WhenAll(Enumerable.Range(0, 20).Select(i =>
+                Task.Run(() => _store.TryAddResume(a, $"CV{i}", "standard", Now, maxLive: 5)))).GetAwaiter().GetResult();
+
+            Assert.Equal(5, results.Count(r => r is not null));
+            Assert.Equal(5, _store.ListResumes(a).Count);
+        }
+
+        [DbFact]
+        public void Counting_resumes_counts_only_that_users_live_ones()
+        {
+            var (a, b) = (NewUser(), NewUser());
+
+            var gone = _store.AddResume(a, "Gone", "standard", Now);
+            _store.AddResume(a, "One", "standard", Now);
+            _store.AddResume(b, "B1", "standard", Now);
+            _store.AddResume(b, "B2", "standard", Now);
+            _store.AddResume(b, "B3", "standard", Now);
+            _store.DeleteResume(a, gone.ResumeId);
+
+            Assert.Equal(1, _store.CountResumes(a));
+            Assert.Equal(3, _store.CountResumes(b));
+        }
+
+        [DbFact]
         public void An_entry_cannot_be_moved_to_another_resume_by_an_update()
         {
             var a = NewUser();

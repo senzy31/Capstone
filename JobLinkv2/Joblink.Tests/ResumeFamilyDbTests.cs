@@ -277,6 +277,7 @@ namespace Joblink.Tests
         {
             // The old delete treated the id as a USER id and removed all of that user's rows.
             var a = NewUser();
+            _factory.MakePremium(a);   // two resumes: more than a Free plan keeps
             var first = await CreateResume(a, "One");
             var second = await CreateResume(a, "Two");
 

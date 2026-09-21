@@ -42,7 +42,7 @@ normal search does).
 ```
 cd JobLinkv2
 dotnet test Joblink.Tests            # fast: fake store, no database
-JOBLINK_TEST_DB=1 dotnet test Joblink.Tests    # also the 81 tests that use the local Joblinkv2 database
+JOBLINK_TEST_DB=1 dotnet test Joblink.Tests    # also the 102 tests that use the local Joblinkv2 database
 ```
 
 On Windows PowerShell: `$env:JOBLINK_TEST_DB = "1"; dotnet test Joblink.Tests`.

@@ -199,6 +199,37 @@ namespace JobLinkv2.Services.Resumes
                 $"SELECT {ResumeColumns} FROM Resumes WHERE resume_id = @id", new { id });
         }
 
+        // Adds a resume only if the user has fewer than maxLive live ones, deciding and adding
+        // as one step (a per-user lock), so parallel requests can't both take the last slot.
+        // Null when they are at the limit. Resumes they already have above it are left alone.
+        public ResumeModel? TryAddResume(int userId, string? title, string? templateType, DateTime createdAt, int maxLive)
+        {
+            using var db = Open();
+
+            var id = db.QuerySingle<int?>($@"
+                SET XACT_ABORT ON;
+                BEGIN TRANSACTION;
+                {SqlLocks.Take}
+
+                IF (SELECT COUNT(*) FROM Resumes WHERE user_id = @userId AND is_deleted = 0) >= @maxLive
+                BEGIN
+                    ROLLBACK TRANSACTION;
+                    SELECT CAST(NULL AS int);
+                    RETURN;
+                END
+
+                INSERT INTO Resumes (user_id, title, template_type, created_at, is_deleted)
+                VALUES (@userId, @title, @templateType, @createdAt, 0);
+
+                SELECT CAST(SCOPE_IDENTITY() AS int);
+                COMMIT TRANSACTION;",
+                new { LockName = SqlLocks.Name("resume", userId), userId, maxLive, title = Ansi(title, 100), templateType = Ansi(templateType, 50), createdAt });
+
+            return id is null
+                ? null
+                : db.QuerySingle<ResumeModel>($"SELECT {ResumeColumns} FROM Resumes WHERE resume_id = @id", new { id });
+        }
+
         // Title and content are replaced; the template stays unless a new one is sent.
         public bool UpdateResume(int userId, int resumeId, string? title, string? templateType, string? aiGeneratedContent)
         {

@@ -111,6 +111,85 @@ namespace Joblink.Tests
         }
 
         [DbFact]
+        public void Saving_stops_at_the_limit_but_already_saved_jobs_and_unlimited_plans_are_unaffected()
+        {
+            var (a, b) = (NewUser(), NewUser());
+            var jobs = Enumerable.Range(0, 4).Select(_ => NewJob()).ToList();
+
+            Assert.Equal(SaveJobOutcome.Saved, _store.SaveJob(a, jobs[0], maxLive: 2));
+            Assert.Equal(SaveJobOutcome.Saved, _store.SaveJob(a, jobs[1], maxLive: 2));
+            Assert.Equal(SaveJobOutcome.LimitReached, _store.SaveJob(a, jobs[2], maxLive: 2));
+            Assert.Equal(SaveJobOutcome.Saved, _store.SaveJob(a, jobs[0], maxLive: 2));           // already saved: no slot needed
+            Assert.Equal(SaveJobOutcome.JobNotFound, _store.SaveJob(a, 2_000_000_000, maxLive: 2)); // a job that doesn't exist is that, not "full"
+            Assert.Equal(2, _store.ListSavedJobs(a).Count);
+
+            Assert.Equal(SaveJobOutcome.Saved, _store.SaveJob(a, jobs[2], maxLive: null));         // no cap
+            Assert.Equal(SaveJobOutcome.Saved, _store.SaveJob(b, jobs[2], maxLive: 2));            // A being full doesn't block B
+        }
+
+        [DbFact]
+        public void A_removed_saved_job_counts_again_when_it_is_brought_back()
+        {
+            var a = NewUser();
+            var jobs = Enumerable.Range(0, 3).Select(_ => NewJob()).ToList();
+
+            _store.SaveJob(a, jobs[0], maxLive: 2);
+            _store.SaveJob(a, jobs[1], maxLive: 2);
+            _store.UnsaveJob(a, jobs[0]);
+            _store.SaveJob(a, jobs[2], maxLive: 2);                                                // 2 live again
+
+            Assert.Equal(SaveJobOutcome.LimitReached, _store.SaveJob(a, jobs[0], maxLive: 2));     // bringing it back is the third
+        }
+
+        [DbFact]
+        public void Parallel_saves_take_exactly_the_free_slots()
+        {
+            var a = NewUser();
+            var jobs = Enumerable.Range(0, 20).Select(_ => NewJob()).ToList();
+            ThreadPool.SetMinThreads(100, 100);
+
+            var results = Task.WhenAll(jobs.Select(job => Task.Run(() => _store.SaveJob(a, job, maxLive: 5)))).GetAwaiter().GetResult();
+
+            Assert.Equal(5, results.Count(r => r == SaveJobOutcome.Saved));
+            Assert.Equal(15, results.Count(r => r == SaveJobOutcome.LimitReached));
+            Assert.Equal(5, _store.ListSavedJobs(a).Count);
+        }
+
+        // Two people saving the same job is normal. One having it saved must not make the other's
+        // save quietly do nothing, or count against them.
+        [DbFact]
+        public void Two_users_can_have_the_same_job_saved_at_once()
+        {
+            var (a, b) = (NewUser(), NewUser());
+            var job = NewJob();
+
+            Assert.Equal(SaveJobOutcome.Saved, _store.SaveJob(b, job, maxLive: 5));
+            Assert.Equal(SaveJobOutcome.Saved, _store.SaveJob(a, job, maxLive: 5));
+
+            Assert.Equal(new[] { job }, _store.ListSavedJobs(a).Select(s => s.JobId).ToArray());   // A's save really happened
+            Assert.Equal(new[] { job }, _store.ListSavedJobs(b).Select(s => s.JobId).ToArray());
+            Assert.Equal(1, _store.CountSavedJobs(a));
+            Assert.Equal(1, _store.CountSavedJobs(b));
+        }
+
+        [DbFact]
+        public void Another_users_saves_neither_hide_nor_free_a_slot_at_the_limit()
+        {
+            var (a, b) = (NewUser(), NewUser());
+            var jobs = Enumerable.Range(0, 3).Select(_ => NewJob()).ToList();
+
+            _store.SaveJob(a, jobs[0], maxLive: 1);
+
+            foreach (var job in jobs)
+                _store.SaveJob(b, job, maxLive: null);
+
+            // A is at the limit; B having every job saved changes nothing for A
+            Assert.Equal(SaveJobOutcome.LimitReached, _store.SaveJob(a, jobs[1], maxLive: 1));
+            Assert.Equal(1, _store.CountSavedJobs(a));
+            Assert.Equal(3, _store.CountSavedJobs(b));
+        }
+
+        [DbFact]
         public void Match_methods_refuse_the_wrong_user()
         {
             var (a, b) = (NewUser(), NewUser());

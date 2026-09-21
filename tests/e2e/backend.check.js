@@ -181,9 +181,14 @@ async function makeUser(label, role) {
         const delEdu = await call("DELETE", `/Education?id=${eduId}`, { token: A.token });
         const delExp = await call("DELETE", `/Experience?id=${expId}`, { token: A.token });
         check("A deleting their own entries works (Education / Experience deletes were a 500 before)", [delEdu.status, delExp.status, scalar(`SELECT is_deleted FROM Education WHERE education_id = ${eduId};`), scalar(`SELECT is_deleted FROM Experience WHERE experience_id = ${expId};`)], [200, 200, "1", "1"]);
-        const r2 = await call("POST", "/Resume", { token: A.token, body: {} });
-        await call("DELETE", `/Resume?id=${r2.json.resumeId}`, { token: A.token });
-        check("deleting one resume deletes only that resume (the old delete removed every resume of a USER with that number)", [scalar(`SELECT is_deleted FROM Resumes WHERE resume_id = ${rid};`), scalar(`SELECT is_deleted FROM Resumes WHERE resume_id = ${r2.json.resumeId};`)], ["0", "1"]);
+        // Two resumes is more than a Free plan keeps, so this scenario uses a Premium user.
+        const Z = await makeUser("z", "user");
+        users.push(Z);
+        await call("POST", "/Subscription/upgrade", { token: Z.token, body: { billing: "Monthly" } });
+        const z1 = await call("POST", "/Resume", { token: Z.token, body: {} });
+        const z2 = await call("POST", "/Resume", { token: Z.token, body: {} });
+        await call("DELETE", `/Resume?id=${z2.json.resumeId}`, { token: Z.token });
+        check("deleting one resume deletes only that resume (the old delete removed every resume of a USER with that number)", [scalar(`SELECT is_deleted FROM Resumes WHERE resume_id = ${z1.json.resumeId};`), scalar(`SELECT is_deleted FROM Resumes WHERE resume_id = ${z2.json.resumeId};`)], ["0", "1"]);
         check("an over-long phone is a 400 with a message, not a 500", [(await call("PUT", "/Profile", { token: A.token, body: { profileId: pid, phone: "1".repeat(21) } })).status], [400]);
         check("a javascript: link in a profile is refused", (await call("PUT", "/Profile", { token: A.token, body: { profileId: pid, linkedinUrl: "javascript:alert(1)" } })).status, 400);
         skillsToRemove.push(`E2E skill ${STAMP}`);
@@ -366,6 +371,50 @@ async function makeUser(label, role) {
         check("buying again after it lapsed starts a fresh Monthly period and clears the cancellation", [rebought.json.plan, rebought.json.billing, rebought.json.cancelled, planRow(A.id)], ["Premium", "Monthly", false, ["Premium", "Monthly", "set", "1", "NULL"]]);
         const stacked = await call("POST", "/Subscription/upgrade", { token: A.token, body: { billing: "Annual" } });
         check("buying while Premium adds after the current end (1 + 12 months)", [stacked.json.billing, planRow(A.id)[3]], ["Annual", "13"]);
+
+        // ================= plan limits (real SQL): decided by the server, never by a hidden button =================
+        console.log("\nplan limits (real SQL): Free vs Premium, on the server");
+        const C = await makeUser("c", "user");
+        users.push(C);
+        const limitJobs = internalIds.slice(0, 12);
+        const cResumes = () => Number(scalar(`SELECT COUNT(*) FROM Resumes WHERE user_id = ${C.id} AND is_deleted = 0;`));
+        const cSaved = () => Number(scalar(`SELECT COUNT(*) FROM Saved_Jobs WHERE user_id = ${C.id} AND is_deleted = 0;`));
+        const newResume = () => call("POST", "/Resume", { token: C.token, body: { title: "E2E limits" } });
+        const saveJob = id => call("POST", "/SavedJobs", { token: C.token, body: { jobId: id } });
+
+        const lim_r1 = await newResume(), lim_r2 = await newResume();
+        check("Free: the first resume is fine, the second is a 403 that asks to upgrade (and no row was added)",
+            [lim_r1.status, lim_r2.status, lim_r2.json.upgradeRequired, lim_r2.json.code, lim_r2.json.feature, lim_r2.json.limit, /Upgrade to Premium/.test(lim_r2.json.message), cResumes()], [200, 403, true, "upgrade_required", "resumeVersions", 1, true, 1]);
+
+        const lim_saved10 = [];
+        for (const id of limitJobs.slice(0, 10)) lim_saved10.push((await saveJob(id)).status);
+        const lim_s11 = await saveJob(limitJobs[10]);
+        check("Free: ten saved jobs are fine, the eleventh is a 403 that asks to upgrade",
+            [lim_saved10.every(s => s === 200), lim_s11.status, lim_s11.json.upgradeRequired, lim_s11.json.feature, lim_s11.json.limit, cSaved()], [true, 403, true, "savedJobs", 10, 10]);
+        check("Free: saving one that is already saved is fine at the limit, and un-saving one makes room",
+            [(await saveJob(limitJobs[0])).status, (await call("DELETE", `/SavedJobs/${limitJobs[3]}`, { token: C.token })).status, (await saveJob(limitJobs[10])).status, cSaved()], [200, 200, 200, 10]);
+        const lim_usage = await call("GET", "/Subscription", { token: C.token });
+        check("GET /subscription reports the real usage against the limits", [lim_usage.json.usage, lim_usage.json.limits], [{ resumeVersions: 1, savedJobs: 10 }, { resumeVersions: 1, savedJobs: 10 }]);
+
+        await call("POST", "/Subscription/upgrade", { token: C.token, body: { billing: "Monthly" } });
+        const lim_more = [];
+        for (let i = 2; i <= 10; i++) lim_more.push((await newResume()).status);
+        const lim_r11 = await newResume();
+        check("Premium (same token, an instant upgrade): up to 10 resumes, the 11th is a 403 that does NOT ask to upgrade",
+            [lim_more.every(s => s === 200), lim_r11.status, lim_r11.json.upgradeRequired, lim_r11.json.code, lim_r11.json.limit, cResumes()], [true, 403, false, "limit_reached", 10, 10]);
+        check("Premium: no limit on saved jobs", [(await saveJob(limitJobs[11])).status, (await saveJob(limitJobs[3])).status, cSaved()], [200, 200, 12]);
+
+        sql(`UPDATE Subscriptions SET premium_until = DATEADD(minute, -1, GETUTCDATE()) WHERE user_id = ${C.id};`);
+        const lim_afterExpiry = await newResume();
+        const lim_keptResumes = await call("GET", `/Resume/by-user/${C.id}`, { token: C.token });
+        const lim_keptSaved = await call("GET", "/SavedJobs", { token: C.token });
+        check("Premium runs out: 10 resumes and 12 saved jobs are kept and readable, but nothing new can be added (403 asks to upgrade)",
+            [lim_afterExpiry.status, lim_afterExpiry.json.upgradeRequired, lim_keptResumes.json.length, lim_keptSaved.json.length, (await saveJob(limitJobs[5])).status], [403, true, 10, 12, 200]);
+
+        const D = await makeUser("d", "user");
+        users.push(D);
+        const lim_race = await Promise.all(Array.from({ length: 15 }, () => call("POST", "/Resume", { token: D.token, body: { title: "lim_race" } })));
+        check("15 parallel resume creates by one Free user: exactly one gets in", [lim_race.filter(r => r.status === 200).length, lim_race.filter(r => r.status === 403).length, Number(scalar(`SELECT COUNT(*) FROM Resumes WHERE user_id = ${D.id};`))], [1, 14, 1]);
 
         // ================= tracker + lockdown (real SQL) =================
         console.log("\ntracker flow + lockdown");
