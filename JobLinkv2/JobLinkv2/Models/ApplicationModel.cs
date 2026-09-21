@@ -36,6 +36,19 @@ namespace JobLinkv2.Models
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }
 
+        // "Internal" = applied to a JobLink employer's job, "External" = sent to
+        // the original posting (or logged by hand in the tracker).
+        [Column("application_type")]
+        public string ApplicationType { get; set; } = "External";
+
+        // External redirects: when the user was sent to the posting, and when
+        // they said they finished applying there.
+        [Column("redirected_at")]
+        public DateTime? RedirectedAt { get; set; }
+
+        [Column("confirmed_at")]
+        public DateTime? ConfirmedAt { get; set; }
+
         // Note: a "deleted_at" DateTime property used to be here, mapped via
         // [Column("deleted_at")] - but the Applications table has no such
         // column, only is_deleted (bit), like every other table. It was dead,

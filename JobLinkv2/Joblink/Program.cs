@@ -1,5 +1,8 @@
 using Dapper;
 using Joblink.Security;
+using Joblink.Services;
+using JobLinkv2.Repositories;
+using JobLinkv2.Services.Apply;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,6 +27,12 @@ builder.Services
     .AddJwtBearer(options => options.TokenValidationParameters = jwtOptions.ToValidationParameters());
 
 builder.Services.AddAuthorization();
+
+// ✅ Apply flow
+builder.Services.AddSingleton<IApplyStore>(new SqlApplyStore(
+    builder.Configuration.GetConnectionString("Joblink") ?? DbConfig.DefaultConnectionString));
+builder.Services.AddSingleton<ApplyService>();
+builder.Services.AddSingleton<JobImportService>();
 
 // ✅ Add CORS here
 builder.Services.AddCors(options =>

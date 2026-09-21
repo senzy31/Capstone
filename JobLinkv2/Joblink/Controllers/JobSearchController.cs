@@ -1,3 +1,4 @@
+using Joblink.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using System.Text.Json;
@@ -21,20 +22,24 @@ namespace Joblink.Controllers
 
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IMemoryCache _cache;
+        private readonly JobImportService _import;
         private readonly string? _apiKey;
 
         public JobSearchController(
             IHttpClientFactory httpClientFactory,
             IMemoryCache cache,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            JobImportService import)
         {
             _httpClientFactory = httpClientFactory;
             _cache = cache;
+            _import = import;
             _apiKey = configuration["RapidApi:Key"];
         }
 
         // GET api/JobSearch/search?query=developer%20manila&page=1
-        // Returns { status, data: [ ...jobs ] }
+        // Returns { status, data: [ ...jobs ] }. Every job is saved to Job_Listings
+        // and carries joblink_job_id (its saved id) for POST /api/jobs/{id}/apply.
         [HttpGet("search")]
         public async Task<IActionResult> Search([FromQuery] string? query, [FromQuery] int page = 1)
         {
@@ -44,12 +49,19 @@ namespace Joblink.Controllers
             if (query.Length > 200)
                 return BadRequest(new { message = "query is too long" });
 
+            page = Math.Clamp(page, 1, 10);
+
+            var taggedKey = $"tagged|{query.Trim()}|{page}";
+
+            if (_cache.TryGetValue(taggedKey, out JsonElement cachedJobs))
+                return Ok(new { status = "OK", data = cachedJobs });
+
             var (json, error) = await CallJSearch(
                 "/search-v2",
                 new Dictionary<string, string>
                 {
                     ["query"] = query.Trim(),
-                    ["page"] = Math.Clamp(page, 1, 10).ToString(),
+                    ["page"] = page.ToString(),
                     ["num_pages"] = "1"
                 },
                 SearchCacheTime);
@@ -59,20 +71,35 @@ namespace Joblink.Controllers
 
             // search-v2 nests the list under data.jobs; flatten it so the
             // frontend always receives data as a plain array.
-            var root = json!.Value;
+            if (!TryGetJobs(json!.Value, out var jobs))
+                return StatusCode(502, new { message = "Unexpected response from the job search service." });
 
-            if (root.TryGetProperty("data", out var data))
+            var (tagged, complete) = _import.ImportAndTag(jobs);
+
+            var taggedJobs = JsonSerializer.SerializeToElement(tagged);
+
+            if (complete)
+                _cache.Set(taggedKey, taggedJobs, SearchCacheTime);
+
+            return Ok(new { status = "OK", data = taggedJobs });
+        }
+
+        private static bool TryGetJobs(JsonElement root, out JsonElement jobs)
+        {
+            jobs = default;
+
+            if (!root.TryGetProperty("data", out var data))
+                return false;
+
+            if (data.ValueKind == JsonValueKind.Array)
             {
-                if (data.ValueKind == JsonValueKind.Array)
-                    return Ok(new { status = "OK", data });
-
-                if (data.ValueKind == JsonValueKind.Object &&
-                    data.TryGetProperty("jobs", out var jobs) &&
-                    jobs.ValueKind == JsonValueKind.Array)
-                    return Ok(new { status = "OK", data = jobs });
+                jobs = data;
+                return true;
             }
 
-            return StatusCode(502, new { message = "Unexpected response from the job search service." });
+            return data.ValueKind == JsonValueKind.Object &&
+                   data.TryGetProperty("jobs", out jobs) &&
+                   jobs.ValueKind == JsonValueKind.Array;
         }
 
         // GET api/JobSearch/details?jobId=...

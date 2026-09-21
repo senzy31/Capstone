@@ -16,7 +16,7 @@ namespace JobLinkv2.Repositories
     public class GenericRepository<T> : IGenericRepository<T> where T : class
     {
         IDbConnection connection;
-        readonly string connectionString = "Server=(localdb)\\MSSQLLocalDB; Database=Joblinkv2; Trusted_Connection=true; MultipleActiveResultSets=true";
+        readonly string connectionString = DbConfig.DefaultConnectionString;
         public GenericRepository()
         {
             connection = new SqlConnection(connectionString);
