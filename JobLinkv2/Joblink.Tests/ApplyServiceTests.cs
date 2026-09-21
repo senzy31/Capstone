@@ -13,13 +13,14 @@ namespace Joblink.Tests
 
         private readonly InMemoryApplyStore _store = new();
         private readonly TestClock _clock = new();
+        private readonly FakePlanReader _plans = new();
         private readonly ApplyService _service;
 
         public ApplyServiceTests()
         {
             _store.UserNames[Seeker] = "Maria Santos";
             _store.PrimaryResumes[Seeker] = 5;
-            _service = new ApplyService(_store, _clock);
+            _service = new ApplyService(_store, _clock, _plans);
         }
 
         private List<JoblistingModel> InternalJobs(int count) =>
@@ -140,6 +141,176 @@ namespace Joblink.Tests
 
             Assert.False(again.AlreadyApplied);
             Assert.NotEqual(first.ApplicationId, again.ApplicationId);
+        }
+
+        // =====================================================================
+        // PRIORITY APPLICATION - Premium at the moment of applying, internal jobs only
+        // =====================================================================
+
+        [Fact]
+        public void A_premium_applicant_makes_a_priority_application()
+        {
+            _plans.MakePremium(Seeker);
+            var job = _store.AddInternalJob(Employer);
+
+            var result = Assert.IsType<InternalApplied>(_service.Apply(Seeker, job.JobId));
+
+            Assert.True(result.IsPriority);
+            Assert.True(Assert.Single(_store.Applications).IsPriority);
+        }
+
+        [Fact]
+        public void A_free_applicant_makes_a_normal_application()
+        {
+            var job = _store.AddInternalJob(Employer);
+
+            var result = Assert.IsType<InternalApplied>(_service.Apply(Seeker, job.JobId));
+
+            Assert.False(result.IsPriority);
+            Assert.False(Assert.Single(_store.Applications).IsPriority);
+        }
+
+        [Fact]
+        public void An_external_redirect_is_never_priority_and_never_asks_for_the_plan()
+        {
+            _plans.MakePremium(Seeker);
+            var job = _store.AddExternalJob();
+
+            Assert.IsType<ExternalRedirect>(_service.Apply(Seeker, job.JobId));
+
+            Assert.False(Assert.Single(_store.Applications).IsPriority);
+            Assert.Equal(0, _plans.Asked);
+        }
+
+        [Fact]
+        public void Priority_is_a_snapshot_from_the_moment_of_applying()
+        {
+            var early = _store.AddInternalJob(Employer, "Early");
+            var late = _store.AddInternalJob(Employer, "Late");
+
+            // Premium when applying, then the plan lapses: the application stays priority...
+            _plans.MakePremium(Seeker);
+            var first = Assert.IsType<InternalApplied>(_service.Apply(Seeker, early.JobId));
+            _plans.MakeFree(Seeker);
+
+            Assert.True(first.IsPriority);
+            Assert.True(_store.GetApplication(first.ApplicationId)!.IsPriority);
+
+            // ...and a job applied to after the lapse is a normal application.
+            Assert.False(Assert.IsType<InternalApplied>(_service.Apply(Seeker, late.JobId)).IsPriority);
+        }
+
+        [Fact]
+        public void Upgrading_later_does_not_turn_an_earlier_application_into_priority()
+        {
+            var job = _store.AddInternalJob(Employer);
+            var first = Assert.IsType<InternalApplied>(_service.Apply(Seeker, job.JobId));
+
+            _plans.MakePremium(Seeker);
+            var again = Assert.IsType<InternalApplied>(_service.Apply(Seeker, job.JobId));    // "apply again"
+
+            Assert.False(first.IsPriority);
+            Assert.True(again.AlreadyApplied);
+            Assert.False(again.IsPriority);                       // it reports what was stored
+            Assert.False(Assert.Single(_store.Applications).IsPriority);
+        }
+
+        [Fact]
+        public void Applying_again_reports_the_stored_priority_after_the_plan_lapsed()
+        {
+            _plans.MakePremium(Seeker);
+            var job = _store.AddInternalJob(Employer);
+            Assert.True(Assert.IsType<InternalApplied>(_service.Apply(Seeker, job.JobId)).IsPriority);
+
+            _plans.MakeFree(Seeker);
+            var again = Assert.IsType<InternalApplied>(_service.Apply(Seeker, job.JobId));
+
+            Assert.True(again.AlreadyApplied);
+            Assert.True(again.IsPriority);
+        }
+
+        [Fact]
+        public void A_priority_application_tells_the_employer_it_is_priority()
+        {
+            _plans.MakePremium(Seeker);
+            var job = _store.AddInternalJob(Employer, "Backend Developer");
+
+            _service.Apply(Seeker, job.JobId);
+
+            var (userId, message) = Assert.Single(_store.Notifications);
+            Assert.Equal(Employer, userId);
+            Assert.Equal("Priority application: Maria Santos applied for Backend Developer.", message);
+        }
+
+        [Fact]
+        public void A_normal_application_notification_does_not_say_priority()
+        {
+            var job = _store.AddInternalJob(Employer, "Backend Developer");
+
+            _service.Apply(Seeker, job.JobId);
+
+            var (_, message) = Assert.Single(_store.Notifications);
+            Assert.Equal("Maria Santos applied for Backend Developer.", message);
+            Assert.DoesNotContain("Priority", message);
+        }
+
+        [Fact]
+        public void A_plan_that_cannot_be_read_applies_as_a_normal_application()
+        {
+            _plans.Broken = true;
+            var job = _store.AddInternalJob(Employer);
+
+            var result = Assert.IsType<InternalApplied>(_service.Apply(Seeker, job.JobId));
+
+            Assert.False(result.IsPriority);                      // applying is never blocked by the plan lookup
+            Assert.Single(_store.Applications);
+            Assert.Single(_store.Notifications);
+        }
+
+        [Fact]
+        public void The_plan_is_asked_once_per_new_internal_application_and_never_for_a_repeat()
+        {
+            _plans.MakePremium(Seeker);
+            var job = _store.AddInternalJob(Employer);
+
+            _service.Apply(Seeker, job.JobId);
+            Assert.Equal(1, _plans.Asked);
+
+            _service.Apply(Seeker, job.JobId);                    // duplicate: hands back the first
+            Assert.Equal(1, _plans.Asked);
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void Premium_and_free_have_the_same_20_per_day_limit(bool premium)
+        {
+            if (premium)
+                _plans.MakePremium(Seeker);
+
+            var jobs = InternalJobs(21);
+
+            foreach (var job in jobs.Take(20))
+                Assert.IsType<InternalApplied>(_service.Apply(Seeker, job.JobId));
+
+            var limited = Assert.IsType<ApplyRateLimited>(_service.Apply(Seeker, jobs[20].JobId));
+
+            Assert.Equal(24 * 3600, limited.RetryAfterSeconds);
+            Assert.Equal(20, _store.Applications.Count);
+            Assert.Equal(20, _store.Notifications.Count);
+        }
+
+        [Fact]
+        public void A_premium_applicant_can_still_redirect_to_external_jobs_at_the_internal_limit()
+        {
+            _plans.MakePremium(Seeker);
+
+            foreach (var job in InternalJobs(20))
+                _service.Apply(Seeker, job.JobId);
+
+            var external = _store.AddExternalJob();
+
+            Assert.IsType<ExternalRedirect>(_service.Apply(Seeker, external.JobId));   // redirects never count
         }
 
         // =====================================================================

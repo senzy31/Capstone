@@ -215,7 +215,8 @@ namespace Joblink.Tests.Support
             AppliedAt = a.AppliedAt,
             ApplicationType = a.ApplicationType,
             RedirectedAt = a.RedirectedAt,
-            ConfirmedAt = a.ConfirmedAt
+            ConfirmedAt = a.ConfirmedAt,
+            IsPriority = a.IsPriority
         };
     }
 }

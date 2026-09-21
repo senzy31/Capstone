@@ -416,6 +416,60 @@ async function makeUser(label, role) {
         const lim_race = await Promise.all(Array.from({ length: 15 }, () => call("POST", "/Resume", { token: D.token, body: { title: "lim_race" } })));
         check("15 parallel resume creates by one Free user: exactly one gets in", [lim_race.filter(r => r.status === 200).length, lim_race.filter(r => r.status === 403).length, Number(scalar(`SELECT COUNT(*) FROM Resumes WHERE user_id = ${D.id};`))], [1, 14, 1]);
 
+        // ================= Priority Application (real SQL): decided when applying, from the plan at that moment =================
+        console.log("\nPriority Application (real SQL): Premium at the moment of applying, internal jobs only");
+        const P = await makeUser("p", "user");
+        const Q = await makeUser("q", "user");
+        const Y = await makeUser("y", "user");
+        users.push(P, Q, Y);
+        for (const premiumUser of [P, Y]) await call("POST", "/Subscription/upgrade", { token: premiumUser.token, body: { billing: "Monthly" } });
+        sql(`INSERT INTO Job_Listings (external_job_id, title, company, location, source_api, is_deleted, source, employer_id, apply_url, apply_is_direct, publisher, apply_options, is_expired)
+             VALUES ${[1, 2, 3, 4].map(i => `('e2e-prio-${i}-${STAMP}', 'E2E Priority Job ${i}', 'Acme', 'Manila', 'employer', 0, 'Internal', ${E.id}, NULL, 0, NULL, NULL, 0)`).join(",\n")};`);
+        const prio = {};
+        for (const r of sql(`SELECT external_job_id, job_id FROM Job_Listings WHERE external_job_id LIKE 'e2e-prio-%-${STAMP}';`)) {
+            const [k, id] = r.split("|"); prio[k.replace(`-${STAMP}`, "").replace("e2e-prio-", "")] = Number(id); createdJobIds.add(Number(id));
+        }
+        const prioFlag = (user, jobId) => scalar(`SELECT CAST(is_priority AS int) FROM Applications WHERE user_id = ${user.id} AND job_id = ${jobId} AND is_deleted = 0;`);
+        const employerNotes = jobId => sql(`SELECT CAST(message AS nvarchar(400)) FROM Notifications WHERE user_id = ${E.id} AND CAST(message AS nvarchar(400)) LIKE '%E2E Priority Job ${jobId}.' ORDER BY notification_id;`);
+
+        const pApply = await call("POST", `/jobs/${prio[1]}/apply`, { token: P.token });
+        const qApply = await call("POST", `/jobs/${prio[1]}/apply`, { token: Q.token });
+        check("a Premium applicant's internal application is priority (stored on the row); a Free applicant's is not",
+            [pApply.status, pApply.json.isPriority, prioFlag(P, prio[1]), qApply.status, qApply.json.isPriority, prioFlag(Q, prio[1])], [200, true, "1", 200, false, "0"]);
+        check("the employer's notification says Priority for Premium and nothing special for Free",
+            employerNotes(1), ["Priority application: E2E p applied for E2E Priority Job 1.", "E2E q applied for E2E Priority Job 1."]);
+
+        const forged = await call("POST", `/jobs/${prio[2]}/apply?isPriority=true&plan=Premium`, { token: Q.token, body: { isPriority: true, is_priority: true, plan: "Premium", priority: true } });
+        check("a Free client cannot ask for priority (body and query are ignored): still not priority", [forged.status, forged.json.isPriority, prioFlag(Q, prio[2])], [200, false, "0"]);
+
+        const pExternal = await call("POST", `/jobs/${ids["e2e-ext-c"]}/apply`, { token: P.token });
+        check("a Premium user's external redirect is never priority (and the redirect works)", [pExternal.status, pExternal.json.type, prioFlag(P, ids["e2e-ext-c"])], [200, "external", "0"]);
+        let refusedByTable = false, tableMessage = "";
+        try {
+            sql(`INSERT INTO Applications (user_id, job_id, status, is_deleted, application_type, redirected_at, is_priority) VALUES (${P.id}, ${ids["e2e-ext-race"]}, 'Redirected', 0, 'External', GETDATE(), 1);`);
+        } catch (e) { refusedByTable = true; tableMessage = String(e.stdout || "") + e.message; }
+        check("the table itself refuses a priority external application (CK_Applications_priority_internal)", [refusedByTable, tableMessage.includes("CK_Applications_priority_internal")], [true, true]);
+
+        // priority is a snapshot from the moment of applying
+        const pFirst = await call("POST", `/jobs/${prio[3]}/apply`, { token: P.token });
+        sql(`UPDATE Subscriptions SET premium_until = DATEADD(minute, -1, GETUTCDATE()) WHERE user_id = ${P.id};`);
+        const pLapsed = await call("POST", `/jobs/${prio[4]}/apply`, { token: P.token });
+        const pAgain = await call("POST", `/jobs/${prio[3]}/apply`, { token: P.token });
+        check("Premium lapses (same token): the earlier application keeps its priority, a new one is normal, and applying again reports the stored value",
+            [pFirst.json.isPriority, pLapsed.json.isPriority, pAgain.json.alreadyApplied, pAgain.json.isPriority, prioFlag(P, prio[3]), prioFlag(P, prio[4])], [true, false, true, true, "1", "0"]);
+
+        await call("POST", "/Subscription/upgrade", { token: Q.token, body: { billing: "Monthly" } });
+        const qUpgraded = await call("POST", `/jobs/${prio[3]}/apply`, { token: Q.token });
+        const qAgain = await call("POST", `/jobs/${prio[1]}/apply`, { token: Q.token });
+        check("upgrading (same token) makes the NEXT application priority, but does not rewrite the one already made",
+            [qUpgraded.json.isPriority, prioFlag(Q, prio[3]), qAgain.json.alreadyApplied, qAgain.json.isPriority, prioFlag(Q, prio[1])], [true, "1", true, false, "0"]);
+
+        // the same 20-per-day limit for Premium, under load
+        const yBurst = await Promise.all(internalIds.map(id => call("POST", `/jobs/${id}/apply`, { token: Y.token })));
+        const yOk = yBurst.filter(r => r.status === 200), yLimited = yBurst.filter(r => r.status === 429);
+        check("Premium has the same limit under 25 parallel applies: exactly 20 succeed (all priority), 5 get the same 429",
+            [yOk.length, yLimited.length, yLimited[0].json.message.includes("20 applications"), Number(scalar(`SELECT COUNT(*) FROM Applications WHERE user_id = ${Y.id} AND application_type = 'Internal' AND is_priority = 1;`)), Number(scalar(`SELECT COUNT(*) FROM Applications WHERE user_id = ${Y.id};`))], [20, 5, true, 20, 20]);
+
         // ================= tracker + lockdown (real SQL) =================
         console.log("\ntracker flow + lockdown");
         const mj = await call("POST", "/Joblisting", { token: A.token, body: { title: "E2E Manual Job", company: "Manual Co", location: "Davao", source: "Internal", employerId: E.id, sourceApi: "jsearch", applyUrl: "https://evil.example/phish", applyIsDirect: true, publisher: "LinkedIn", applyOptions: "[{\"apply_link\":\"https://evil.example\",\"is_direct\":true}]", isExpired: true } });

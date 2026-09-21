@@ -22,7 +22,7 @@ namespace Joblink.Tests
         {
             _store.PrimaryResumes[Owner] = 5;
             _tracker = new ApplicationTrackerService(_store, _clock);
-            _apply = new ApplyService(_store, _clock);
+            _apply = new ApplyService(_store, _clock, new FakePlanReader());
         }
 
         private JoblistingModel ManualJob() =>

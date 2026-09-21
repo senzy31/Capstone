@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using JobLinkv2.Models;
+using JobLinkv2.Services.Subscriptions;
 using Joblink.Tests.Support;
 using Xunit;
 
@@ -168,6 +169,121 @@ namespace Joblink.Tests
                 var job = Store.AddExternalJob();
                 Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/jobs/{job.JobId}/apply", null)).StatusCode);
             }
+        }
+
+        // ----- Priority Application ---------------------------------------------
+
+        private DateTime Now => Factory.Clock.UtcNow;
+
+        private void MakePremium(int user, int days = 30) =>
+            Factory.Subscriptions.Set(new SubscriptionRecord(user, "Premium", "Monthly", Now.AddDays(-1), Now.AddDays(days), null));
+
+        [Fact]
+        public async Task A_free_applicant_gets_isPriority_false()
+        {
+            var job = Store.AddInternalJob(NewUser());
+
+            var json = await Read(await Client(NewUser()).PostAsync($"/api/jobs/{job.JobId}/apply", null));
+
+            Assert.False(json.GetProperty("isPriority").GetBoolean());
+        }
+
+        [Fact]
+        public async Task A_premium_applicant_gets_isPriority_true_stored_and_the_employer_is_told()
+        {
+            var employer = NewUser();
+            var user = NewUser();
+            MakePremium(user);
+            var job = Store.AddInternalJob(employer, "Data Analyst");
+
+            var json = await Read(await Client(user).PostAsync($"/api/jobs/{job.JobId}/apply", null));
+
+            Assert.True(json.GetProperty("isPriority").GetBoolean());
+            Assert.True(Store.Applications.Single(a => a.UserId == user && a.JobId == job.JobId).IsPriority);
+            Assert.Contains(Store.Notifications, n => n.UserId == employer && n.Message.StartsWith("Priority application:") && n.Message.Contains("Data Analyst"));
+        }
+
+        [Fact]
+        public async Task Upgrading_makes_the_next_application_priority_on_the_same_token()
+        {
+            var user = NewUser();
+            var client = Client(user);                            // one token for the whole test
+            var before = Store.AddInternalJob(NewUser());
+            var after = Store.AddInternalJob(NewUser());
+
+            Assert.False((await Read(await client.PostAsync($"/api/jobs/{before.JobId}/apply", null))).GetProperty("isPriority").GetBoolean());
+
+            Assert.Equal(HttpStatusCode.OK, (await Send(client, HttpMethod.Post, "/api/Subscription/upgrade", "{\"billing\":\"Monthly\"}")).StatusCode);
+
+            Assert.True((await Read(await client.PostAsync($"/api/jobs/{after.JobId}/apply", null))).GetProperty("isPriority").GetBoolean());
+        }
+
+        [Fact]
+        public async Task A_lapsed_premium_applicant_is_no_longer_priority_on_the_same_token()
+        {
+            var user = NewUser();
+            var client = Client(user);
+            MakePremium(user, days: 10);
+            var during = Store.AddInternalJob(NewUser());
+            var afterLapse = Store.AddInternalJob(NewUser());
+
+            Assert.True((await Read(await client.PostAsync($"/api/jobs/{during.JobId}/apply", null))).GetProperty("isPriority").GetBoolean());
+
+            Factory.Clock.Advance(TimeSpan.FromDays(11));            // premium_until has passed - no job ran, no token changed
+
+            Assert.False((await Read(await client.PostAsync($"/api/jobs/{afterLapse.JobId}/apply", null))).GetProperty("isPriority").GetBoolean());
+            Assert.True(Store.Applications.Single(a => a.UserId == user && a.JobId == during.JobId).IsPriority);   // the old one keeps it
+        }
+
+        [Fact]
+        public async Task A_client_cannot_ask_for_priority_it_is_read_from_the_plan()
+        {
+            var user = NewUser();
+            var job = Store.AddInternalJob(NewUser());
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"/api/jobs/{job.JobId}/apply?isPriority=true&plan=Premium")
+            {
+                Content = JsonBody("{\"isPriority\":true,\"is_priority\":true,\"plan\":\"Premium\",\"priority\":true}")
+            };
+            request.Headers.Add("X-Plan", "Premium");
+
+            var json = await Read(await Client(user).SendAsync(request));
+
+            Assert.False(json.GetProperty("isPriority").GetBoolean());
+            Assert.False(Store.Applications.Single(a => a.UserId == user).IsPriority);
+        }
+
+        [Fact]
+        public async Task An_external_redirect_by_a_premium_user_is_not_priority()
+        {
+            var user = NewUser();
+            MakePremium(user);
+            var job = Store.AddExternalJob();
+
+            var json = await Read(await Client(user).PostAsync($"/api/jobs/{job.JobId}/apply", null));
+
+            Assert.Equal("external", json.GetProperty("type").GetString());
+            Assert.False(json.TryGetProperty("isPriority", out var flag) && flag.GetBoolean());
+            Assert.False(Store.Applications.Single(a => a.UserId == user).IsPriority);
+        }
+
+        [Fact]
+        public async Task A_premium_applicant_gets_the_same_429_after_20_applications()
+        {
+            var user = NewUser();
+            MakePremium(user);
+            var client = Client(user);
+            var jobs = Enumerable.Range(1, 21).Select(i => Store.AddInternalJob(NewUser(), $"Job {i}")).ToList();
+
+            foreach (var job in jobs.Take(20))
+                Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/jobs/{job.JobId}/apply", null)).StatusCode);
+
+            var response = await client.PostAsync($"/api/jobs/{jobs[20].JobId}/apply", null);
+            var json = await Read(response);
+
+            Assert.Equal(HttpStatusCode.TooManyRequests, response.StatusCode);
+            Assert.Equal("86400", response.Headers.GetValues("Retry-After").Single());
+            Assert.Contains("20 applications", json.GetProperty("message").GetString());
         }
 
         // ----- external jobs ----------------------------------------------------

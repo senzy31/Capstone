@@ -49,6 +49,12 @@ namespace JobLinkv2.Models
         [Column("confirmed_at")]
         public DateTime? ConfirmedAt { get; set; }
 
+        // Priority Application: the applicant was Premium at the moment they applied. Internal
+        // applications only (the table refuses it on an external one). It never changes the
+        // suitability score - it only breaks a tie when an employer ranks applicants.
+        [Column("is_priority")]
+        public bool IsPriority { get; set; }
+
         // Note: a "deleted_at" DateTime property used to be here, mapped via
         // [Column("deleted_at")] - but the Applications table has no such
         // column, only is_deleted (bit), like every other table. It was dead,

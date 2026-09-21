@@ -1,10 +1,11 @@
 using JobLinkv2.Models;
+using JobLinkv2.Services.Subscriptions;
 
 namespace JobLinkv2.Services.Apply
 {
     public abstract record ApplyResult;
     public sealed record ApplyJobNotFound : ApplyResult;
-    public sealed record InternalApplied(int ApplicationId, string Status, bool AlreadyApplied) : ApplyResult;
+    public sealed record InternalApplied(int ApplicationId, string Status, bool AlreadyApplied, bool IsPriority) : ApplyResult;
     public sealed record ExternalRedirect(int ApplicationId, string RedirectUrl, string? Publisher, string Status) : ApplyResult;
     public sealed record ApplyExpired(string? Publisher) : ApplyResult;
     public sealed record ApplyRateLimited(int RetryAfterSeconds) : ApplyResult;
@@ -26,11 +27,13 @@ namespace JobLinkv2.Services.Apply
 
         private readonly IApplyStore _store;
         private readonly TimeProvider _time;
+        private readonly IPlanReader _plans;
 
-        public ApplyService(IApplyStore store, TimeProvider time)
+        public ApplyService(IApplyStore store, TimeProvider time, IPlanReader plans)
         {
             _store = store;
             _time = time;
+            _plans = plans;
         }
 
         private DateTime UtcNow => _time.GetUtcNow().UtcDateTime;
@@ -61,6 +64,10 @@ namespace JobLinkv2.Services.Apply
             var now = UtcNow;
             var windowStart = now - InternalApplicationWindow;
 
+            // Priority is decided now, from the plan as it is right now, and stored on the
+            // application: later upgrading or lapsing doesn't change an application already made.
+            var priority = IsPremium(userId);
+
             var application = new ApplicationModel
             {
                 UserId = userId,
@@ -68,7 +75,8 @@ namespace JobLinkv2.Services.Apply
                 ResumeId = _store.GetPrimaryResumeId(userId),
                 Status = ApplicationStatuses.Submitted,
                 ApplicationType = ApplicationTypes.Internal,
-                AppliedAt = now
+                AppliedAt = now,
+                IsPriority = priority
             };
 
             int? applicationId;
@@ -92,16 +100,31 @@ namespace JobLinkv2.Services.Apply
                 return new ApplyRateLimited(Math.Max(retryAfter, 1));
             }
 
-            NotifyEmployer(listing, userId);
+            NotifyEmployer(listing, userId, priority);
 
-            return new InternalApplied(applicationId.Value, ApplicationStatuses.Submitted, false);
+            return new InternalApplied(applicationId.Value, ApplicationStatuses.Submitted, false, priority);
         }
 
         private static InternalApplied AlreadyApplied(ApplicationModel existing) =>
-            new(existing.ApplicationId, existing.Status ?? ApplicationStatuses.Submitted, true);
+            new(existing.ApplicationId, existing.Status ?? ApplicationStatuses.Submitted, true, existing.IsPriority);
+
+        // Whether the user is on Premium right now. Applying is the core action, so a plan that
+        // can't be read (the subscription table unreachable) just means "not priority" - it
+        // must never stop someone applying.
+        private bool IsPremium(int userId)
+        {
+            try
+            {
+                return _plans.IsPremium(userId);
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
         // The application is already saved, so a failed notification must not fail the apply.
-        private void NotifyEmployer(JoblistingModel listing, int applicantId)
+        private void NotifyEmployer(JoblistingModel listing, int applicantId, bool priority)
         {
             if (listing.EmployerId is not int employerId)
                 return;
@@ -110,7 +133,11 @@ namespace JobLinkv2.Services.Apply
             {
                 var applicant = _store.GetUserName(applicantId) ?? "A job seeker";
 
-                _store.AddNotification(employerId, $"{applicant} applied for {listing.Title ?? "your job posting"}.");
+                var title = listing.Title ?? "your job posting";
+
+                _store.AddNotification(employerId, priority
+                    ? $"Priority application: {applicant} applied for {title}."
+                    : $"{applicant} applied for {title}.");
             }
             catch
             {

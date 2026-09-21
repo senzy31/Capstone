@@ -343,6 +343,90 @@ namespace Joblink.Tests
                 new ApplicationModel { UserId = user, JobId = job, Status = "Submitted", ApplicationType = "Neither" }));
         }
 
+        // ----- Priority Application ---------------------------------------------
+
+        [DbFact]
+        public void Priority_is_stored_on_the_application_and_read_back()
+        {
+            var employer = NewUser("employer");
+            var premiumUser = NewUser();
+            var freeUser = NewUser();
+            var job = NewInternalJob(employer);
+
+            var priorityId = _store.TryAddInternalApplication(
+                new ApplicationModel { UserId = premiumUser, JobId = job, Status = "Submitted", ApplicationType = "Internal", AppliedAt = DateTime.UtcNow, IsPriority = true },
+                limit: 20, DateTime.UtcNow.AddDays(-1))!.Value;
+
+            var normalId = _store.TryAddInternalApplication(
+                new ApplicationModel { UserId = freeUser, JobId = job, Status = "Submitted", ApplicationType = "Internal", AppliedAt = DateTime.UtcNow },
+                limit: 20, DateTime.UtcNow.AddDays(-1))!.Value;
+
+            Assert.True(_store.GetApplication(priorityId)!.IsPriority);
+            Assert.True(_store.FindActiveApplication(premiumUser, job)!.IsPriority);
+            Assert.True(_store.GetApplicationsByUser(premiumUser).Single().IsPriority);
+            Assert.False(_store.GetApplication(normalId)!.IsPriority);
+        }
+
+        [DbFact]
+        public void An_application_is_not_priority_unless_it_says_so()
+        {
+            var employer = NewUser("employer");
+            var user = NewUser();
+            var job = NewInternalJob(employer);
+
+            var id = _store.AddApplication(new ApplicationModel { UserId = user, JobId = job, Status = "Submitted", ApplicationType = "Internal", AppliedAt = DateTime.UtcNow });
+
+            Assert.False(_store.GetApplication(id)!.IsPriority);
+            Assert.Equal(0, Count("SELECT CAST(is_priority AS int) FROM Applications WHERE application_id = @id", new { id }));
+        }
+
+        [DbFact]
+        public void The_database_refuses_a_priority_external_application()
+        {
+            var user = NewUser();
+            var job = _store.UpsertExternalListing(Imported());
+
+            using var db = Open();
+
+            var refused = Assert.Throws<SqlException>(() => db.Execute(
+                @"INSERT INTO Applications (user_id, job_id, status, is_deleted, application_type, redirected_at, is_priority)
+                  VALUES (@user, @job, 'Redirected', 0, 'External', GETDATE(), 1)",
+                new { user, job }));
+
+            Assert.Contains("CK_Applications_priority_internal", refused.Message);
+            Assert.Equal(0, Count("SELECT COUNT(*) FROM Applications WHERE user_id = @user", new { user }));
+        }
+
+        [DbFact]
+        public void An_external_redirect_saved_through_the_store_is_never_priority()
+        {
+            var user = NewUser();
+            var job = _store.UpsertExternalListing(Imported());
+
+            var id = _store.AddApplication(new ApplicationModel { UserId = user, JobId = job, Status = "Redirected", ApplicationType = "External", IsPriority = true });
+
+            Assert.False(_store.GetApplication(id)!.IsPriority);   // the external insert doesn't carry the flag at all
+        }
+
+        [DbFact]
+        public void Updating_an_application_never_changes_its_priority()
+        {
+            var employer = NewUser("employer");
+            var user = NewUser();
+            var job = NewInternalJob(employer);
+            var id = _store.TryAddInternalApplication(
+                new ApplicationModel { UserId = user, JobId = job, Status = "Submitted", ApplicationType = "Internal", AppliedAt = DateTime.UtcNow, IsPriority = true },
+                limit: 20, DateTime.UtcNow.AddDays(-1))!.Value;
+
+            var loaded = _store.GetApplication(id)!;
+            loaded.IsPriority = false;                    // must be ignored - priority is decided once, when applying
+            loaded.Status = "Viewed";
+            _store.UpdateApplication(loaded);
+
+            Assert.True(_store.GetApplication(id)!.IsPriority);
+            Assert.Equal("Viewed", _store.GetApplication(id)!.Status);
+        }
+
         [DbFact]
         public void The_database_refuses_an_internal_job_without_an_employer_and_an_external_one_with_one()
         {

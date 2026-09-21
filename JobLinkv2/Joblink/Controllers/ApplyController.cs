@@ -34,7 +34,8 @@ namespace Joblink.Controllers
                         type = "internal",
                         applicationId = applied.ApplicationId,
                         status = applied.Status,
-                        alreadyApplied = applied.AlreadyApplied
+                        alreadyApplied = applied.AlreadyApplied,
+                        isPriority = applied.IsPriority
                     });
 
                 case ExternalRedirect redirect:

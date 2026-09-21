@@ -26,7 +26,7 @@ namespace JobLinkv2.Services.Apply
             application_id AS ApplicationId, ISNULL(user_id, 0) AS UserId, ISNULL(job_id, 0) AS JobId,
             resume_id AS ResumeId, status AS Status, applied_at AS AppliedAt,
             ISNULL(is_deleted, 0) AS IsDeleted, application_type AS ApplicationType,
-            redirected_at AS RedirectedAt, confirmed_at AS ConfirmedAt";
+            redirected_at AS RedirectedAt, confirmed_at AS ConfirmedAt, ISNULL(is_priority, 0) AS IsPriority";
 
         private readonly string _connectionString;
 
@@ -239,9 +239,9 @@ namespace JobLinkv2.Services.Apply
                 END
 
                 INSERT INTO Applications
-                    (user_id, job_id, resume_id, status, applied_at, is_deleted, application_type, redirected_at, confirmed_at)
+                    (user_id, job_id, resume_id, status, applied_at, is_deleted, application_type, redirected_at, confirmed_at, is_priority)
                 VALUES
-                    (@UserId, @JobId, @ResumeId, @Status, @AppliedAt, 0, 'Internal', NULL, NULL);
+                    (@UserId, @JobId, @ResumeId, @Status, @AppliedAt, 0, 'Internal', NULL, NULL, @IsPriority);
 
                 DECLARE @id int = CAST(SCOPE_IDENTITY() AS int);
                 COMMIT TRANSACTION;
@@ -261,6 +261,7 @@ namespace JobLinkv2.Services.Apply
                         application.ResumeId,
                         Status = Ansi(application.Status, 50),
                         application.AppliedAt,
+                        application.IsPriority,
                         Limit = limit,
                         WindowStart = windowStartUtc
                     });
