@@ -49,6 +49,7 @@ const PASSWORD = "Sup3rSecret!";
         t.check("...with the login token", call.headers.authorization, "Bearer test-token");
         t.check("no password dialog for a name change", await page.locator(".ac-overlay").count(), 0);
         t.check("the rest of the profile still saved", api.callsTo("POST", /^\/Profile$/).length + api.callsTo("PUT", /^\/Profile$/).length, 1);
+        t.check("every API call the page made (account, profile, preferences) carried the login token", api.calls.every(c => c.headers.authorization === "Bearer test-token"), true);
         t.check("nothing else was called that we didn't fake", api.unmocked, []);
         await context.close();
     }
@@ -187,6 +188,7 @@ const PASSWORD = "Sup3rSecret!";
         t.check("typing the account email back drops the override, so the resume follows the account again",
             (await page.evaluate(() => JSON.parse(localStorage.getItem("joblinkResumeExtras_7")))).resumeEmail, "");
         t.check("the saved login snapshot keeps the account email", await savedEmail(page), "maria@example.com");
+        t.check("every API call the builder made (account, profile, resume, entries, skills) carried the login token", [api.calls.length > 6, api.calls.every(c => c.headers.authorization === "Bearer test-token")], [true, true]);
         t.check("nothing was called that we didn't fake", api.unmocked, []);
         await context.close();
     }

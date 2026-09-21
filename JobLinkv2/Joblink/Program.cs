@@ -5,11 +5,41 @@ using Joblink.Services.Accounts;
 using JobLinkv2.Repositories;
 using JobLinkv2.Services.Accounts;
 using JobLinkv2.Services.Apply;
+using JobLinkv2.Services.Resumes;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        // A request that fails validation answers { message, code } like every other
+        // error, with the first thing that is wrong (instead of the default problem
+        // document, which the pages would show as a blob).
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var first = context.ModelState.Values
+                .SelectMany(entry => entry.Errors)
+                .Select(error =>
+                {
+                    // A rule's own message, or - for a value that couldn't be read at all,
+                    // like a date that isn't one - the reader's message without its
+                    // "Path: $.field | LineNumber..." tail.
+                    var text = !string.IsNullOrWhiteSpace(error.ErrorMessage) ? error.ErrorMessage : error.Exception?.Message;
+
+                    if (string.IsNullOrWhiteSpace(text))
+                        return "That request isn't valid.";
+
+                    var cut = text.IndexOf(" Path:", StringComparison.Ordinal);
+
+                    return cut > 0 ? text[..cut] : text;
+                })
+                .FirstOrDefault() ?? "That request isn't valid.";
+
+            return new BadRequestObjectResult(new { message = first, code = "invalid" });
+        };
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -35,6 +65,9 @@ var connectionString = builder.Configuration.GetConnectionString("Joblink") ?? D
 // ✅ Accounts: sign up, log in, your own details
 builder.Services.AddSingleton<IUserStore>(new SqlUserStore(connectionString));
 builder.Services.AddSingleton<UserAccountService>();
+
+// ✅ A job seeker's own data: profile, resumes and what hangs off them, preferences
+builder.Services.AddSingleton(new ResumeDataStore(connectionString));
 
 // ✅ Apply flow
 builder.Services.AddSingleton<IApplyStore>(new SqlApplyStore(connectionString));

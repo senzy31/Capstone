@@ -1,50 +1,85 @@
-﻿using JobLinkv2.Models;
-using JobLinkv2.Services;
+using Joblink.Security;
+using Joblink.Services.Resumes;
+using JobLinkv2.Services.Resumes;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Joblink.Controllers
 {
+    // Work-experience entries on the caller's own resumes: same rules as Education.
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "user")]
     public class ExperienceController : ControllerBase
     {
-        ExperienceServices experienceServices = new ExperienceServices();
+        private readonly ResumeDataStore _data;
 
-        [HttpGet]
-        public ActionResult GetAll()
+        public ExperienceController(ResumeDataStore data)
         {
-            var exp = experienceServices.GetAll();
-            return Ok(exp);
+            _data = data;
         }
 
         [HttpGet("{id}")]
-        public ExperienceModel GetById(int id)
+        public IActionResult GetById(int id)
         {
-            return experienceServices.GetById(id);
+            if (User.GetUserId() is not int userId)
+                return Unauthorized();
+
+            var entry = _data.GetExperience(userId, id);
+
+            return entry is null ? NotFound(new { message = "Experience entry not found." }) : Ok(entry);
         }
 
         [HttpGet("by-resume/{resumeId}")]
-        public ActionResult GetByResumeId(int resumeId)
+        public IActionResult GetByResumeId(int resumeId)
         {
-            return Ok(experienceServices.GetByResumeId(resumeId));
+            if (User.GetUserId() is not int userId)
+                return Unauthorized();
+
+            var entries = _data.ListExperience(userId, resumeId);
+
+            return entries is null ? NotFound(new { message = "Resume not found." }) : Ok(entries);
         }
 
+        // Adds an entry to one of your resumes (ResumeId in the body).
         [HttpPost]
-        public bool Add(ExperienceModel exp)
+        public IActionResult Add([FromBody] SaveExperienceRequest? request)
         {
-            return experienceServices.Add(exp);
+            if (User.GetUserId() is not int userId)
+                return Unauthorized();
+
+            if (request?.ResumeId is not int resumeId)
+                return BadRequest(new { message = "A resume id is required.", code = "invalid" });
+
+            var created = _data.AddExperience(userId, resumeId, request.ToFields());
+
+            return created is null ? NotFound(new { message = "Resume not found." }) : Ok(created);
         }
 
+        // Saves an entry of yours (ExperienceId in the body). ResumeId is ignored.
         [HttpPut]
-        public bool Update(ExperienceModel exp)
+        public IActionResult Update([FromBody] SaveExperienceRequest? request)
         {
-            return experienceServices.Update(exp);
+            if (User.GetUserId() is not int userId)
+                return Unauthorized();
+
+            if (request?.ExperienceId is not int experienceId)
+                return BadRequest(new { message = "An experience id is required.", code = "invalid" });
+
+            return _data.UpdateExperience(userId, experienceId, request.ToFields())
+                ? Ok(_data.GetExperience(userId, experienceId))
+                : NotFound(new { message = "Experience entry not found." });
         }
 
         [HttpDelete]
-        public bool Delete(int id)
+        public IActionResult Delete(int id)
         {
-            return experienceServices.Delete(id);
+            if (User.GetUserId() is not int userId)
+                return Unauthorized();
+
+            return _data.DeleteExperience(userId, id)
+                ? Ok(new { message = "Experience entry deleted." })
+                : NotFound(new { message = "Experience entry not found." });
         }
     }
 }

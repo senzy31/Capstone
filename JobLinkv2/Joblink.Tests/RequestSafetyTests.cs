@@ -100,14 +100,8 @@ namespace Joblink.Tests
         {
             "ApplicationController",
             "JoblistingController",
-            "EducationController",
-            "ExperienceController",
             "JobMatchController",
-            "JobPreferenceController",
             "NotificationController",
-            "ProfileController",
-            "ResumeController",
-            "ResumeSkillsController",
             "SavedJobsController",
             "SkillsController"
         };

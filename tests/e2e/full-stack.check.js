@@ -136,12 +136,46 @@ function sql(query) {
         const relogin = await fetch(`${API}/User/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: newEmail, password }) });
         t.check("...and the new email logs in", relogin.status, 200);
 
+        t.section("the Resume Builder: a month date, deleting an entry, and skills - all three were broken or open before");
+        const inMyResumes = `resume_id IN (SELECT resume_id FROM Resumes WHERE user_id = ${userId})`;
+        const experienceRows = () => sql(`SELECT position, ISNULL(CONVERT(varchar(10), start_date, 23), 'NULL'), is_deleted FROM Experience WHERE ${inMyResumes} ORDER BY experience_id;`);
+        const waitFor = async (read, done) => { for (let i = 0; i < 60 && !done(read()); i++) await sleep(200); return read(); };
+
+        await page.goto(`${server.baseUrl}/DASHBOARD/ResumeBuilder.html`);
+        await page.waitForFunction(() => document.getElementById("addExperienceBtn") && !document.getElementById("addExperienceBtn").disabled, null, { timeout: 20000 });
+        await page.click("#addExperienceBtn");
+        await page.waitForSelector('#experienceList [data-field="position"]', { timeout: 15000 });
+        await page.fill('#experienceList [data-field="position"]', "QA Engineer");
+        await page.fill('#experienceList [data-field="companyName"]', "Acme");
+        await page.fill('#experienceList [data-field="startDate"]', "2021-05");
+        t.check("the text and the month date really saved (a month like 2021-05 used to be refused)",
+            await waitFor(experienceRows, rows => rows[0]?.startsWith("QA Engineer|2021-05-01")), ["QA Engineer|2021-05-01|0"]);
+
+        await page.reload();
+        await page.waitForSelector('#experienceList [data-field="startDate"]', { timeout: 15000 });
+        t.check("...and both come back after a reload", [await page.inputValue('#experienceList [data-field="position"]'), await page.inputValue('#experienceList [data-field="startDate"]')], ["QA Engineer", "2021-05"]);
+
+        await page.click(".remove-entry-btn");
+        t.check("removing the entry works (it returned a 500 before) and it stays gone",
+            [await waitFor(experienceRows, rows => rows[0]?.endsWith("|1")), await page.locator(".empty-entry-hint").first().isVisible()], [["QA Engineer|2021-05-01|1"], true]);
+
+        const skillName = `E2E Skill ${STAMP}`;
+        const skillLinks = live => sql(`SELECT COUNT(*) FROM Resume_Skills rs JOIN Skills s ON s.skill_id = rs.skill_id WHERE s.skill_name = '${skillName}' AND rs.is_deleted = ${live ? 0 : 1} AND rs.${inMyResumes};`)[0];
+        await page.fill("#skillInput", skillName);
+        await page.click("#addSkillBtn");
+        t.check("a new skill is created and put on the resume", await waitFor(() => skillLinks(true), n => n === "1"), "1");
+        await page.click(".remove-skill");
+        t.check("removing it keeps the row but marks it deleted", [await waitFor(() => skillLinks(true), n => n === "0"), skillLinks(false)], ["0", "1"]);
+        await page.fill("#skillInput", skillName);
+        await page.click("#addSkillBtn");
+        t.check("adding the same skill again brings it back instead of failing on the table's key", [await waitFor(() => skillLinks(true), n => n === "1"), skillLinks(false)], ["1", "0"]);
+
         t.section("no browser errors (this is where a CORS problem would show up)");
         t.check("no page errors or console errors", problems, []);
         await context.close();
     } finally {
         try {
-            if (userId) sql(`DELETE FROM Applications WHERE user_id = ${userId}; DELETE FROM Notifications WHERE user_id = ${userId}; DELETE FROM Profiles WHERE user_id = ${userId}; DELETE FROM Job_Preferences WHERE user_id = ${userId}; DELETE FROM Users WHERE user_id = ${userId};`);
+            if (userId) sql(`DELETE FROM Applications WHERE user_id = ${userId}; DELETE FROM Notifications WHERE user_id = ${userId}; DELETE FROM Resume_Skills WHERE resume_id IN (SELECT resume_id FROM Resumes WHERE user_id = ${userId}); DELETE FROM Education WHERE resume_id IN (SELECT resume_id FROM Resumes WHERE user_id = ${userId}); DELETE FROM Experience WHERE resume_id IN (SELECT resume_id FROM Resumes WHERE user_id = ${userId}); DELETE FROM Resumes WHERE user_id = ${userId}; DELETE FROM Skills WHERE skill_name = 'E2E Skill ${STAMP}'; DELETE FROM Profiles WHERE user_id = ${userId}; DELETE FROM Job_Preferences WHERE user_id = ${userId}; DELETE FROM Users WHERE user_id = ${userId};`);
             console.log("\ncleanup done (test user and everything the pages created for them removed)");
         } catch (e) { console.log("CLEANUP FAILED - remove", email, "by hand:", e.message); }
         try { fs.unlinkSync(TMP); } catch {}

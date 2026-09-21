@@ -66,9 +66,9 @@ function setupDashboardListeners() {
 async function loadResumeProfile(userId) {
 
     const [resumesResponse, skillsResponse, preferenceResponse] = await Promise.all([
-        fetch(`${API_BASE}/Resume/by-user/${userId}`),
-        fetch(`${API_BASE}/Skills`),
-        fetch(`${API_BASE}/JobPreference/by-user/${userId}`)
+        ApiClient.authFetch(`${API_BASE}/Resume/by-user/${userId}`),
+        ApiClient.authFetch(`${API_BASE}/Skills`),
+        ApiClient.authFetch(`${API_BASE}/JobPreference/by-user/${userId}`)
     ]);
 
     if (!resumesResponse.ok) {
@@ -87,8 +87,8 @@ async function loadResumeProfile(userId) {
     const resumeId = resumes[0].resumeId;
 
     const [linksResponse, experienceResponse] = await Promise.all([
-        fetch(`${API_BASE}/ResumeSkills/by-resume/${resumeId}`),
-        fetch(`${API_BASE}/Experience/by-resume/${resumeId}`)
+        ApiClient.authFetch(`${API_BASE}/ResumeSkills/by-resume/${resumeId}`),
+        ApiClient.authFetch(`${API_BASE}/Experience/by-resume/${resumeId}`)
     ]);
 
     const links = linksResponse.ok ? await linksResponse.json() : [];

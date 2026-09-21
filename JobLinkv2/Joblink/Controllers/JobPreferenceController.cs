@@ -1,40 +1,55 @@
-using JobLinkv2.Models;
-using JobLinkv2.Services;
+using Joblink.Security;
+using Joblink.Services.Resumes;
+using JobLinkv2.Services.Resumes;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Joblink.Controllers
 {
+    // The logged-in job seeker's own job preferences (used to score jobs).
+    // The URL keeps the user id the pages already send, but it has to be yours.
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "user")]
     public class JobPreferenceController : ControllerBase
     {
         private static readonly string[] WorkArrangements = { "onsite", "remote", "hybrid" };
         private const decimal MaxSalaryValue = 100_000_000m;
 
-        JobPreferenceServices preferenceServices = new JobPreferenceServices();
-        UserServices userServices = new UserServices();
+        private readonly ResumeDataStore _data;
+
+        public JobPreferenceController(ResumeDataStore data)
+        {
+            _data = data;
+        }
 
         // GET api/JobPreference/by-user/5  ->  404 until the user saves preferences
         [HttpGet("by-user/{userId}")]
         public IActionResult GetByUserId(int userId)
         {
-            var preference = preferenceServices.GetByUserId(userId);
+            if (User.GetUserId() is not int callerId)
+                return Unauthorized();
 
-            if (preference == null)
-                return NotFound();
+            if (userId != callerId)
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You can only view your own preferences." });
 
-            return Ok(preference);
+            var preference = _data.GetPreference(callerId);
+
+            return preference is null ? NotFound() : Ok(preference);
         }
 
         // PUT api/JobPreference/by-user/5 - creates the row on first save, updates it after.
         [HttpPut("by-user/{userId}")]
-        public IActionResult Save(int userId, [FromBody] JobPreferenceModel? input)
+        public IActionResult Save(int userId, [FromBody] SaveJobPreferenceRequest? input)
         {
+            if (User.GetUserId() is not int callerId)
+                return Unauthorized();
+
+            if (userId != callerId)
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You can only change your own preferences." });
+
             if (input == null)
                 return BadRequest(new { message = "Preferences are required." });
-
-            if (userServices.GetUserId(userId) == null)
-                return NotFound(new { message = "User not found." });
 
             var location = NullIfBlank(input.PreferredLocation);
             var arrangement = NullIfBlank(input.WorkArrangement)?.ToLowerInvariant();
@@ -54,23 +69,7 @@ namespace Joblink.Controllers
             if (input.MinSalary != null && input.MaxSalary != null && input.MinSalary > input.MaxSalary)
                 return BadRequest(new { message = "Minimum salary cannot be higher than maximum salary." });
 
-            var existing = preferenceServices.GetByUserId(userId);
-            var record = existing ?? new JobPreferenceModel { UserId = userId };
-
-            record.PreferredLocation = location;
-            record.WorkArrangement = arrangement;
-            record.MinSalary = input.MinSalary;
-            record.MaxSalary = input.MaxSalary;
-            record.IsDeleted = false;
-
-            var saved = existing == null
-                ? preferenceServices.Add(record)
-                : preferenceServices.Update(record);
-
-            if (!saved)
-                return StatusCode(500, new { message = "Could not save your preferences." });
-
-            return Ok(preferenceServices.GetByUserId(userId));
+            return Ok(_data.SavePreference(callerId, new PreferenceFields(location, arrangement, input.MinSalary, input.MaxSalary)));
         }
 
         private static string? NullIfBlank(string? value)

@@ -361,7 +361,7 @@ document.addEventListener("DOMContentLoaded", () => {
             userRecord = await userResponse.json();
 
 
-            const profileResponse = await fetch(`${API_BASE}/Profile/by-user/${userId}`);
+            const profileResponse = await ApiClient.authFetch(`${API_BASE}/Profile/by-user/${userId}`);
 
             if (profileResponse.ok) {
 
@@ -670,7 +670,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (profileRecord?.profileId) {
 
-            const response = await fetch(`${API_BASE}/Profile`, {
+            const response = await ApiClient.authFetch(`${API_BASE}/Profile`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ...basePayload, profileId: profileRecord.profileId })
@@ -687,7 +687,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
 
-        const createResponse = await fetch(`${API_BASE}/Profile`, {
+        const createResponse = await ApiClient.authFetch(`${API_BASE}/Profile`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(basePayload)
@@ -700,7 +700,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         /* Add() only returns true/false, not the new row - fetch it back for its id */
 
-        const refetch = await fetch(`${API_BASE}/Profile/by-user/${userId}`);
+        const refetch = await ApiClient.authFetch(`${API_BASE}/Profile/by-user/${userId}`);
 
         if (refetch.ok) {
             profileRecord = await refetch.json();
@@ -963,7 +963,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
 
-            const response = await fetch(`${API_BASE}/JobPreference/by-user/${userId}`);
+            const response = await ApiClient.authFetch(`${API_BASE}/JobPreference/by-user/${userId}`);
 
             /* 404 = nothing saved yet - leave the form empty */
 
@@ -1029,7 +1029,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
 
-            const response = await fetch(`${API_BASE}/JobPreference/by-user/${userId}`, {
+            const response = await ApiClient.authFetch(`${API_BASE}/JobPreference/by-user/${userId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

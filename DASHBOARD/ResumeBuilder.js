@@ -357,7 +357,7 @@ document.addEventListener("DOMContentLoaded", () => {
             userRecord = await userResponse.json();
 
 
-            const profileResponse = await fetch(`${API_BASE}/Profile/by-user/${userId}`);
+            const profileResponse = await ApiClient.authFetch(`${API_BASE}/Profile/by-user/${userId}`);
 
             profileRecord = profileResponse.ok ? await profileResponse.json() : null;
 
@@ -366,10 +366,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
             const [experienceRes, educationRes, skillsRes, resumeSkillsRes] = await Promise.all([
-                fetch(`${API_BASE}/Experience/by-resume/${resumeRecord.resumeId}`),
-                fetch(`${API_BASE}/Education/by-resume/${resumeRecord.resumeId}`),
-                fetch(`${API_BASE}/Skills`),
-                fetch(`${API_BASE}/ResumeSkills/by-resume/${resumeRecord.resumeId}`)
+                ApiClient.authFetch(`${API_BASE}/Experience/by-resume/${resumeRecord.resumeId}`),
+                ApiClient.authFetch(`${API_BASE}/Education/by-resume/${resumeRecord.resumeId}`),
+                ApiClient.authFetch(`${API_BASE}/Skills`),
+                ApiClient.authFetch(`${API_BASE}/ResumeSkills/by-resume/${resumeRecord.resumeId}`)
             ]);
 
             state.experience = experienceRes.ok ? await experienceRes.json() : [];
@@ -408,7 +408,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function ensureResume() {
 
-        const response = await fetch(`${API_BASE}/Resume/by-user/${userId}`);
+        const response = await ApiClient.authFetch(`${API_BASE}/Resume/by-user/${userId}`);
 
         if (!response.ok) {
             throw new Error(`Failed to load resumes (${response.status})`);
@@ -424,7 +424,7 @@ document.addEventListener("DOMContentLoaded", () => {
         /* No resume yet - create one so Experience/Education/Skills have
            somewhere to attach to. */
 
-        const createResponse = await fetch(`${API_BASE}/Resume`, {
+        const createResponse = await ApiClient.authFetch(`${API_BASE}/Resume`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -438,7 +438,7 @@ document.addEventListener("DOMContentLoaded", () => {
             throw new Error(`Failed to create resume (${createResponse.status})`);
         }
 
-        const refetch = await fetch(`${API_BASE}/Resume/by-user/${userId}`);
+        const refetch = await ApiClient.authFetch(`${API_BASE}/Resume/by-user/${userId}`);
 
         const created = await refetch.json();
 
@@ -510,7 +510,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (profileRecord?.profileId) {
 
-            const response = await fetch(`${API_BASE}/Profile`, {
+            const response = await ApiClient.authFetch(`${API_BASE}/Profile`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ...profilePayload, profileId: profileRecord.profileId })
@@ -524,7 +524,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         } else {
 
-            const response = await fetch(`${API_BASE}/Profile`, {
+            const response = await ApiClient.authFetch(`${API_BASE}/Profile`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(profilePayload)
@@ -534,7 +534,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error(`Profile create failed (${response.status})`);
             }
 
-            const refetch = await fetch(`${API_BASE}/Profile/by-user/${userId}`);
+            const refetch = await ApiClient.authFetch(`${API_BASE}/Profile/by-user/${userId}`);
 
             if (refetch.ok) {
                 profileRecord = await refetch.json();
@@ -553,7 +553,7 @@ document.addEventListener("DOMContentLoaded", () => {
             aiGeneratedContent: p.summary
         };
 
-        const resumeResponse = await fetch(`${API_BASE}/Resume`, {
+        const resumeResponse = await ApiClient.authFetch(`${API_BASE}/Resume`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(resumePayload)
@@ -647,7 +647,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const payload = { resumeId: resumeRecord.resumeId, isDeleted: false };
 
-            const response = await fetch(`${API_BASE}/${endpoint}`, {
+            const response = await ApiClient.authFetch(`${API_BASE}/${endpoint}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
@@ -657,7 +657,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error(`Create ${type} failed (${response.status})`);
             }
 
-            const refetch = await fetch(`${API_BASE}/${endpoint}/by-resume/${resumeRecord.resumeId}`);
+            const refetch = await ApiClient.authFetch(`${API_BASE}/${endpoint}/by-resume/${resumeRecord.resumeId}`);
 
             state[type] = refetch.ok ? await refetch.json() : state[type];
 
@@ -848,7 +848,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const endpoint = ENTRY_ENDPOINT[type];
 
-        const response = await fetch(`${API_BASE}/${endpoint}`, {
+        const response = await ApiClient.authFetch(`${API_BASE}/${endpoint}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(entry)
@@ -879,7 +879,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
 
-            const response = await fetch(`${API_BASE}/${endpoint}?id=${entryId}`, {
+            const response = await ApiClient.authFetch(`${API_BASE}/${endpoint}?id=${entryId}`, {
                 method: "DELETE"
             });
 
@@ -928,7 +928,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     .filter(Boolean)
             };
 
-            const response = await fetch(`${API_BASE}/AiResume/summary`, {
+            const response = await ApiClient.authFetch(`${API_BASE}/AiResume/summary`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
@@ -994,7 +994,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 notes: entry.description || undefined
             };
 
-            const response = await fetch(`${API_BASE}/AiResume/experience-description`, {
+            const response = await ApiClient.authFetch(`${API_BASE}/AiResume/experience-description`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
@@ -1050,7 +1050,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (!skill) {
 
-                const createResponse = await fetch(`${API_BASE}/Skills`, {
+                const createResponse = await ApiClient.authFetch(`${API_BASE}/Skills`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ skillName: value, isDeleted: false })
@@ -1060,7 +1060,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     throw new Error(`Create skill failed (${createResponse.status})`);
                 }
 
-                const catalogResponse = await fetch(`${API_BASE}/Skills`);
+                const catalogResponse = await ApiClient.authFetch(`${API_BASE}/Skills`);
 
                 state.skillsCatalog = await catalogResponse.json();
 
@@ -1080,7 +1080,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             }
 
-            const linkResponse = await fetch(`${API_BASE}/ResumeSkills`, {
+            const linkResponse = await ApiClient.authFetch(`${API_BASE}/ResumeSkills`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ resumeId: resumeRecord.resumeId, skillId: skill.skillId, isDeleted: false })
@@ -1090,7 +1090,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error(`Link skill failed (${linkResponse.status})`);
             }
 
-            const linksResponse = await fetch(`${API_BASE}/ResumeSkills/by-resume/${resumeRecord.resumeId}`);
+            const linksResponse = await ApiClient.authFetch(`${API_BASE}/ResumeSkills/by-resume/${resumeRecord.resumeId}`);
 
             state.resumeSkills = await linksResponse.json();
 
@@ -1118,7 +1118,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
 
-            const response = await fetch(
+            const response = await ApiClient.authFetch(
                 `${API_BASE}/ResumeSkills/${resumeRecord.resumeId}/${skillId}`,
                 { method: "DELETE" }
             );

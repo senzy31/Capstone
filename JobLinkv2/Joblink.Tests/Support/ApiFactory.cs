@@ -5,6 +5,7 @@ using System.Text;
 using Joblink.Services.Accounts;
 using JobLinkv2.Services.Accounts;
 using JobLinkv2.Services.Apply;
+using JobLinkv2.Services.Resumes;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,7 +17,7 @@ namespace Joblink.Tests.Support
     // Hosts the real API in memory with a fake store and clock - no database,
     // no network. Requests go through real routing, JWT authentication and the
     // real controllers.
-    public sealed class ApiFactory : WebApplicationFactory<Program>
+    public class ApiFactory : WebApplicationFactory<Program>
     {
         public const string SigningKey = "unit-test-signing-key-that-is-long-enough-1234567890";
         public const string Issuer = "JobLink";
@@ -31,6 +32,13 @@ namespace Joblink.Tests.Support
 
         public InMemoryApplyStore Store { get; } = new();
         public InMemoryUserStore UserStore { get; } = new();
+
+        // The resume / profile store has no fake. Here it points at a server that is not
+        // there, so a test that wrongly reaches it fails loudly instead of touching a real
+        // database. DbApiFactory (the opt-in database tests) points it at the real one.
+        protected virtual string ResumeConnectionString =>
+            "Server=tcp:127.0.0.1,1; Database=unreachable; Trusted_Connection=true; Connect Timeout=1; Encrypt=false";
+
         public TestClock Clock { get; } = new();
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -42,6 +50,9 @@ namespace Joblink.Tests.Support
 
                 services.RemoveAll<IUserStore>();
                 services.AddSingleton<IUserStore>(UserStore);
+
+                services.RemoveAll<ResumeDataStore>();
+                services.AddSingleton(new ResumeDataStore(ResumeConnectionString));
 
                 services.RemoveAll<TimeProvider>();
                 services.AddSingleton<TimeProvider>(Clock);

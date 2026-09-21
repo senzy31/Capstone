@@ -51,6 +51,7 @@ async function makeUser(label, role) {
     const startNotifications = Number(scalar("SELECT ISNULL(MAX(notification_id),0) FROM Notifications;"));
     let users = [];
     const createdJobIds = new Set();
+    const skillsToRemove = [];
 
     try {
         // ================= login issues tokens =================
@@ -130,6 +131,63 @@ async function makeUser(label, role) {
         const legacyHash = scalar(`SELECT LEFT(password_hash, 4) FROM Users WHERE email = '${s("legacy")}';`);
         check("an old plain-text account logs in once and is rehashed on the spot", [legacy.status, legacyHash, (await call("POST", "/User/login", { body: { email: s("legacy"), password: "legacy-pass-1" } })).status], [200, "$2a$", 200]);
 
+        // ================= profile, resumes and what hangs off them =================
+        console.log("\nprofile, resumes, education, experience, skills, preferences (real SQL): who can reach what");
+        const statuses = async list => Promise.all(list.map(async ([method, url, token, body]) => (await call(method, url, { token, body })).status));
+        const readsNeedLogin = ["/Profile/by-user/1", "/Resume/by-user/1", "/Education/by-resume/1", "/Experience/by-resume/1", "/ResumeSkills/by-resume/1", "/JobPreference/by-user/1", "/Resume/1", "/Profile/1"];
+        check("every read needs a login (401)", await statuses(readsNeedLogin.map(u => ["GET", u])), readsNeedLogin.map(() => 401));
+        const listRoutes = ["/Profile", "/Resume", "/Education", "/Experience", "/ResumeSkills"];
+        check("the list-everything routes are gone (405)", await statuses(listRoutes.map(u => ["GET", u, A.token])), listRoutes.map(() => 405));
+        check("an employer has no job seeker data (403) - but can use their own profile",
+            await statuses([["GET", `/Resume/by-user/${E.id}`, E.token], ["GET", `/JobPreference/by-user/${E.id}`, E.token], ["POST", "/Education", E.token, { resumeId: 1 }]]), [403, 403, 403]);
+
+        // A builds a resume, with a body that tries to say whose it is
+        const mk = await call("POST", "/Resume", { token: A.token, body: { title: "E2E CV", userId: B.id, isDeleted: true, createdAt: "2000-01-01" } });
+        const rid = mk.json.resumeId;
+        const rrow = sql(`SELECT user_id, is_deleted, YEAR(created_at) FROM Resumes WHERE resume_id = ${rid};`)[0].split("|");
+        check("A's new resume is A's and live whatever the body said, stamped by the server", [mk.status, Number(rrow[0]) === A.id, rrow[1], Number(rrow[2]) >= 2026], [200, true, "0", true]);
+        const eduRes = await call("POST", "/Education", { token: A.token, body: { resumeId: rid, schoolName: "UP Diliman", degree: "BS CS", isDeleted: true, educationId: 999999 } });
+        const expRes = await call("POST", "/Experience", { token: A.token, body: { resumeId: rid, position: "Dev", companyName: "Acme" } });
+        const eduId = eduRes.json.educationId, expId = expRes.json.experienceId;
+        check("A adds an education and an experience entry to their resume", [eduRes.status, expRes.status, eduId !== 999999], [200, 200, true]);
+        const dated = await call("PUT", "/Experience", { token: A.token, body: { experienceId: expId, resumeId: rid, position: "Dev", companyName: "Acme", startDate: "2021-05", endDate: null } });
+        check("a month like 2021-05 is saved as 2021-05-01 (it was refused before)", [dated.status, scalar(`SELECT CONVERT(varchar(10), start_date, 23) FROM Experience WHERE experience_id = ${expId};`)], [200, "2021-05-01"]);
+        const sk = sql(`INSERT INTO Skills (skill_name, is_deleted) OUTPUT INSERTED.skill_id VALUES ('E2E skill ${STAMP}', 0);`)[0];
+        check("A puts a skill on their resume", (await call("POST", "/ResumeSkills", { token: A.token, body: { resumeId: rid, skillId: Number(sk) } })).status, 200);
+        const pf = await call("POST", "/Profile", { token: A.token, body: { phone: "0917", address: "Makati", userId: B.id } });
+        const pid = pf.json.profileId;
+        check("A's profile is A's whatever the body said; a second one is refused (409)", [pf.status, Number(scalar(`SELECT user_id FROM Profiles WHERE profile_id = ${pid};`)) === A.id, (await call("POST", "/Profile", { token: A.token, body: { phone: "x" } })).status], [200, true, 409]);
+        check("A's job preferences save", (await call("PUT", `/JobPreference/by-user/${A.id}`, { token: A.token, body: { preferredLocation: `E2E-${STAMP}`, workArrangement: "remote" } })).status, 200);
+
+        // B goes after all of it
+        const bAttack = [
+            ["GET", `/Resume/${rid}`], ["GET", `/Resume/by-user/${A.id}`], ["PUT", "/Resume", { resumeId: rid, title: "HACKED", aiGeneratedContent: "HACKED" }], ["DELETE", `/Resume?id=${rid}`],
+            ["GET", `/Education/by-resume/${rid}`], ["GET", `/Education/${eduId}`], ["POST", "/Education", { resumeId: rid, schoolName: "INTRUDER" }], ["PUT", "/Education", { educationId: eduId, schoolName: "HACKED" }], ["DELETE", `/Education?id=${eduId}`],
+            ["GET", `/Experience/by-resume/${rid}`], ["GET", `/Experience/${expId}`], ["POST", "/Experience", { resumeId: rid, position: "INTRUDER" }], ["PUT", "/Experience", { experienceId: expId, position: "HACKED" }], ["DELETE", `/Experience?id=${expId}`],
+            ["GET", `/ResumeSkills/by-resume/${rid}`], ["POST", "/ResumeSkills", { resumeId: rid, skillId: Number(sk) }], ["DELETE", `/ResumeSkills/${rid}/${sk}`],
+            ["GET", `/Profile/${pid}`], ["GET", `/Profile/by-user/${A.id}`], ["PUT", "/Profile", { profileId: pid, phone: "HACKED" }], ["DELETE", `/Profile?id=${pid}`],
+            ["GET", `/JobPreference/by-user/${A.id}`], ["PUT", `/JobPreference/by-user/${A.id}`, { preferredLocation: "HACKED" }],
+        ];
+        const expectedForB = [404, 403, 404, 404, 404, 404, 404, 404, 404, 404, 404, 404, 404, 404, 404, 404, 404, 404, 403, 404, 404, 403, 403];
+        check("B is refused everywhere: 404 for A's rows and ids, 403 for A's user id in a URL", await statuses(bAttack.map(([m, u, b]) => [m, u, B.token, b])), expectedForB);
+        const after = sql(`SELECT (SELECT title FROM Resumes WHERE resume_id = ${rid}), (SELECT school_name FROM Education WHERE education_id = ${eduId}), (SELECT position FROM Experience WHERE experience_id = ${expId}),
+                                  (SELECT phone FROM Profiles WHERE profile_id = ${pid}), (SELECT COUNT(*) FROM Resume_Skills WHERE resume_id = ${rid} AND is_deleted = 0), (SELECT COUNT(*) FROM Education WHERE resume_id = ${rid}),
+                                  (SELECT COUNT(*) FROM Experience WHERE resume_id = ${rid}), (SELECT is_deleted FROM Resumes WHERE resume_id = ${rid}), (SELECT preferred_location FROM Job_Preferences WHERE user_id = ${A.id});`)[0].split("|");
+        check("...and none of A's data changed", after, ["E2E CV", "UP Diliman", "Dev", "0917", "1", "1", "1", "0", `E2E-${STAMP}`]);
+
+        // A's own use still works, including the delete that used to be a 500
+        const aGet = await statuses([["GET", `/Resume/by-user/${A.id}`, A.token], ["GET", `/Education/by-resume/${rid}`, A.token], ["GET", `/Experience/by-resume/${rid}`, A.token], ["GET", `/ResumeSkills/by-resume/${rid}`, A.token], ["GET", `/Profile/by-user/${A.id}`, A.token], ["GET", `/JobPreference/by-user/${A.id}`, A.token]]);
+        check("A can read all of it", aGet, [200, 200, 200, 200, 200, 200]);
+        const delEdu = await call("DELETE", `/Education?id=${eduId}`, { token: A.token });
+        const delExp = await call("DELETE", `/Experience?id=${expId}`, { token: A.token });
+        check("A deleting their own entries works (Education / Experience deletes were a 500 before)", [delEdu.status, delExp.status, scalar(`SELECT is_deleted FROM Education WHERE education_id = ${eduId};`), scalar(`SELECT is_deleted FROM Experience WHERE experience_id = ${expId};`)], [200, 200, "1", "1"]);
+        const r2 = await call("POST", "/Resume", { token: A.token, body: {} });
+        await call("DELETE", `/Resume?id=${r2.json.resumeId}`, { token: A.token });
+        check("deleting one resume deletes only that resume (the old delete removed every resume of a USER with that number)", [scalar(`SELECT is_deleted FROM Resumes WHERE resume_id = ${rid};`), scalar(`SELECT is_deleted FROM Resumes WHERE resume_id = ${r2.json.resumeId};`)], ["0", "1"]);
+        check("an over-long phone is a 400 with a message, not a 500", [(await call("PUT", "/Profile", { token: A.token, body: { profileId: pid, phone: "1".repeat(21) } })).status], [400]);
+        check("a javascript: link in a profile is refused", (await call("PUT", "/Profile", { token: A.token, body: { profileId: pid, linkedinUrl: "javascript:alert(1)" } })).status, 400);
+        skillsToRemove.push(`E2E skill ${STAMP}`);
+
         // ================= seed jobs =================
         const ids = {};
         const values = [];
@@ -175,6 +233,7 @@ async function makeUser(label, role) {
         console.log("\nrate limit under 25 PARALLEL requests");
         const burst = await Promise.all(internalIds.map(id => call("POST", `/jobs/${id}/apply`, { token: B.token })));
         const ok = burst.filter(r => r.status === 200), limited = burst.filter(r => r.status === 429);
+        console.log("    statuses:", JSON.stringify(burst.reduce((h, r) => (h[r.status] = (h[r.status] || 0) + 1, h), {})));
         check("exactly 20 succeed and 5 get 429", [ok.length, limited.length], [20, 5]);
         check("the database holds exactly 20 internal applications for that user", Number(scalar(`SELECT COUNT(*) FROM Applications WHERE user_id=${B.id} AND application_type='Internal';`)), 20);
         const l = limited[0];
@@ -291,6 +350,13 @@ async function makeUser(label, role) {
             sql(`
               DELETE FROM Applications WHERE user_id IN (${uids}) OR job_id IN (${jids});
               DELETE FROM Notifications WHERE user_id IN (${uids});
+              DELETE FROM Resume_Skills WHERE resume_id IN (SELECT resume_id FROM Resumes WHERE user_id IN (${uids}));
+              DELETE FROM Education WHERE resume_id IN (SELECT resume_id FROM Resumes WHERE user_id IN (${uids}));
+              DELETE FROM Experience WHERE resume_id IN (SELECT resume_id FROM Resumes WHERE user_id IN (${uids}));
+              DELETE FROM Resumes WHERE user_id IN (${uids});
+              DELETE FROM Profiles WHERE user_id IN (${uids});
+              DELETE FROM Job_Preferences WHERE user_id IN (${uids});
+              DELETE FROM Skills WHERE skill_name LIKE 'E2E skill ${STAMP}';
               DELETE FROM Job_Listings WHERE job_id IN (${jids});
               DELETE FROM Users WHERE user_id IN (${uids}) OR email LIKE 'e2e.%.${STAMP}@example.com';`);
             console.log("\ncleanup done (removed this run's users, jobs, applications and notifications)");
