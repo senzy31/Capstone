@@ -3,9 +3,11 @@ using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
 using Joblink.Services.Accounts;
+using Joblink.Services.JobSearch;
 using JobLinkv2.Services;
 using JobLinkv2.Services.Accounts;
 using JobLinkv2.Services.Apply;
+using JobLinkv2.Services.Matching;
 using JobLinkv2.Services.MyData;
 using JobLinkv2.Services.Resumes;
 using JobLinkv2.Services.Subscriptions;
@@ -38,6 +40,8 @@ namespace Joblink.Tests.Support
         public FakeAiGenerator Ai { get; } = new();
         public InMemorySubscriptionStore Subscriptions { get; } = new();
         public FakeUsageReader Usage { get; } = new();
+        public FakeJobSearchService Search { get; } = new();
+        public InMemoryScoringProfileReader Profiles { get; } = new();
 
         // The stores for resumes, notifications, saved jobs and skills have no fake. Here they point at a server that is not
         // there, so a test that wrongly reaches it fails loudly instead of touching a real
@@ -72,6 +76,14 @@ namespace Joblink.Tests.Support
 
                 services.RemoveAll<IUsageReader>();
                 services.AddSingleton<IUsageReader>(Usage);
+
+                // The job feed is RapidAPI's (a small allowance), and a job seeker's resume is in the database:
+                // recommendations get stand-ins for both, so no test reaches either.
+                services.RemoveAll<IJobSearchService>();
+                services.AddSingleton<IJobSearchService>(Search);
+
+                services.RemoveAll<IScoringProfileReader>();
+                services.AddSingleton<IScoringProfileReader>(Profiles);
 
                 // Claude costs money: tests get a stand-in that only counts.
                 services.RemoveAll<IAiResumeGenerator>();

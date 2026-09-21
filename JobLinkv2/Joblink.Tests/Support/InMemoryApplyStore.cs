@@ -20,6 +20,9 @@ namespace Joblink.Tests.Support
 
         public bool NotificationsFail { get; set; }
 
+        // Set to make importing a search result fail, like a database that has gone away.
+        public bool ImportsFail { get; set; }
+
         private int _nextListingId = 1;
         private int _nextApplicationId = 1;
 
@@ -82,6 +85,9 @@ namespace Joblink.Tests.Support
 
         public int UpsertExternalListing(ImportedListing imported)
         {
+            if (ImportsFail)
+                throw new InvalidOperationException("The database is unreachable.");
+
             var existing = Listings.FirstOrDefault(l =>
                 l.SourceApi == ListingSources.JSearchApi && l.ExternalJobId == imported.ExternalJobId && !l.IsDeleted);
 

@@ -231,10 +231,21 @@ The score is worked out **on the server**, in C#, in `JobLinkv2/JobLinkv2/Servic
 | `SuitabilityScorer.cs` | the rules above - pure code: a job and a job seeker in, a score out; no database, no network |
 | `MatchPresenter.cs` | what a plan is shown of a score (Free: overall % and band; Premium: also the parts) |
 | `RecommendationQuery.cs` | the job search text, and how the latest job title is chosen |
+| `ScoringProfileReader.cs` | reads a job seeker's skills, latest role and preferences from the database, by their id |
 | `ScoringModels.cs`, `JsCompat.cs` | the inputs and results; the few places that must round and read numbers the way the browser's JavaScript did |
 
 The browser no longer computes it (its copy is frozen in `tests/golden/reference/`, only to check
-the C# against).
+the C# against). The dashboard asks the server: **`GET /api/Recommendations?page=1`** (job seekers
+only). The server reads who is asking from the login token, reads their resume and preferences from the
+database, builds the search, calls the job feed (JSearch, cached 15 minutes), scores every job, sorts
+best first and returns each job with a `joblink_match` - cut down to what the caller's plan may see
+(read from the database on every request, never from the token, and the smaller view if it cannot be
+read). The caller chooses nothing but the page.
+
+| Plan | `joblink_match` |
+| --- | --- |
+| Free | `{ detailed: false, score, band: { level, label } }` |
+| Premium | the same, plus `skills { score, matched[], total, note }`, `location { score, note }`, `salary { score, note }`; a part left out of the score has `score: null` and a note that says why |
 
 **Proof that the numbers are the same.** `tests/golden/suitability.golden.json` holds 600+ jobs and
 job seekers - every rule and edge in this document, its worked examples, and 500 seeded random

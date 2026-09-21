@@ -476,6 +476,99 @@ async function makeUser(label, role) {
         check("Premium has the same limit under 25 parallel applies: exactly 20 succeed (all priority), 5 get the same 429",
             [yOk.length, yLimited.length, yLimited[0].json.message.includes("20 applications"), Number(scalar(`SELECT COUNT(*) FROM Applications WHERE user_id = ${Y.id} AND application_type = 'Internal' AND is_priority = 1;`)), Number(scalar(`SELECT COUNT(*) FROM Applications WHERE user_id = ${Y.id};`))], [20, 5, true, 20, 20]);
 
+        // ================= recommendations (real SQL, fake JSearch): the server scores, and the plan decides how much is shown =================
+        if (fake) {
+            console.log("\nrecommendations (real SQL, fake JSearch): who is scored, and how much of it each plan sees");
+            const RF = await makeUser("rf", "user");     // the job seeker: React + SQL, wants Makati and at least 30,000
+            const RG = await makeUser("rg", "user");     // someone else, with a different resume
+            const RN = await makeUser("rn", "user");     // no resume at all
+            users.push(RF, RG, RN);
+            const reactSkill = `e2ereact${STAMP}`, sqlSkill = `e2esql${STAMP}`, cobolSkill = `e2ecobol${STAMP}`;
+            const newSkill = name => Number(sql(`INSERT INTO Skills (skill_name, is_deleted) OUTPUT INSERTED.skill_id VALUES ('${name}', 0);`)[0]);
+            const setUp = async (user, skillNames, position, preferences) => {
+                const resume = await call("POST", "/Resume", { token: user.token, body: { title: "E2E reco" } });
+                for (const name of skillNames) await call("POST", "/ResumeSkills", { token: user.token, body: { resumeId: resume.json.resumeId, skillId: newSkill(name) } });
+                await call("POST", "/Experience", { token: user.token, body: { resumeId: resume.json.resumeId, position, companyName: "Acme" } });
+                await call("PUT", `/JobPreference/by-user/${user.id}`, { token: user.token, body: preferences });
+            };
+            await setUp(RF, [reactSkill, sqlSkill], "Frontend Developer", { preferredLocation: "Makati", minSalary: 30000, maxSalary: 60000 });
+            await setUp(RG, [cobolSkill], "Bank Programmer", { preferredLocation: "Manila", workArrangement: "remote" });
+
+            // The dashboard's hand-worked fixture, in a scrambled order: scores 17, 100 and 38 for RF.
+            const template = fake.jobs("reco", 1)[0];
+            const recoJob = (i, extra) => ({ ...template, job_id: fake.idFor("reco", i), job_location: null, job_state: null, job_min_salary: null, job_max_salary: null, job_salary_period: null, ...extra });
+            const recoJobs = [
+                recoJob(3, { job_title: "Chef", job_description: "Lots of cooking.", job_city: "Manila", job_min_salary: 20000, job_max_salary: 25000, job_salary_period: "MONTH" }),
+                recoJob(1, { job_title: "React SQL Developer", job_description: `We use ${reactSkill} and ${sqlSkill} every day.`, job_city: "Makati", job_min_salary: 40000, job_max_salary: 50000, job_salary_period: "MONTH" }),
+                recoJob(2, { job_title: "Data Analyst", job_description: `Uses ${sqlSkill} daily.`, job_city: "Cebu" }),
+            ];
+            fake.searchReturns(recoJobs);
+
+            const reco = "/Recommendations";
+            const queryRF = "Frontend Developer jobs in Makati";
+            const scores = r => r.json.data.map(j => j.joblink_match.score);
+            const matchKeys = r => r.json.data.map(j => Object.keys(j.joblink_match).sort().join());
+
+            check("recommendations need a job seeker login: 401 anonymous, 403 for an employer", await statuses([["GET", reco], ["GET", reco, E.token]]), [401, 403]);
+
+            const free = await call("GET", reco, { token: RF.token });
+            (free.json?.data || []).forEach(j => createdJobIds.add(j.joblink_job_id));
+            check("Free: the search is built from the saved resume (latest role + first place) and the jobs come best match first",
+                [free.status, free.json.query, free.json.skillCount, free.json.hasPreferences, free.json.detailed, free.json.data.map(j => j.job_title)],
+                [200, queryRF, 2, true, false, ["React SQL Developer", "Data Analyst", "Chef"]]);
+            check("Free: scores 100 / 38 / 17 and their bands (worked out by hand)", [scores(free), free.json.data.map(j => j.joblink_match.band.level)], [[100, 38, 17], ["excellent", "fair", "low"]]);
+            check("Free: each match is exactly {band, detailed, score} - no sub-score, no note, no matched skill",
+                [matchKeys(free), free.json.data.every(j => !JSON.stringify(j.joblink_match).match(/skill|location|salary|note|matched|e2e/i))], [Array(3).fill("band,detailed,score"), true]);
+            check("every job is saved and tagged, so Apply works from the recommendation", [free.json.data.every(j => Number.isInteger(j.joblink_job_id) && j.joblink_source === "External"), new Set(free.json.data.map(j => j.joblink_job_id)).size], [true, 3]);
+
+            await call("POST", "/Subscription/upgrade", { token: RF.token, body: { billing: "Monthly" } });
+            const premium = await call("GET", reco, { token: RF.token });
+            const top = premium.json.data[0].joblink_match, second = premium.json.data[1].joblink_match;
+            check("Premium (same token, upgraded a moment ago): the same scores and order, and each match adds the three parts",
+                [premium.json.detailed, scores(premium), premium.json.data.map(j => j.job_title), matchKeys(premium)],
+                [true, [100, 38, 17], ["React SQL Developer", "Data Analyst", "Chef"], Array(3).fill("band,detailed,location,salary,score,skills")]);
+            check("Premium: matched skills and notes, and why a part was left out of the score",
+                [top.skills.matched, top.skills.note, top.location.note, top.salary.note, second.salary.score, second.salary.note, second.location.score],
+                [[reactSkill, sqlSkill], "Mentions 2 of your 2 skills", "In your preferred area", "Meets your salary range", null, "Salary not listed", 0]);
+
+            sql(`UPDATE Subscriptions SET premium_until = DATEADD(minute, -1, GETUTCDATE()) WHERE user_id = ${RF.id};`);
+            const lapsed = await call("GET", reco, { token: RF.token });
+            check("Premium runs out (same token, nothing else ran): back to the small view with the very same numbers", [lapsed.json.detailed, scores(lapsed), matchKeys(lapsed)], [false, [100, 38, 17], Array(3).fill("band,detailed,score")]);
+
+            // someone else's resume, and no resume at all
+            const other = await call("GET", reco, { token: RG.token });
+            check("another job seeker is scored on their OWN resume: their own search and their own numbers",
+                [other.json.query, other.json.skillCount, other.json.hasPreferences, other.json.data.map(j => j.job_title), scores(other)],
+                ["Bank Programmer remote jobs in Manila", 1, true, ["Chef", "React SQL Developer", "Data Analyst"], [13, 0, 0]]);
+            const searchesBeforeNone = fake.callsTo("/search-v2").length;
+            const none = await call("GET", reco, { token: RN.token });
+            check("no resume, no skills: an empty list, skillCount 0, and no search is spent", [none.status, none.json.skillCount, none.json.data, fake.callsTo("/search-v2").length - searchesBeforeNone], [200, 0, [], 0]);
+
+            const forged = await call("GET", `${reco}?userId=${RG.id}&plan=Premium&detailed=true&isPremium=true&skills=${cobolSkill}&query=hacked`, { token: RF.token });
+            check("what the caller sends changes nothing: still RF's resume, still the Free view",
+                [forged.json.query, forged.json.detailed, scores(forged), matchKeys(forged)], [queryRF, false, [100, 38, 17], Array(3).fill("band,detailed,score")]);
+
+            // the upstream service is asked once per query while its answer is fresh
+            for (let i = 0; i < 4; i++) await call("GET", reco, { token: RF.token });
+            check("many requests for the same resume cost one JSearch call (the answer is cached for 15 minutes)", fake.callsTo("/search-v2").filter(c => c.query.query === queryRF).length, 1);
+            check("the search sent to JSearch was the one built on the server, with the throwaway key", [fake.callsTo("/search-v2").find(c => c.query.query === queryRF).query.page, fake.callsTo("/search-v2")[0].headers["x-rapidapi-key"]], ["1", "fake-key-never-sent-to-rapidapi"]);
+
+            // JSearch failing is reported the way the search endpoint reports it (a new place = a new, uncached search)
+            const moveTo = async place => call("PUT", `/JobPreference/by-user/${RG.id}`, { token: RG.token, body: { preferredLocation: place, workArrangement: "remote" } });
+            await moveTo("Iloilo");
+            fake.on("/search-v2", () => ({ status: 429, json: {} }));
+            const limited = await call("GET", reco, { token: RG.token });
+            await moveTo("Davao");
+            fake.on("/search-v2", () => ({ status: 500, json: { secret: "upstream detail" } }));
+            const broken = await call("GET", reco, { token: RG.token });
+            check("JSearch out of allowance: 429 with a clear message; JSearch broken: 502 with no upstream detail; neither sends jobs",
+                [limited.status, limited.json.message, broken.status, broken.json.message, "data" in limited.json, "data" in broken.json, JSON.stringify(broken.json).includes("upstream detail")],
+                [429, "The monthly job search limit has been reached. Please try again later.", 502, "The job search service returned an error (500).", false, false, false]);
+            fake.reset();
+        } else {
+            console.log("\nrecommendations: skipped against the real JSearch (the jobs are not predictable) - run without JOBLINK_LIVE_JSEARCH to include them");
+        }
+
         // ================= tracker + lockdown (real SQL) =================
         console.log("\ntracker flow + lockdown");
         const mj = await call("POST", "/Joblisting", { token: A.token, body: { title: "E2E Manual Job", company: "Manual Co", location: "Davao", source: "Internal", employerId: E.id, sourceApi: "jsearch", applyUrl: "https://evil.example/phish", applyIsDirect: true, publisher: "LinkedIn", applyOptions: "[{\"apply_link\":\"https://evil.example\",\"is_direct\":true}]", isExpired: true } });
@@ -534,12 +627,13 @@ async function makeUser(label, role) {
 
         if (fake) {
             // The upstream service is called only when it has to be: a repeat within 15 minutes is answered from the cache.
-            const before = fake.callsTo("/search-v2").length;
+            const forQuery = () => fake.callsTo("/search-v2").filter(c => c.query.query === q1);
+            const before = forQuery().length;
             const repeat = await call("GET", `/JobSearch/search?query=${encodeURIComponent(q1)}&page=1`, { token: A.token });
             check("the fake JSearch was called once for the search, and a repeat is served from the cache (no second upstream call)",
-                [before, fake.callsTo("/search-v2").length, repeat.json.data.map(j => j.joblink_job_id).join() === jobs1.map(j => j.joblink_job_id).join()], [1, 1, true]);
+                [before, forQuery().length, repeat.json.data.map(j => j.joblink_job_id).join() === jobs1.map(j => j.joblink_job_id).join()], [1, 1, true]);
             check("the backend sent its (fake) key to the fake service, never a real one, and asked for the query it was given",
-                [fake.callsTo("/search-v2")[0].headers["x-rapidapi-key"], fake.callsTo("/search-v2")[0].query.query], ["fake-key-never-sent-to-rapidapi", q1]);
+                [forQuery()[0].headers["x-rapidapi-key"], forQuery()[0].query.query], ["fake-key-never-sent-to-rapidapi", q1]);
             const det = await call("GET", `/JobSearch/details?jobId=${encodeURIComponent(j0.job_id)}`, { token: A.token });
             const sal = await call("GET", "/JobSearch/salary?jobTitle=Developer&location=Manila", { token: A.token });
             check("details and salary pass the upstream answer through", [det.status, det.json.data[0].job_description, sal.status, sal.json.data[0].median_salary], [200, "FAKE FULL DESCRIPTION", 200, 30000]);
@@ -573,6 +667,7 @@ async function makeUser(label, role) {
               DELETE FROM Profiles WHERE user_id IN (${uids});
               DELETE FROM Job_Preferences WHERE user_id IN (${uids});
               DELETE FROM Skills WHERE skill_name LIKE 'E2E skill ${STAMP}';
+              DELETE FROM Skills WHERE skill_name LIKE 'e2e%${STAMP}';
               DELETE FROM Job_Listings WHERE job_id IN (${jids});
               DELETE FROM Users WHERE user_id IN (${uids}) OR email LIKE 'e2e.%.${STAMP}@example.com';`);
             console.log("\ncleanup done (removed this run's users, jobs, applications and notifications)");

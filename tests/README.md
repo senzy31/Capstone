@@ -31,7 +31,7 @@ npx playwright install chromium
 | `e2e/login-session.check.js` | login token, old sessions without one, signup, logout |
 | `e2e/account.check.js` | Profile and Resume Builder: only name + email are sent, the password prompt for an email change, the resume email kept apart from the login email |
 | `e2e/plans.check.js` | Plans page (prices, the simulated checkout and the demo-only note, cancel, every state and error), the Plans link on every page, the placeholder ads (Free sees two, Premium and an unreadable plan see none, nothing loaded from another site) and the upgrade prompt on a 403 |
-| `e2e/backend.check.js` | real API + database: tokens, accounts (what `/api/User` used to allow), profile / resumes / entries / skills / preferences, and notifications / saved jobs / matches / the skills list (one user against another), the endpoints that spend money (search, AI), Free/Premium plans (simulated checkout, expiry, the plan read from the database on every request), Priority Application (stored at apply time, snapshot, external never priority, same 20/day limit), apply flow, rate limit, lockdown, JSearch import |
+| `e2e/backend.check.js` | real API + database: tokens, accounts (what `/api/User` used to allow), profile / resumes / entries / skills / preferences, and notifications / saved jobs / matches / the skills list (one user against another), the endpoints that spend money (search, AI), Free/Premium plans (simulated checkout, expiry, the plan read from the database on every request), Priority Application (stored at apply time, snapshot, external never priority, same 20/day limit), recommendations (scored on the caller's own resume, Free sees only the overall score and band, Premium the parts, the plan read on every request; JSearch fake), apply flow, rate limit, lockdown, JSearch import |
 | `e2e/full-stack.check.js` | real browser + real backend: login page, Profile (name + email with the password prompt), Resume Builder (month date, delete an entry, skills), apply to a confirmed application, the Free ad, the real 403 upgrade prompt, Activate Premium (Demo) and Cancel |
 
 The two "real" checks create their own test users and jobs and delete them afterwards.
@@ -52,7 +52,7 @@ On Windows PowerShell: `$env:JOBLINK_LIVE_JSEARCH = "1"; npm run test:backend`.
 ```
 cd JobLinkv2
 dotnet test Joblink.Tests            # fast: fake store, no database
-JOBLINK_TEST_DB=1 dotnet test Joblink.Tests    # also the 107 tests that use the local Joblinkv2 database
+JOBLINK_TEST_DB=1 dotnet test Joblink.Tests    # also the 118 tests that use the local Joblinkv2 database
 ```
 
 On Windows PowerShell: `$env:JOBLINK_TEST_DB = "1"; dotnet test Joblink.Tests`.

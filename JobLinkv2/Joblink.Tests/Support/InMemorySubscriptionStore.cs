@@ -9,10 +9,18 @@ namespace Joblink.Tests.Support
         private readonly Dictionary<int, SubscriptionRecord> _rows = new();
         private readonly object _gate = new();
 
+        // Users whose plan can't be read (the table is unreachable): reading it throws.
+        public HashSet<int> Unreadable { get; } = new();
+
         public SubscriptionRecord? Get(int userId)
         {
             lock (_gate)
+            {
+                if (Unreadable.Contains(userId))
+                    throw new InvalidOperationException("The Subscriptions table is unreachable.");
+
                 return _rows.TryGetValue(userId, out var row) ? row : null;
+            }
         }
 
         public SubscriptionRecord? Change(int userId, Func<SubscriptionRecord?, SubscriptionRecord?> change)

@@ -2,11 +2,14 @@ using Dapper;
 using Joblink.Security;
 using Joblink.Services;
 using Joblink.Services.Accounts;
+using Joblink.Services.JobSearch;
+using Joblink.Services.Recommendations;
 using Joblink.Services.Subscriptions;
 using JobLinkv2.Repositories;
 using JobLinkv2.Services;
 using JobLinkv2.Services.Accounts;
 using JobLinkv2.Services.Apply;
+using JobLinkv2.Services.Matching;
 using JobLinkv2.Services.MyData;
 using JobLinkv2.Services.Resumes;
 using JobLinkv2.Services.Subscriptions;
@@ -94,6 +97,13 @@ builder.Services.AddSingleton<IApplyStore>(new SqlApplyStore(connectionString));
 builder.Services.AddSingleton<ApplyService>();
 builder.Services.AddSingleton<ApplicationTrackerService>();
 builder.Services.AddSingleton<JobImportService>();
+
+// ✅ The job feed (JSearch via RapidAPI, cached) and the recommendations built on it: each job scored
+// against the caller's own resume, and shown as much of that score as their plan allows.
+builder.Services.AddSingleton<IJobSearchService, RapidApiJobSearchService>();
+builder.Services.AddSingleton<IScoringProfileReader>(services =>
+    new SqlScoringProfileReader(services.GetRequiredService<ResumeDataStore>(), services.GetRequiredService<SkillStore>()));
+builder.Services.AddSingleton<RecommendationService>();
 
 // ✅ Add CORS here
 builder.Services.AddCors(options =>

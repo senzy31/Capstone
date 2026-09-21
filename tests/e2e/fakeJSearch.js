@@ -86,6 +86,11 @@ class FakeJSearch {
         return this;
     }
 
+    // Forget every path a check took over: back to the default answers.
+    reset() {
+        this.handlers = [];
+    }
+
     // Answer every search with these jobs (an array, or a function of the query text).
     searchReturns(jobsOrFn) {
         return this.on("/search-v2", call => ({ json: this.searchBody(typeof jobsOrFn === "function" ? jobsOrFn(call.query.query) : jobsOrFn) }));
