@@ -1,5 +1,6 @@
 using Dapper;
 using JobLinkv2.Models;
+using JobLinkv2.Repositories;
 using Microsoft.Data.SqlClient;
 
 namespace JobLinkv2.Services.Apply
@@ -9,6 +10,9 @@ namespace JobLinkv2.Services.Apply
         // SQL Server error numbers for a unique index / constraint violation.
         private const int UniqueIndexViolation = 2601;
         private const int UniqueConstraintViolation = 2627;
+
+        // SQL Server error number: chosen as the victim of a deadlock.
+        private const int DeadlockVictim = 1205;
 
         private const string ListingColumns = @"
             job_id AS JobId, external_job_id AS ExternalJobId, title AS Title, company AS Company,
@@ -205,17 +209,26 @@ namespace JobLinkv2.Services.Apply
             }
         }
 
+
         public int? TryAddInternalApplication(ApplicationModel application, int limit, DateTime windowStartUtc)
         {
-            // The count and the insert share one transaction, and the count takes a
-            // range lock on this user's rows (UPDLOCK + HOLDLOCK), so two requests
-            // from the same user can't both see "19 so far" and both insert.
-            const string sql = @"
+            // The count and the insert share one transaction, and an application lock on
+            // this user makes the whole decision one request at a time: two requests from
+            // the same user can't both see "19 so far" and both insert. Other users are
+            // not held up.
+            //
+            // (Range locks - UPDLOCK + HOLDLOCK on the count - were tried first. Each request
+            // stamps applied_at before it reaches the database, so parallel inserts arrive
+            // in a different order than they take their range locks, and SQL Server picked
+            // deadlock victims. A single named lock has no order to get wrong.)
+            const string sql = $@"
                 SET XACT_ABORT ON;
                 BEGIN TRANSACTION;
 
+                {SqlLocks.Take}
+
                 DECLARE @recent int = (
-                    SELECT COUNT(*) FROM Applications WITH (UPDLOCK, HOLDLOCK)
+                    SELECT COUNT(*) FROM Applications
                      WHERE user_id = @UserId AND application_type = 'Internal' AND applied_at >= @WindowStart);
 
                 IF @recent >= @Limit
@@ -234,24 +247,32 @@ namespace JobLinkv2.Services.Apply
                 COMMIT TRANSACTION;
                 SELECT @id AS Id;";
 
-            using var db = Open();
-
-            try
+            for (var attempt = 1; ; attempt++)
             {
-                return db.QuerySingle<int?>(sql, new
+                try
                 {
-                    application.UserId,
-                    application.JobId,
-                    application.ResumeId,
-                    Status = Ansi(application.Status, 50),
-                    application.AppliedAt,
-                    Limit = limit,
-                    WindowStart = windowStartUtc
-                });
-            }
-            catch (SqlException ex) when (IsUniqueViolation(ex))
-            {
-                throw new DuplicateApplicationException();
+                    using var db = Open();
+
+                    return db.QuerySingle<int?>(sql, new
+                    {
+                        LockName = SqlLocks.Name("apply", application.UserId),
+                        application.UserId,
+                        application.JobId,
+                        application.ResumeId,
+                        Status = Ansi(application.Status, 50),
+                        application.AppliedAt,
+                        Limit = limit,
+                        WindowStart = windowStartUtc
+                    });
+                }
+                catch (SqlException ex) when (IsUniqueViolation(ex))
+                {
+                    throw new DuplicateApplicationException();
+                }
+                catch (SqlException ex) when (ex.Number == DeadlockVictim && attempt < 3)
+                {
+                    // Nothing was committed, so trying again is safe.
+                }
             }
         }
 

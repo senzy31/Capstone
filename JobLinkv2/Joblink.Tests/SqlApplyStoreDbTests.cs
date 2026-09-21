@@ -233,6 +233,42 @@ namespace Joblink.Tests
             Assert.Equal(5, Count("SELECT COUNT(*) FROM Applications WHERE user_id = @user AND application_type = 'Internal'", new { user }));
         }
 
+        // Each request stamps applied_at BEFORE it reaches the database, so parallel requests
+        // insert in a different order than they took their locks. With range locks that made
+        // some of them deadlock (SQL Server picked a victim -> a 500) even though the limit held.
+        [DbFact]
+        public void Parallel_applies_with_out_of_order_timestamps_neither_deadlock_nor_pass_the_limit()
+        {
+            var employer = NewUser("employer");
+            var user = NewUser();
+            var jobs = Enumerable.Range(0, 120).Select(_ => NewInternalJob(employer)).ToList();
+            ThreadPool.SetMinThreads(200, 200);   // really run them all at once
+            var windowStart = DateTime.UtcNow.AddHours(-24);
+            var random = new Random(1234);
+            var stamps = jobs.Select((_, i) => DateTime.UtcNow.AddMinutes(-random.Next(1, 1200)).AddTicks(i)).ToList();
+            var failures = new System.Collections.Concurrent.ConcurrentBag<string>();
+
+            var results = Task.WhenAll(jobs.Select((job, i) => Task.Run(() =>
+            {
+                try
+                {
+                    return _store.TryAddInternalApplication(
+                        new ApplicationModel { UserId = user, JobId = job, Status = "Submitted", ApplicationType = "Internal", AppliedAt = stamps[i] },
+                        limit: 70, windowStart);
+                }
+                catch (Exception ex)
+                {
+                    failures.Add(ex.Message.Split('\n')[0]);
+                    return (int?)-1;
+                }
+            }))).GetAwaiter().GetResult();
+
+            Assert.True(failures.IsEmpty, "requests failed: " + string.Join(" | ", failures.Distinct()));
+            Assert.Equal(70, results.Count(id => id > 0));
+            Assert.Equal(50, results.Count(id => id is null));
+            Assert.Equal(70, Count("SELECT COUNT(*) FROM Applications WHERE user_id = @user AND application_type = 'Internal'", new { user }));
+        }
+
         [DbFact]
         public void The_limit_counts_withdrawn_applications_and_ignores_ones_outside_the_window()
         {
