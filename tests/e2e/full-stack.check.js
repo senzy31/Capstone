@@ -170,12 +170,55 @@ function sql(query) {
         await page.click("#addSkillBtn");
         t.check("adding the same skill again brings it back instead of failing on the table's key", [await waitFor(() => skillLinks(true), n => n === "1"), skillLinks(false)], ["1", "0"]);
 
+        t.section("Free and Premium in the real browser: the ad, the upgrade prompt, the simulated checkout");
+        const planRow = () => sql(`SELECT [plan], ISNULL(plan_billing, 'NULL'), DATEDIFF(month, premium_started_at, premium_until), CASE WHEN cancelled_at IS NULL THEN 'live' ELSE 'cancelled' END FROM Subscriptions WHERE user_id = ${userId};`)[0] ?? "no row";
+        const resumeCount = () => Number(sql(`SELECT COUNT(*) FROM Resumes WHERE user_id = ${userId} AND is_deleted = 0;`)[0]);
+        // The dashboard would spend a live JSearch call on recommendations; this check is about the plan, so that one call gets an empty answer.
+        await page.route(/\/api\/JobSearch\/search/, route => route.request().method() === "OPTIONS"
+            ? route.fulfill({ status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, content-type", "access-control-allow-methods": "GET, OPTIONS" } })
+            : route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify({ status: "OK", data: [] }) }));
+
+        await page.goto(`${server.baseUrl}/DASHBOARD/dashboard.html`);
+        await page.waitForSelector("#ad-sidebar", { timeout: 15000 });
+        t.check("a Free member's dashboard shows the placeholder ad (the plan came from the real API)", [await page.locator("#ad-sidebar .ad-label").textContent(), await page.locator(".ad-card").count()], ["Advertisement", 1]);
+
+        await page.goto(`${server.baseUrl}/DASHBOARD/Plans.html`);
+        await page.waitForSelector(".plan-headline", { timeout: 15000 });
+        t.check("the Plans page says Free, with the real usage", [(await page.locator(".plan-headline").innerText()).trim(), (await page.locator(".plan-usage li").first().innerText()).replace(/\s+/g, " ").trim()], ["You're on the Free plan.", "Saved resumes: 1 of 1"]);
+
+        const limitStatus = await page.evaluate(async () => (await ApiClient.authFetch(`${ApiClient.API}/Resume`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })).status);
+        await page.waitForSelector(".ac-upgrade", { timeout: 10000 });
+        t.check("a second resume on Free is refused by the real API (403) and the upgrade prompt opens with its message",
+            [limitStatus, (await page.locator(".ac-upgrade h3").innerText()).trim(), (await page.locator(".ac-upgrade .ac-message").innerText()).includes("Upgrade to Premium"), resumeCount()], [403, "Upgrade to Premium", true, 1]);
+        await page.click(".ac-upgrade [data-close]");
+
+        await page.click(".billing-option:has-text('Quarterly')");
+        await page.click("#activateBtn");
+        await page.getByText("This was a demo - nothing was charged.").waitFor({ timeout: 15000 });
+        t.check("Activate Premium (Demo) works through the browser (CORS, token): the database holds a 3-month Quarterly Premium",
+            [(await page.locator(".plan-headline").innerText()).includes("You're on Premium (Quarterly)"), planRow()], [true, "Premium|Quarterly|3|live"]);
+
+        await page.goto(`${server.baseUrl}/DASHBOARD/dashboard.html`);
+        await page.waitForFunction(() => !document.querySelector(".loading-jobs"), null, { timeout: 20000 });
+        await sleep(800);
+        t.check("as Premium the same dashboard shows no ads", await page.locator(".ad-card").count(), 0);
+
+        await page.goto(`${server.baseUrl}/DASHBOARD/Plans.html`);
+        await page.waitForSelector("#cancelBtn:not([hidden])", { timeout: 15000 });
+        await page.click("#cancelBtn");
+        await page.click("#cancelBtn");
+        await page.getByText("Premium is cancelled. You keep it until").first().waitFor({ timeout: 15000 });
+        t.check("Cancel Premium (two clicks) keeps Premium until the end date and records the cancellation", planRow(), "Premium|Quarterly|3|cancelled");
+        await page.goto(`${server.baseUrl}/DASHBOARD/dashboard.html`);
+        await sleep(800);
+        t.check("a cancelled Premium still has no ads until it runs out", await page.locator(".ad-card").count(), 0);
+
         t.section("no browser errors (this is where a CORS problem would show up)");
         t.check("no page errors or console errors", problems, []);
         await context.close();
     } finally {
         try {
-            if (userId) sql(`DELETE FROM Applications WHERE user_id = ${userId}; DELETE FROM Notifications WHERE user_id = ${userId}; DELETE FROM Resume_Skills WHERE resume_id IN (SELECT resume_id FROM Resumes WHERE user_id = ${userId}); DELETE FROM Education WHERE resume_id IN (SELECT resume_id FROM Resumes WHERE user_id = ${userId}); DELETE FROM Experience WHERE resume_id IN (SELECT resume_id FROM Resumes WHERE user_id = ${userId}); DELETE FROM Resumes WHERE user_id = ${userId}; DELETE FROM Skills WHERE skill_name = 'E2E Skill ${STAMP}'; DELETE FROM Profiles WHERE user_id = ${userId}; DELETE FROM Job_Preferences WHERE user_id = ${userId}; DELETE FROM Users WHERE user_id = ${userId};`);
+            if (userId) sql(`DELETE FROM Applications WHERE user_id = ${userId}; DELETE FROM Notifications WHERE user_id = ${userId}; DELETE FROM Resume_Skills WHERE resume_id IN (SELECT resume_id FROM Resumes WHERE user_id = ${userId}); DELETE FROM Education WHERE resume_id IN (SELECT resume_id FROM Resumes WHERE user_id = ${userId}); DELETE FROM Experience WHERE resume_id IN (SELECT resume_id FROM Resumes WHERE user_id = ${userId}); DELETE FROM Resumes WHERE user_id = ${userId}; DELETE FROM Skills WHERE skill_name = 'E2E Skill ${STAMP}'; DELETE FROM Profiles WHERE user_id = ${userId}; DELETE FROM Job_Preferences WHERE user_id = ${userId}; DELETE FROM Subscriptions WHERE user_id = ${userId}; DELETE FROM Users WHERE user_id = ${userId};`);
             console.log("\ncleanup done (test user and everything the pages created for them removed)");
         } catch (e) { console.log("CLEANUP FAILED - remove", email, "by hand:", e.message); }
         try { fs.unlinkSync(TMP); } catch {}

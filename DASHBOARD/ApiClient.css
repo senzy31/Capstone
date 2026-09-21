@@ -140,3 +140,17 @@
     }
 
 }
+
+/* the "See plans" link in the upgrade dialog looks like the other buttons */
+
+a.ac-btn {
+    display: inline-block;
+
+    text-decoration: none;
+}
+
+.ac-upgrade h3 i {
+    margin-right: 6px;
+
+    color: #c98a00;
+}

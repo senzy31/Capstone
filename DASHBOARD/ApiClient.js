@@ -7,6 +7,9 @@
 //                            needs the current password: the server says so,
 //                            we ask for it, then try again.
 //   askPassword(options)     the small "enter your password" dialog
+//   getPlan()                your plan, from GET /api/subscription (asked once per page)
+//   showUpgradePrompt(body)  the "upgrade to Premium" dialog - shown for you whenever an API
+//                            call answers 403 with upgradeRequired: true
 //
 // Everything lives on one global, ApiClient, so it can't clash with page scripts.
 // ======================================================
@@ -53,6 +56,15 @@
         if (response.status === 401) {
             endSession();
             throw new Error("Your session expired. Please log in again.");
+        }
+
+        // A plan limit (a Free user past their cap): show the upgrade prompt instead of leaving
+        // the page with a raw error. The response itself is returned untouched, so the page can
+        // still say what it wants. Pass { noUpgradePrompt: true } to handle it yourself.
+        if (response.status === 403 && !options.noUpgradePrompt) {
+            response.clone().json()
+                .then(body => { if (body && body.upgradeRequired === true) { showUpgradePrompt(body); } })
+                .catch(() => {});
         }
 
         return response;
@@ -191,6 +203,89 @@
     }
 
 
+    // ======================================================
+    // YOUR PLAN
+    // ======================================================
+
+    let planRequest = null;
+
+    // The answer of GET /api/subscription (or null if it can't be read). Asked once per page
+    // load; pass true to ask again (after an upgrade, say). The server is the only judge of
+    // the plan - a page only uses this to decide what to show.
+    function getPlan(refresh = false) {
+
+        if (!planRequest || refresh) {
+
+            planRequest = authFetch(`${API}/Subscription`, { noUpgradePrompt: true })
+                .then(response => response.ok ? response.json() : null)
+                .catch(() => null);
+
+        }
+
+        return planRequest;
+
+    }
+
+
+    // ======================================================
+    // "UPGRADE TO PREMIUM" DIALOG
+    // ======================================================
+
+    function showUpgradePrompt(body = {}) {
+
+        if (document.querySelector(".ac-upgrade")) {
+            return;
+        }
+
+        const overlay = document.createElement("div");
+
+        overlay.className = "ac-overlay ac-upgrade";
+        overlay.setAttribute("role", "dialog");
+        overlay.setAttribute("aria-modal", "true");
+        overlay.setAttribute("aria-labelledby", "acUpgradeTitle");
+
+        overlay.innerHTML = `
+            <div class="ac-modal">
+                <h3 id="acUpgradeTitle"><i class="fa-solid fa-crown"></i> Upgrade to Premium</h3>
+                <p class="ac-message"></p>
+                <div class="ac-actions">
+                    <button type="button" class="ac-btn ac-btn-secondary" data-close>Not now</button>
+                    <a class="ac-btn ac-btn-primary" href="Plans.html">See plans</a>
+                </div>
+            </div>
+        `;
+
+        // Set as text, never as HTML: the message comes from the server.
+        overlay.querySelector(".ac-message").textContent =
+            body.message || "That is part of the Premium plan.";
+
+        function close() {
+            document.removeEventListener("keydown", onKey);
+            overlay.remove();
+        }
+
+        function onKey(event) {
+            if (event.key === "Escape") {
+                close();
+            }
+        }
+
+        overlay.querySelector("[data-close]").addEventListener("click", close);
+
+        overlay.addEventListener("mousedown", event => {
+            if (event.target === overlay) {
+                close();
+            }
+        });
+
+        document.addEventListener("keydown", onKey);
+        document.body.appendChild(overlay);
+
+        overlay.querySelector("a").focus();
+
+    }
+
+
     window.ApiClient = {
         API,
         EXPIRED_KEY,
@@ -198,7 +293,9 @@
         endSession,
         authFetch,
         askPassword,
-        saveAccount
+        saveAccount,
+        getPlan,
+        showUpgradePrompt
     };
 
 })();

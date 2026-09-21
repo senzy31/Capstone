@@ -30,6 +30,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     setupDashboardListeners();
 
+    // The Free plan's placeholder ad in the sidebar (Premium never gets it).
+    Ads.mount();
+
     loadRecommendations(user.userId);
 
 });
@@ -290,6 +293,9 @@ function renderRecommendations(recommendations, profile, query) {
     container.innerHTML = recommendations
         .map(item => renderRecommendationCard(item, profile))
         .join("");
+
+    // One placeholder ad between the job cards, for the Free plan only.
+    Ads.placeInList(container);
 
 }
 

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JobLink Plans</title>
+
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="ApiClient.css">
+    <link rel="stylesheet" href="Plans.css">
+
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+<!-- ================= NAVBAR ================= -->
+<header class="top-navbar">
+
+    <div class="logo">
+        <span class="logo-blue">JOB</span><span class="logo-black">LINK</span>
+    </div>
+
+    <div class="user-controls">
+        <i class="fa-regular fa-bell icon-btn"></i>
+        <i class="fa-regular fa-user icon-btn"></i>
+        <span class="user-name" id="userName">
+            Loading...
+        </span>
+    </div>
+
+</header>
+
+
+<!-- ================= MAIN ================= -->
+<div class="main-container">
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
+
+        <ul class="nav-links">
+
+            <li>
+                <a href="dashboard.html">
+                    <i class="fa-solid fa-house"></i>
+                    Dashboard
+                </a>
+            </li>
+
+            <li>
+                <a href="Jobs.html">
+                    <i class="fa-regular fa-newspaper"></i>
+                    Jobs
+                </a>
+            </li>
+
+            <li>
+                <a href="Application.html">
+                    <i class="fa-regular fa-envelope-open"></i>
+                    Application
+                </a>
+            </li>
+
+            <li>
+                <a href="ResumeBuilder.html">
+                    <i class="fa-solid fa-file-pen"></i>
+                    Resume Builder
+                </a>
+            </li>
+
+            <li>
+                <a href="Profile.html">
+                    <i class="fa-regular fa-user"></i>
+                    Profile
+                </a>
+            </li>
+
+            <li class="active">
+                <a href="Plans.html">
+                    <i class="fa-solid fa-crown"></i>
+                    Plans
+                </a>
+            </li>
+
+            <li>
+                <a href="#" id="logoutBtn">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    Logout
+                </a>
+            </li>
+
+        </ul>
+
+    </aside>
+
+
+    <!-- ================= CONTENT ================= -->
+    <main class="content plans-content">
+
+        <section class="welcome-section">
+            <h1>Plans</h1>
+            <p>Free covers your whole job search. Premium adds more room and more detail.</p>
+        </section>
+
+        <!-- Where you are now (filled in from GET /api/subscription) -->
+        <section class="plan-status" id="planStatus" aria-live="polite">
+            <p class="plan-loading">Loading your plan...</p>
+        </section>
+
+        <!-- Free vs Premium -->
+        <section class="plan-compare" aria-label="Free and Premium compared">
+
+            <article class="plan-card" id="freeCard">
+                <header>
+                    <h2>Free</h2>
+                    <p class="plan-price">₱0</p>
+                    <p class="plan-price-note">always</p>
+                </header>
+                <ul class="plan-features" id="freeFeatures"></ul>
+            </article>
+
+            <article class="plan-card plan-card-premium" id="premiumCard">
+                <span class="plan-ribbon">Premium</span>
+                <header>
+                    <h2>Premium</h2>
+                    <p class="plan-price">from ₱99</p>
+                    <p class="plan-price-note">per month</p>
+                </header>
+                <ul class="plan-features" id="premiumFeatures"></ul>
+            </article>
+
+        </section>
+
+        <!-- Simulated checkout -->
+        <section class="plan-checkout" aria-label="Activate Premium">
+
+            <h2 id="checkoutTitle">Activate Premium</h2>
+
+            <div class="billing-options" id="billingOptions" role="radiogroup" aria-label="Billing period"></div>
+
+            <div class="checkout-actions">
+                <button type="button" class="btn btn-primary" id="activateBtn">
+                    Activate Premium (Demo)
+                </button>
+
+                <button type="button" class="btn plan-cancel-btn" id="cancelBtn" hidden>
+                    Cancel Premium
+                </button>
+            </div>
+
+            <p class="demo-note" id="demoNote">
+                <i class="fa-solid fa-circle-info"></i>
+                Demo only. No real payment is processed.
+            </p>
+
+            <p class="checkout-message" id="checkoutMessage" role="status" hidden></p>
+
+        </section>
+
+    </main>
+
+</div>
+
+<script src="ApiClient.js"></script>
+<script src="Plans.js"></script>
+
+</body>
+
+</html>

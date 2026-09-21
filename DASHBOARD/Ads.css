@@ -1,0 +1,100 @@
+/* ======================================================
+   ADS - the placeholder ad slots (Ads.js). Static boxes only.
+====================================================== */
+
+.ad-card {
+    position: relative;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 10px;
+
+    padding: 26px 16px 16px;
+
+    border: 1px dashed #c3ccd8;
+    border-radius: 12px;
+
+    background: #f9fafc;
+
+    text-align: center;
+}
+
+.ad-label {
+    position: absolute;
+
+    top: 8px;
+    left: 12px;
+
+    font-size: 10px;
+    font-weight: 700;
+
+    letter-spacing: 0.08em;
+
+    text-transform: uppercase;
+
+    color: var(--light-grey);
+}
+
+.ad-body i {
+    font-size: 26px;
+
+    color: #b4bfce;
+}
+
+.ad-title {
+    margin-top: 6px;
+
+    font-size: 14px;
+    font-weight: 700;
+
+    color: #4a5568;
+}
+
+.ad-text {
+    margin-top: 2px;
+
+    font-size: 12px;
+
+    color: var(--light-grey);
+}
+
+.ad-remove {
+    font-size: 12px;
+    font-weight: 600;
+
+    text-decoration: none;
+
+    color: var(--primary-blue);
+}
+
+.ad-remove:hover {
+    text-decoration: underline;
+}
+
+.ad-remove i {
+    margin-right: 4px;
+
+    color: #c98a00;
+}
+
+/* under the sidebar menu */
+
+.ad-sidebar-card {
+    margin: 22px 18px 18px;
+}
+
+/* between two job cards */
+
+.ad-list-card {
+    margin: 4px 0;
+
+    min-height: 120px;
+
+    justify-content: center;
+}
+
+.ad-list-card .ad-body i {
+    font-size: 30px;
+}
