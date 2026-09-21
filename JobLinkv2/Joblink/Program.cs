@@ -32,6 +32,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddSingleton<IApplyStore>(new SqlApplyStore(
     builder.Configuration.GetConnectionString("Joblink") ?? DbConfig.DefaultConnectionString));
 builder.Services.AddSingleton<ApplyService>();
+builder.Services.AddSingleton<ApplicationTrackerService>();
 builder.Services.AddSingleton<JobImportService>();
 
 // ✅ Add CORS here
