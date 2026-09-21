@@ -287,6 +287,49 @@ async function makeUser(label, role) {
         check("clicking Apply again keeps the confirmed status", (await call("POST", `/jobs/${ids["e2e-ext-confirm"]}/apply`, { token: A.token })).json.status, "Applied Externally");
         check("internal application can't be confirmed (409)", (await call("PATCH", `/applications/${first.json.applicationId}/confirm-external`, { token: A.token, body: { applied: true } })).status, 409);
 
+        // ================= notifications, saved jobs, job matches, skills =================
+        console.log("\nnotifications, saved jobs, job matches, skills (real SQL)");
+        const eNotes = await call("GET", "/Notification", { token: E.token });
+        const newestFirst = eNotes.json.every((n, i, all) => i === 0 || all[i - 1].createdAt >= n.createdAt);
+        check("the employer sees the notifications the applies made for them, all theirs, newest first",
+            [eNotes.status, eNotes.json.length >= 21, eNotes.json.every(n => n.userId === E.id), newestFirst], [200, true, true, true]);
+        check("job seekers see none of them (this used to return everyone's)", [(await call("GET", "/Notification", { token: A.token })).json.length, (await call("GET", "/Notification", { token: B.token })).json.length], [0, 0]);
+        const nid = eNotes.json[0].notificationId;
+        check("A cannot read, mark or delete the employer's notification (404)", await statuses([["GET", `/Notification/${nid}`, A.token], ["PUT", "/Notification", A.token, { notificationId: nid, isRead: true }], ["DELETE", `/Notification?id=${nid}`, A.token]]), [404, 404, 404]);
+        const nBefore = sql(`SELECT CAST(message AS varchar(60)), user_id, is_read, is_deleted FROM Notifications WHERE notification_id = ${nid};`)[0].split("|");
+        const marked = await call("PUT", "/Notification", { token: E.token, body: { notificationId: nid, isRead: true, message: "HACKED", userId: A.id, isDeleted: true } });
+        const nAfter = sql(`SELECT CAST(message AS varchar(60)), user_id, is_read, is_deleted FROM Notifications WHERE notification_id = ${nid};`)[0].split("|");
+        check("the employer marks it read - and only the read flag changes", [marked.status, nAfter[0] === nBefore[0], nAfter[1] === nBefore[1], nBefore[2], nAfter[2], nAfter[3]], [200, true, true, "0", "1", "0"]);
+        check("nobody can create a notification (405)", (await call("POST", "/Notification", { token: A.token, body: { userId: A.id, message: "forged" } })).status, 405);
+        check("the employer deletes it and it leaves their list", [(await call("DELETE", `/Notification?id=${nid}`, { token: E.token })).status, (await call("GET", `/Notification/${nid}`, { token: E.token })).status], [200, 404]);
+
+        const jobToSave = ids["e2e-ext-a"];
+        check("A saves a job (twice is fine); the body's user id is ignored", [(await call("POST", "/SavedJobs", { token: A.token, body: { jobId: jobToSave, userId: B.id } })).status, (await call("POST", "/SavedJobs", { token: A.token, body: { jobId: jobToSave } })).status], [200, 200]);
+        check("...it is in A's list only, exactly once", [(await call("GET", "/SavedJobs", { token: A.token })).json.map(s => s.jobId), (await call("GET", "/SavedJobs", { token: B.token })).json.length, Number(scalar(`SELECT COUNT(*) FROM Saved_Jobs WHERE job_id = ${jobToSave};`))], [[jobToSave], 0, 1]);
+        check("B can't remove A's saved job (404), an unknown job can't be saved (404), an employer can't save (403)", await statuses([["DELETE", `/SavedJobs/${jobToSave}`, B.token], ["POST", "/SavedJobs", A.token, { jobId: 2000000000 }], ["POST", "/SavedJobs", E.token, { jobId: jobToSave }]]), [404, 404, 403]);
+        await call("DELETE", `/SavedJobs/${jobToSave}`, { token: A.token });
+        await call("POST", "/SavedJobs", { token: A.token, body: { jobId: jobToSave } });
+        check("un-saving and saving again brings the row back (still one row, live)", [Number(scalar(`SELECT COUNT(*) FROM Saved_Jobs WHERE job_id = ${jobToSave};`)), scalar(`SELECT is_deleted FROM Saved_Jobs WHERE job_id = ${jobToSave};`)], [1, "0"]);
+        check("the old routes are gone: by id, PUT, delete-by-id (405/404)", await statuses([["GET", "/SavedJobs/1", A.token], ["PUT", "/SavedJobs", A.token, {}], ["DELETE", "/SavedJobs?id=1", A.token]]), [405, 405, 405]);
+
+        const mA = sql(`INSERT INTO Job_Match (user_id, job_id, match_score, created_at, is_deleted) OUTPUT INSERTED.match_id VALUES (${A.id}, ${jobToSave}, 61.25, GETDATE(), 0);`)[0];
+        const mB = sql(`INSERT INTO Job_Match (user_id, job_id, match_score, created_at, is_deleted) OUTPUT INSERTED.match_id VALUES (${B.id}, ${jobToSave}, 99.5, GETDATE(), 0);`)[0];
+        check("A sees only their own match; B's is a 404; nobody can write a score (405)",
+            [(await call("GET", "/JobMatch", { token: A.token })).json.map(m => m.matchId), (await call("GET", `/JobMatch/${mB}`, { token: A.token })).status,
+             ...(await statuses([["POST", "/JobMatch", A.token, { jobId: jobToSave, matchScore: 100 }], ["PUT", "/JobMatch", A.token, { matchId: Number(mA), matchScore: 100 }], ["DELETE", `/JobMatch?id=${mA}`, A.token]])), scalar(`SELECT match_score FROM Job_Match WHERE match_id = ${mA};`)],
+            [[Number(mA)], 404, 405, 405, 405, "61.25"]);
+
+        const skillName = `E2E g3 Skill ${STAMP}`;
+        const skills = await call("GET", "/Skills");
+        check("the skills list is public", [skills.status, Array.isArray(skills.json) && skills.json.length > 0], [200, true]);
+        check("adding a skill needs a job seeker login (401 anonymous, 403 employer)", await statuses([["POST", "/Skills", undefined, { skillName }], ["POST", "/Skills", E.token, { skillName }]]), [401, 403]);
+        const sk1 = await call("POST", "/Skills", { token: A.token, body: { skillName } });
+        const sk2 = await call("POST", "/Skills", { token: B.token, body: { skillName: `  ${skillName.toUpperCase()}  ` } });
+        check("the same name in other capitals and spacing is the same skill (no duplicates)", [sk1.status, sk1.json.skillId === sk2.json.skillId, Number(scalar(`SELECT COUNT(*) FROM Skills WHERE skill_name LIKE 'E2E g3 Skill ${STAMP}';`))], [200, true, 1]);
+        check("blank, over-long and non-Latin names are refused (400); rename and delete don't exist (405)",
+            await statuses([["POST", "/Skills", A.token, { skillName: "   " }], ["POST", "/Skills", A.token, { skillName: "s".repeat(101) }], ["POST", "/Skills", A.token, { skillName: "日本語" }], ["PUT", "/Skills", A.token, { skillId: sk1.json.skillId, skillName: "HACKED" }], ["DELETE", `/Skills/${sk1.json.skillId}`, A.token]]), [400, 400, 400, 405, 405]);
+        check("...and the skill kept its name", scalar(`SELECT skill_name FROM Skills WHERE skill_id = ${sk1.json.skillId};`), skillName);
+
         // ================= tracker + lockdown (real SQL) =================
         console.log("\ntracker flow + lockdown");
         const mj = await call("POST", "/Joblisting", { token: A.token, body: { title: "E2E Manual Job", company: "Manual Co", location: "Davao", source: "Internal", employerId: E.id, sourceApi: "jsearch", applyUrl: "https://evil.example/phish", applyIsDirect: true, publisher: "LinkedIn", applyOptions: "[{\"apply_link\":\"https://evil.example\",\"is_direct\":true}]", isExpired: true } });
@@ -350,6 +393,9 @@ async function makeUser(label, role) {
             sql(`
               DELETE FROM Applications WHERE user_id IN (${uids}) OR job_id IN (${jids});
               DELETE FROM Notifications WHERE user_id IN (${uids});
+              DELETE FROM Job_Match WHERE user_id IN (${uids});
+              DELETE FROM Saved_Jobs WHERE user_id IN (${uids});
+              DELETE FROM Skills WHERE skill_name LIKE 'E2E g3 Skill ${STAMP}';
               DELETE FROM Resume_Skills WHERE resume_id IN (SELECT resume_id FROM Resumes WHERE user_id IN (${uids}));
               DELETE FROM Education WHERE resume_id IN (SELECT resume_id FROM Resumes WHERE user_id IN (${uids}));
               DELETE FROM Experience WHERE resume_id IN (SELECT resume_id FROM Resumes WHERE user_id IN (${uids}));

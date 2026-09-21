@@ -5,6 +5,7 @@ using Joblink.Services.Accounts;
 using JobLinkv2.Repositories;
 using JobLinkv2.Services.Accounts;
 using JobLinkv2.Services.Apply;
+using JobLinkv2.Services.MyData;
 using JobLinkv2.Services.Resumes;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -68,6 +69,10 @@ builder.Services.AddSingleton<UserAccountService>();
 
 // ✅ A job seeker's own data: profile, resumes and what hangs off them, preferences
 builder.Services.AddSingleton(new ResumeDataStore(connectionString));
+
+// ✅ Notifications, saved jobs and matches (yours only), and the shared skills list
+builder.Services.AddSingleton(new UserDataStore(connectionString));
+builder.Services.AddSingleton(new SkillStore(connectionString));
 
 // ✅ Apply flow
 builder.Services.AddSingleton<IApplyStore>(new SqlApplyStore(connectionString));

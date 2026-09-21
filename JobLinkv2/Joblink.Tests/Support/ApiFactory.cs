@@ -5,6 +5,7 @@ using System.Text;
 using Joblink.Services.Accounts;
 using JobLinkv2.Services.Accounts;
 using JobLinkv2.Services.Apply;
+using JobLinkv2.Services.MyData;
 using JobLinkv2.Services.Resumes;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -33,10 +34,10 @@ namespace Joblink.Tests.Support
         public InMemoryApplyStore Store { get; } = new();
         public InMemoryUserStore UserStore { get; } = new();
 
-        // The resume / profile store has no fake. Here it points at a server that is not
+        // The stores for resumes, notifications, saved jobs and skills have no fake. Here they point at a server that is not
         // there, so a test that wrongly reaches it fails loudly instead of touching a real
         // database. DbApiFactory (the opt-in database tests) points it at the real one.
-        protected virtual string ResumeConnectionString =>
+        protected virtual string DataConnectionString =>
             "Server=tcp:127.0.0.1,1; Database=unreachable; Trusted_Connection=true; Connect Timeout=1; Encrypt=false";
 
         public TestClock Clock { get; } = new();
@@ -52,7 +53,13 @@ namespace Joblink.Tests.Support
                 services.AddSingleton<IUserStore>(UserStore);
 
                 services.RemoveAll<ResumeDataStore>();
-                services.AddSingleton(new ResumeDataStore(ResumeConnectionString));
+                services.AddSingleton(new ResumeDataStore(DataConnectionString));
+
+                services.RemoveAll<UserDataStore>();
+                services.AddSingleton(new UserDataStore(DataConnectionString));
+
+                services.RemoveAll<SkillStore>();
+                services.AddSingleton(new SkillStore(DataConnectionString));
 
                 services.RemoveAll<TimeProvider>();
                 services.AddSingleton<TimeProvider>(Clock);

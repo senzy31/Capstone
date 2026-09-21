@@ -99,11 +99,7 @@ namespace Joblink.Tests
         private static readonly HashSet<string> StillBindingModels = new()
         {
             "ApplicationController",
-            "JoblistingController",
-            "JobMatchController",
-            "NotificationController",
-            "SavedJobsController",
-            "SkillsController"
+            "JoblistingController"
         };
 
         [Fact]

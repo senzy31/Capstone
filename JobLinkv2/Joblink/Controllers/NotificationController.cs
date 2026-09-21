@@ -1,44 +1,71 @@
-﻿using JobLinkv2.Models;
-using JobLinkv2.Services;
+using Joblink.Security;
+using Joblink.Services.MyData;
+using JobLinkv2.Services.MyData;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Joblink.Controllers
 {
+    // The logged-in user's own notifications (employers get them too, when someone
+    // applies to their job). Notifications are created by the server - there is no
+    // POST - and the only change a user can make is to mark one read or delete it.
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class NotificationController : ControllerBase
     {
-        NotificationServices notificationServices = new NotificationServices();
+        private readonly UserDataStore _data;
 
-        [HttpGet]
-        public ActionResult GetAll()
+        public NotificationController(UserDataStore data)
         {
-            var notif = notificationServices.GetAll();
-            return Ok(notif);
+            _data = data;
+        }
+
+        // Your notifications, newest first (this used to return everyone's).
+        [HttpGet]
+        public IActionResult GetAll()
+        {
+            if (User.GetUserId() is not int userId)
+                return Unauthorized();
+
+            return Ok(_data.ListNotifications(userId));
         }
 
         [HttpGet("{id}")]
-        public NotificationModel GetById(int id)
+        public IActionResult GetById(int id)
         {
-            return notificationServices.GetById(id);
+            if (User.GetUserId() is not int userId)
+                return Unauthorized();
+
+            var notification = _data.GetNotification(userId, id);
+
+            return notification is null ? NotFound(new { message = "Notification not found." }) : Ok(notification);
         }
 
-        [HttpPost]
-        public bool Add(NotificationModel notif)
-        {
-            return notificationServices.Add(notif);
-        }
-
+        // Marks one of your notifications read (or unread). Nothing else can change.
         [HttpPut]
-        public bool Update(NotificationModel notif)
+        public IActionResult Update([FromBody] UpdateNotificationRequest? request)
         {
-            return notificationServices.Update(notif);
+            if (User.GetUserId() is not int userId)
+                return Unauthorized();
+
+            if (request?.NotificationId is not int notificationId)
+                return BadRequest(new { message = "A notification id is required.", code = "invalid" });
+
+            return _data.SetNotificationRead(userId, notificationId, request.IsRead)
+                ? Ok(_data.GetNotification(userId, notificationId))
+                : NotFound(new { message = "Notification not found." });
         }
 
         [HttpDelete]
-        public bool Delete(int id)
+        public IActionResult Delete(int id)
         {
-            return notificationServices.Delete(id);
+            if (User.GetUserId() is not int userId)
+                return Unauthorized();
+
+            return _data.DeleteNotification(userId, id)
+                ? Ok(new { message = "Notification deleted." })
+                : NotFound(new { message = "Notification not found." });
         }
     }
 }

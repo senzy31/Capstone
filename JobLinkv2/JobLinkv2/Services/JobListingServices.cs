@@ -1,13 +1,11 @@
-﻿using JobLinkv2.Models;
+using JobLinkv2.Models;
 using JobLinkv2.Repositories;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace JobLinkv2.Services
 {
+    // Reads of the public job list. Nothing writes through here: a listing decides where
+    // the Apply button sends people, so writes go through the import and the tracker's
+    // own rules (see IApplyStore / ApplicationTrackerService).
     public class JobListingServices
     {
         private ClassRepositories<JoblistingModel> JoblistingRepository = new ClassRepositories<JoblistingModel>();
@@ -16,24 +14,10 @@ namespace JobLinkv2.Services
         {
             return JoblistingRepository.GetAll();
         }
+
         public JoblistingModel GetById(int id)
         {
             return JoblistingRepository.GetById(id);
-        }
-
-        public bool Add(JoblistingModel model)
-        {
-            return JoblistingRepository.Add(model);
-        }
-
-        public bool Delete(int id)
-        {
-            return JoblistingRepository.Delete(id);
-        }
-
-        public bool Update(JoblistingModel model)
-        {
-            return JoblistingRepository.Update(model);
         }
     }
 }

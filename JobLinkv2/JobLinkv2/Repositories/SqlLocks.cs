@@ -25,5 +25,9 @@ namespace JobLinkv2.Repositories
                 END";
 
         public static string Name(string kind, int userId) => $"joblink:{kind}:{userId}";
+
+        // For a decision about a value rather than a user (is there already a skill called this?).
+        // Case-insensitive, like the columns it protects.
+        public static string Name(string kind, string key) => $"joblink:{kind}:{key.ToLowerInvariant()}";
     }
 }

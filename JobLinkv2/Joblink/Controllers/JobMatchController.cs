@@ -1,44 +1,44 @@
-﻿using JobLinkv2.Models;
-using JobLinkv2.Services;
+using Joblink.Security;
+using JobLinkv2.Services.MyData;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Joblink.Controllers
 {
+    // A job seeker's own job matches, read only. Matches are produced by the server
+    // (the matching service), so a client can't add, change or delete one - if it could,
+    // it could give itself a perfect score.
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "user")]
     public class JobMatchController : ControllerBase
     {
-        JobMatchServices jobmatchservices = new JobMatchServices();
+        private readonly UserDataStore _data;
 
-        [HttpGet]
-        public ActionResult GetAll()
+        public JobMatchController(UserDataStore data)
         {
-            var jobMatches = jobmatchservices.GetAll();
-            return Ok(jobMatches);
+            _data = data;
+        }
+
+        // Your matches, best first (this used to return everyone's).
+        [HttpGet]
+        public IActionResult GetAll()
+        {
+            if (User.GetUserId() is not int userId)
+                return Unauthorized();
+
+            return Ok(_data.ListMatches(userId));
         }
 
         [HttpGet("{id}")]
-        public JobMatchModel GetById(int id)
+        public IActionResult GetById(int id)
         {
-            return jobmatchservices.GetById(id);
-        }
+            if (User.GetUserId() is not int userId)
+                return Unauthorized();
 
-        [HttpPost]
-        public bool Add(JobMatchModel jobMatches)
-        {
-            return jobmatchservices.Add(jobMatches);
-        }
+            var match = _data.GetMatch(userId, id);
 
-        [HttpPut]
-        public bool Update(JobMatchModel jobMatches)
-        {
-            return jobmatchservices.Update(jobMatches);
-        }
-
-        [HttpDelete]
-        public bool Delete(int id)
-        {
-            return jobmatchservices.Delete(id);
+            return match is null ? NotFound(new { message = "Match not found." }) : Ok(match);
         }
     }
 }
