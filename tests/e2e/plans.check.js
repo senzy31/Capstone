@@ -81,14 +81,14 @@ function plan({ premium = false, billing = null, until = null, cancelled = false
             "Saved resume versions: 1",
             "Saved jobs: Up to 10",
             "Advanced resume templates: Locked",
-            "Detailed score breakdown (skills, salary, location): Overall % only",
+            "Detailed score breakdown (skills, salary, location) and matched skills: Overall % only",
             "Missing skills analysis: Locked",
             "Dashboard ads: Shown",
             "Priority Application (jobs posted on JobLink): Not included",
         ]);
         t.check("Premium: the same rows, upgraded (PDF downloads stay unlimited on both)", premiumRows,
             ["Included", "Included", "Included", "Unlimited", "Up to 10", "Unlimited", "Included", "Included", "Included", "Hidden", "Included"]);
-        t.check("features that aren't built yet say so instead of promising them (7 rows, in both columns)", [await page.locator("#freeFeatures .soon-badge").count(), await page.locator("#premiumFeatures .soon-badge").count()], [7, 7]);
+        t.check("features that aren't built yet say so instead of promising them (6 rows, in both columns)", [await page.locator("#freeFeatures .soon-badge").count(), await page.locator("#premiumFeatures .soon-badge").count()], [6, 6]);
         t.check("locked rows get a lock, included rows a tick", [await page.locator("#freeFeatures li.is-locked").count(), await page.locator("#premiumFeatures li.is-locked").count()], [5, 0]);
         t.check("the Plans link is the active one in the sidebar", (await page.locator(".nav-links li.active").innerText()).trim(), "Plans");
         t.check("no script errors; nothing was called that we didn't fake", [errors, api.unmocked], [[], []]);
@@ -243,12 +243,13 @@ function plan({ premium = false, billing = null, until = null, cancelled = false
         session.page.on("dialog", d => d.accept());
         if (hosts) session.page.on("request", r => { try { hosts.add(new URL(r.url()).host); } catch { /* data: urls */ } });
         api.on("GET", /^\/Subscription$/, () => planStatus === 200 ? { json: state } : { status: planStatus, json: {} });
-        api.on("GET", /^\/Resume\/by-user\/\d+$/, () => ({ json: [{ resumeId: 5 }] }));
-        api.on("GET", /^\/Skills$/, () => ({ json: [{ skillId: 1, skillName: "React" }] }));
-        api.on("GET", /^\/ResumeSkills\/by-resume\/\d+$/, () => ({ json: [{ resumeId: 5, skillId: 1 }] }));
-        api.on("GET", /^\/Experience\/by-resume\/\d+$/, () => ({ json: [] }));
-        api.on("GET", /^\/JobPreference\/by-user\/\d+$/, () => ({ json: { preferredLocation: "Makati", workArrangement: null, minSalary: null, maxSalary: null } }));
-        api.on("GET", /^\/JobSearch\/search$/, () => ({ json: { status: "OK", data: Array.from({ length: jobs }, (_, i) => searchJob(i + 1, { job_description: "React work." })) } }));
+        // The server scores the jobs; the page only shows them. (Free plan: overall score and band.)
+        api.on("GET", /^\/Recommendations$/, () => ({
+            json: {
+                status: "OK", query: "React jobs in Makati", page: 1, skillCount: 1, hasPreferences: true, detailed: false,
+                data: Array.from({ length: jobs }, (_, i) => ({ ...searchJob(i + 1, { job_description: "React work." }), joblink_match: { detailed: false, score: 90 - i, band: { level: "excellent", label: "Excellent match" } } })),
+            },
+        }));
         await session.page.goto(`${server.baseUrl}/DASHBOARD/dashboard.html`);
         await session.page.waitForFunction(() => !document.querySelector(".loading-jobs"), null, { timeout: 30000 });
         return { ...session, api, errors };

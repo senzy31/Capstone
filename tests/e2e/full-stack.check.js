@@ -177,14 +177,49 @@ function sql(query) {
         t.section("Free and Premium in the real browser: the ad, the upgrade prompt, the simulated checkout");
         const planRow = () => sql(`SELECT [plan], ISNULL(plan_billing, 'NULL'), DATEDIFF(month, premium_started_at, premium_until), CASE WHEN cancelled_at IS NULL THEN 'live' ELSE 'cancelled' END FROM Subscriptions WHERE user_id = ${userId};`)[0] ?? "no row";
         const resumeCount = () => Number(sql(`SELECT COUNT(*) FROM Resumes WHERE user_id = ${userId} AND is_deleted = 0;`)[0]);
-        // The dashboard would spend a live JSearch call on recommendations; this check is about the plan, so that one call gets an empty answer.
-        await page.route(/\/api\/JobSearch\/search/, route => route.request().method() === "OPTIONS"
-            ? route.fulfill({ status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, content-type", "access-control-allow-methods": "GET, OPTIONS" } })
-            : route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify({ status: "OK", data: [] }) }));
+        // With the fake JSearch the recommended jobs are ours: one mentions this user's own skill, one does not, so the scores are known.
+        // (Against the real JSearch the jobs are whatever it sends, and only the shape is checked.)
+        const fake = backend.fake;
+
+        if (fake) {
+            const base = fake.jobs("dash", 2);
+
+            fake.searchReturns([
+                { ...base[0], job_id: fake.idFor("dash", 0), job_title: "Accounts Clerk", job_description: `Needs ${skillName} experience.` },
+                { ...base[1], job_id: fake.idFor("dash", 1), job_title: "Barista", job_description: "Coffee." },
+            ]);
+        }
+
+        const dashboardCards = async () => {
+            await page.waitForSelector(".recommended-card, .no-jobs", { timeout: 30000 });
+
+            return page.$$eval(".recommended-card", cs => cs.map(c => ({
+                title: c.querySelector(".job-title").childNodes[0].textContent.trim(),
+                score: c.querySelector(".score-ring span").textContent.trim(),
+                rows: c.querySelectorAll(".match-row").length,
+                locked: c.querySelectorAll(".match-locked").length,
+                chips: [...c.querySelectorAll(".skill-chip")].map(x => x.textContent.trim()),
+                notes: [...c.querySelectorAll(".match-note")].map(x => x.textContent.trim()),
+            })));
+        };
 
         await page.goto(`${server.baseUrl}/DASHBOARD/dashboard.html`);
         await page.waitForSelector("#ad-sidebar", { timeout: 15000 });
-        t.check("a Free member's dashboard shows the placeholder ad (the plan came from the real API)", [await page.locator("#ad-sidebar .ad-label").textContent(), await page.locator(".ad-card").count()], ["Advertisement", 1]);
+
+        const freeCards = await dashboardCards();
+        await page.waitForSelector("#ad-list", { timeout: 15000 });
+        t.check("a Free member's dashboard shows the placeholder ads (the plan came from the real API): one in the sidebar and one between the job cards",
+            [await page.locator("#ad-sidebar .ad-label").textContent(), await page.locator(".ad-card").count(), await page.locator("#jobContainer > *").evaluateAll(nodes => nodes.map(n => n.id === "ad-list" ? "ad" : "job").slice(0, 3).join())],
+            ["Advertisement", 2, "job,ad,job"]);
+        if (fake) {
+            t.check("Free: the real server scored the jobs on this user's real resume (100 for the job that mentions their skill, 0 for the other), best first, with the overall score only",
+                [freeCards.map(c => c.title), freeCards.map(c => c.score), freeCards.map(c => c.rows), freeCards.map(c => c.locked), freeCards.map(c => c.chips.length)],
+                [["Accounts Clerk", "Barista"], ["100%", "0%"], [0, 0], [1, 1], [0, 0]]);
+            t.check("...and says what it used: one skill, searched from the top skill (no work history left)",
+                (await page.locator("#jobResultText").innerText()).includes(`2 jobs scored against your 1 resume skill · searched "${skillName} jobs in Philippines"`), true);
+        } else {
+            t.check("Free (real JSearch): every card has a score and an upgrade invitation and no breakdown", [freeCards.length > 0, freeCards.every(c => /%$/.test(c.score) && c.rows === 0 && c.locked === 1)], [true, true]);
+        }
 
         await page.goto(`${server.baseUrl}/DASHBOARD/Plans.html`);
         await page.waitForSelector(".plan-headline", { timeout: 15000 });
@@ -203,9 +238,16 @@ function sql(query) {
             [(await page.locator(".plan-headline").innerText()).includes("You're on Premium (Quarterly)"), planRow()], [true, "Premium|Quarterly|3|live"]);
 
         await page.goto(`${server.baseUrl}/DASHBOARD/dashboard.html`);
-        await page.waitForFunction(() => !document.querySelector(".loading-jobs"), null, { timeout: 20000 });
+        const premiumCards = await dashboardCards();
         await sleep(800);
         t.check("as Premium the same dashboard shows no ads", await page.locator(".ad-card").count(), 0);
+        if (fake) {
+            t.check("Premium (same login, upgraded a minute ago): the very same scores, plus how each part scored and the matched skill, and no invitation",
+                [premiumCards.map(c => c.score), premiumCards.map(c => c.rows), premiumCards.map(c => c.locked), premiumCards[0].chips, premiumCards[0].notes],
+                [["100%", "0%"], [3, 3], [0, 0], [skillName], ["Mentions 1 of your 1 skill", "No location preference set", "No salary preference set"]]);
+        } else {
+            t.check("Premium (real JSearch): every card has its three-part breakdown and no invitation", [premiumCards.length > 0, premiumCards.every(c => c.rows === 3 && c.locked === 0)], [true, true]);
+        }
 
         await page.goto(`${server.baseUrl}/DASHBOARD/Plans.html`);
         await page.waitForSelector("#cancelBtn:not([hidden])", { timeout: 15000 });

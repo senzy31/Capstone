@@ -50,9 +50,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // ------------------------------------------------------
     // WHAT EACH PLAN GETS
     //
-    // One row per feature. `soon: true` marks a feature whose page or screen isn't built yet
-    // (or that the API doesn't tier yet), so the comparison doesn't promise more than the app
-    // delivers today - drop the flag when it ships.
+    // One row per feature. `soon: true` marks a feature whose page or screen isn't built yet, so the
+    // comparison doesn't promise more than the app delivers today - drop the flag when it ships.
     // ------------------------------------------------------
 
     const FEATURES = [
@@ -63,7 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
         { label: "Saved resume versions", free: "1", premium: "Up to 10", soon: true },
         { label: "Saved jobs", free: "Up to 10", premium: "Unlimited", soon: true },
         { label: "Advanced resume templates", free: "Locked", premium: "Included", soon: true },
-        { label: "Detailed score breakdown (skills, salary, location)", free: "Overall % only", premium: "Included", soon: true },
+        { label: "Detailed score breakdown (skills, salary, location) and matched skills", free: "Overall % only", premium: "Included" },
         { label: "Missing skills analysis", free: "Locked", premium: "Included", soon: true },
         { label: "Dashboard ads", free: "Shown", premium: "Hidden" },
         { label: "Priority Application (jobs posted on JobLink)", free: "Not included", premium: "Included", soon: true }

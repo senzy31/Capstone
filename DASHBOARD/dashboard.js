@@ -1,8 +1,9 @@
 // ======================================================
 // JOBLINK DASHBOARD
-// Recommended jobs: live JSearch results (through the JobLink backend),
-// scored against the jobseeker's resume skills and saved preferences
-// (see Suitability.js). Searching all jobs lives on the Jobs page.
+// Recommended jobs: live JSearch results, scored by the JobLink backend against the jobseeker's
+// resume skills and saved preferences (GET /api/Recommendations). The page only shows what the
+// server sends: everyone gets each job's overall score and band; a Premium plan also gets how each
+// part scored. The rules are in docs/scoring.md. Searching all jobs lives on the Jobs page.
 // Shared helpers live in JobsShared.js.
 // ======================================================
 
@@ -33,7 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // The Free plan's placeholder ad in the sidebar (Premium never gets it).
     Ads.mount();
 
-    loadRecommendations(user.userId);
+    loadRecommendations();
 
 });
 
@@ -61,96 +62,13 @@ function setupDashboardListeners() {
 
 
 // ======================================================
-// LOAD THE JOBSEEKER'S RESUME + PREFERENCES
+// LOAD THE RECOMMENDED JOBS
 // ======================================================
 
-// -> { skills: string[], role: string, preferences: object | null }
-// Reads the same resume the Resume Builder edits (the user's first one).
-async function loadResumeProfile(userId) {
-
-    const [resumesResponse, skillsResponse, preferenceResponse] = await Promise.all([
-        ApiClient.authFetch(`${API_BASE}/Resume/by-user/${userId}`),
-        ApiClient.authFetch(`${API_BASE}/Skills`),
-        ApiClient.authFetch(`${API_BASE}/JobPreference/by-user/${userId}`)
-    ]);
-
-    if (!resumesResponse.ok) {
-        throw new Error(`Couldn't load your resume (${resumesResponse.status})`);
-    }
-
-    // 404 just means they haven't saved any preferences yet.
-    const preferences = preferenceResponse.ok ? await preferenceResponse.json() : null;
-
-    const resumes = await resumesResponse.json();
-
-    if (resumes.length === 0) {
-        return { skills: [], role: "", preferences };
-    }
-
-    const resumeId = resumes[0].resumeId;
-
-    const [linksResponse, experienceResponse] = await Promise.all([
-        ApiClient.authFetch(`${API_BASE}/ResumeSkills/by-resume/${resumeId}`),
-        ApiClient.authFetch(`${API_BASE}/Experience/by-resume/${resumeId}`)
-    ]);
-
-    const links = linksResponse.ok ? await linksResponse.json() : [];
-
-    const catalog = skillsResponse.ok ? await skillsResponse.json() : [];
-
-    const experience = experienceResponse.ok ? await experienceResponse.json() : [];
-
-    const skillNames = new Map(catalog.map(skill => [skill.skillId, skill.skillName]));
-
-    const skills = [...new Set(
-        links
-            .map(link => (skillNames.get(link.skillId) || "").trim())
-            .filter(Boolean)
-    )];
-
-    return { skills, role: getLatestRole(experience), preferences };
-
-}
-
-
-// Their current job (no end date), otherwise the most recently ended one.
-function getLatestRole(experience) {
-
-    const end = item => item.endDate ? new Date(item.endDate).getTime() : Number.MAX_SAFE_INTEGER;
-
-    const start = item => item.startDate ? new Date(item.startDate).getTime() : 0;
-
-    const withTitle = experience.filter(item => (item.position || "").trim());
-
-    withTitle.sort((a, b) => (end(b) - end(a)) || (start(b) - start(a)));
-
-    return withTitle.length > 0 ? withTitle[0].position.trim() : "";
-
-}
-
-
-// The search sent to JSearch: their latest role (or top skills) near where
-// they want to work.
-function buildRecommendationQuery(profile) {
-
-    const preferences = profile.preferences || {};
-
-    const place = (preferences.preferredLocation || "").split(",")[0].trim() || "Philippines";
-
-    const focus = profile.role || profile.skills.slice(0, 3).join(" ");
-
-    const remote = preferences.workArrangement === "remote" ? " remote" : "";
-
-    return `${focus}${remote} jobs in ${place}`;
-
-}
-
-
-// ======================================================
-// LOAD + SCORE RECOMMENDED JOBS
-// ======================================================
-
-async function loadRecommendations(userId) {
+// One request. The server knows who is asking (the login token), reads their resume and preferences
+// itself, searches, scores every job and sends each back with a `joblink_match` - the overall score and
+// band for everyone, plus how each part scored for a Premium plan. The page only shows what it is given.
+async function loadRecommendations() {
 
     const container = document.getElementById("jobContainer");
 
@@ -158,9 +76,20 @@ async function loadRecommendations(userId) {
 
     try {
 
-        const profile = await loadResumeProfile(userId);
+        const response = await ApiClient.authFetch(`${API_BASE}/Recommendations?page=1`);
 
-        if (profile.skills.length === 0) {
+        if (!response.ok) {
+
+            const errorBody = await response.json().catch(() => null);
+
+            throw new Error(errorBody?.message || `API Error: ${response.status}`);
+
+        }
+
+        const data = await response.json();
+
+        // Nothing to match on: the server made no search.
+        if (data.skillCount === 0) {
 
             resultText.textContent = "Add your skills to get recommendations.";
 
@@ -180,35 +109,11 @@ async function loadRecommendations(userId) {
 
         }
 
-        showPreferenceNotice(profile.preferences);
-
-        const query = buildRecommendationQuery(profile);
-
-        const response = await ApiClient.authFetch(
-            `${JOB_API}/search?query=${encodeURIComponent(query)}&page=1`
-        );
-
-        if (!response.ok) {
-
-            const errorBody = await response.json().catch(() => null);
-
-            throw new Error(errorBody?.message || `API Error: ${response.status}`);
-
-        }
-
-        const data = await response.json();
+        showPreferenceNotice(data.hasPreferences);
 
         currentJobs = data.data || [];
 
-        // Best match first; more matched skills breaks a tie.
-        const recommendations = currentJobs
-            .map(job => ({ job, match: scoreJob(job, profile) }))
-            .sort((a, b) =>
-                (b.match.score - a.match.score) ||
-                (b.match.skills.matched.length - a.match.skills.matched.length)
-            );
-
-        renderRecommendations(recommendations, profile, query);
+        renderRecommendations(currentJobs, data);
 
     } catch (error) {
 
@@ -232,14 +137,7 @@ async function loadRecommendations(userId) {
 
 
 // Without preferences the score is skills-only, so say how to sharpen it.
-function showPreferenceNotice(preferences) {
-
-    const hasPreferences = preferences && (
-        preferences.preferredLocation ||
-        preferences.workArrangement ||
-        preferences.minSalary ||
-        preferences.maxSalary
-    );
+function showPreferenceNotice(hasPreferences) {
 
     document.getElementById("recommendNotice").innerHTML = hasPreferences ? "" : `
         <div class="recommend-notice">
@@ -262,25 +160,34 @@ function showPreferenceNotice(preferences) {
 // RENDER
 // ======================================================
 
-function renderRecommendations(recommendations, profile, query) {
+// What a job is shown with if a server ever sent it without a match.
+const NO_MATCH = { score: 0, band: { level: "low", label: "Low match" }, detailed: false };
+
+function matchOf(job) {
+
+    return job.joblink_match || NO_MATCH;
+
+}
+
+function renderRecommendations(jobs, info) {
 
     const container = document.getElementById("jobContainer");
 
-    const matches = recommendations.filter(item => item.match.score >= MATCH_THRESHOLD).length;
+    const matches = jobs.filter(job => matchOf(job).score >= MATCH_THRESHOLD).length;
 
     document.getElementById("jobCount").textContent = matches;
 
     document.getElementById("jobResultText").textContent =
-        `${recommendations.length} jobs scored against your ${profile.skills.length} resume ` +
-        `${profile.skills.length === 1 ? "skill" : "skills"} · searched "${query}"`;
+        `${jobs.length} jobs scored against your ${info.skillCount} resume ` +
+        `${info.skillCount === 1 ? "skill" : "skills"} · searched "${info.query}"`;
 
 
-    if (recommendations.length === 0) {
+    if (jobs.length === 0) {
 
         container.innerHTML = `
             <div class="no-jobs">
                 <i class="fa-solid fa-magnifying-glass"></i>
-                <h3>No jobs found for "${escapeHtml(query)}"</h3>
+                <h3>No jobs found for "${escapeHtml(info.query)}"</h3>
                 <p>Try the Jobs page to search with your own keywords.</p>
                 <a href="Jobs.html" class="notice-btn">Browse all jobs</a>
             </div>
@@ -290,8 +197,8 @@ function renderRecommendations(recommendations, profile, query) {
 
     }
 
-    container.innerHTML = recommendations
-        .map(item => renderRecommendationCard(item, profile))
+    container.innerHTML = jobs
+        .map(renderRecommendationCard)
         .join("");
 
     // One placeholder ad between the job cards, for the Free plan only.
@@ -300,9 +207,13 @@ function renderRecommendations(recommendations, profile, query) {
 }
 
 
-function renderRecommendationCard({ job, match }, profile) {
+function renderRecommendationCard(job) {
 
-    const preferences = profile.preferences || {};
+    const match = matchOf(job);
+
+    const score = Number(match.score) || 0;
+
+    const level = escapeHtml(match.band?.level || "low");
 
     const jobId = escapeHtml(job.job_id || "");
 
@@ -310,23 +221,45 @@ function renderRecommendationCard({ job, match }, profile) {
         ? `<span><i class="fa-solid fa-money-bill-wave"></i> ${escapeHtml(getJobSalary(job))}</span>`
         : "";
 
-    const chips = match.skills.matched
+    // A Premium plan is sent how each part scored and which skills matched; a Free plan is sent neither,
+    // so there is nothing here to show it - only an invitation.
+    const detailed = match.detailed === true;
+
+    const matched = detailed ? (match.skills?.matched || []) : [];
+
+    const chips = matched
         .slice(0, SKILL_CHIPS_SHOWN)
         .map(skill => `<span class="skill-chip">${escapeHtml(skill)}</span>`)
         .join("");
 
-    const moreChips = match.skills.matched.length > SKILL_CHIPS_SHOWN
-        ? `<span class="skill-chip more">+${match.skills.matched.length - SKILL_CHIPS_SHOWN} more</span>`
+    const moreChips = matched.length > SKILL_CHIPS_SHOWN
+        ? `<span class="skill-chip more">+${matched.length - SKILL_CHIPS_SHOWN} more</span>`
         : "";
+
+    const breakdown = detailed
+        ? `
+            <div class="match-breakdown level-${level}">
+                ${matchRow("Skills", match.skills)}
+                ${matchRow("Location", match.location)}
+                ${matchRow("Salary", match.salary)}
+            </div>
+        `
+        : `
+            <div class="match-locked">
+                <i class="fa-solid fa-lock"></i>
+                <span>See how skills, location and salary each scored</span>
+                <a href="Plans.html">Upgrade to Premium</a>
+            </div>
+        `;
 
 
     return `
         <div class="job-card recommended-card">
             <div class="job-card-content">
 
-                <div class="score-ring level-${match.band.level}" style="--pct:${match.score}"
-                     title="Suitability score: ${match.score}%">
-                    <span>${match.score}%</span>
+                <div class="score-ring level-${level}" style="--pct:${score}"
+                     title="Suitability score: ${score}%">
+                    <span>${score}%</span>
                 </div>
 
                 <div class="job-main-info">
@@ -335,7 +268,7 @@ function renderRecommendationCard({ job, match }, profile) {
 
                     <h3 class="job-title">
                         ${escapeHtml(job.job_title || "Job Position")}
-                        <span class="match-label level-${match.band.level}">${match.band.label}</span>
+                        <span class="match-label level-${level}">${escapeHtml(match.band?.label || "")}</span>
                     </h3>
 
                     <div class="job-meta">
@@ -354,11 +287,7 @@ function renderRecommendationCard({ job, match }, profile) {
                         ${listedSalary}
                     </div>
 
-                    <div class="match-breakdown level-${match.band.level}">
-                        ${matchRow("Skills", match.skills, "", describeSkills(match.skills))}
-                        ${matchRow("Location", match.location, "No location preference set")}
-                        ${matchRow("Salary", match.salary, describeMissingSalary(job, preferences))}
-                    </div>
+                    ${breakdown}
 
                     ${chips ? `<div class="matched-skills">${chips}${moreChips}</div>` : ""}
 
@@ -381,52 +310,30 @@ function renderRecommendationCard({ job, match }, profile) {
 }
 
 
-// One line of the score breakdown. A part with nothing to compare shows why
-// instead of a bar (see Suitability.js: such parts don't affect the score).
-function matchRow(label, part, missingNote, noteOverride) {
+// One line of the score breakdown (Premium). A part the server left out of the score has no score and
+// says why in its note.
+function matchRow(label, part) {
 
-    if (!part) {
+    if (!part || part.score === null || part.score === undefined) {
 
         return `
             <div class="match-row muted">
                 <span class="match-name">${label}</span>
-                <span class="match-note">${escapeHtml(missingNote)}</span>
+                <span class="match-note">${escapeHtml(part?.note || "")}</span>
             </div>
         `;
 
     }
 
+    const score = Number(part.score) || 0;
+
     return `
         <div class="match-row">
             <span class="match-name">${label}</span>
-            <div class="match-bar"><div class="match-fill" style="width:${part.score}%"></div></div>
-            <span class="match-pct">${part.score}%</span>
-            <span class="match-note">${escapeHtml(noteOverride || part.note)}</span>
+            <div class="match-bar"><div class="match-fill" style="width:${Math.max(0, Math.min(100, score))}%"></div></div>
+            <span class="match-pct">${score}%</span>
+            <span class="match-note">${escapeHtml(part.note || "")}</span>
         </div>
     `;
-
-}
-
-
-function describeSkills(skills) {
-
-    return skills.matched.length > 0
-        ? `Mentions ${skills.matched.length} of your ${skills.total} ${skills.total === 1 ? "skill" : "skills"}`
-        : `Mentions none of your ${skills.total} ${skills.total === 1 ? "skill" : "skills"}`;
-
-}
-
-
-function describeMissingSalary(job, preferences) {
-
-    if (!preferences.minSalary && !preferences.maxSalary) {
-        return "No salary preference set";
-    }
-
-    if (!job.job_min_salary && !job.job_max_salary) {
-        return "Salary not listed";
-    }
-
-    return "Listed in a currency we can't compare";
 
 }

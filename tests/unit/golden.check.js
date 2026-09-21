@@ -22,7 +22,9 @@ t.check("every band appears", [...new Set(expected.map(e => e.band.level))].sort
 t.check("each part is sometimes scored and sometimes left out", ["skills", "location", "salary"].map(p => [expected.some(e => e[p]), expected.some(e => e[p] === null)]), [[true, true], [true, true], [true, true]]);
 t.check("some cases score all three parts", expected.filter(e => e.skills && e.location && e.salary).length >= 50, true);
 t.check("some salaries fall short of the minimum", expected.filter(e => e.salary && e.salary.score < 100).length >= 30, true);
-t.check("scores are whole numbers from 0 to 100", expected.every(e => Number.isInteger(e.score) && e.score >= 0 && e.score <= 100), true);
+t.check("scores are whole numbers from 0 to 100 - except the one case that pins what nonsense pay (a negative maximum) does",
+    [expected.every(e => Number.isInteger(e.score)), file.cases.filter(c => c.expected.score < 0 || c.expected.score > 100).map(c => c.name)],
+    [true, ["salary: a negative maximum scores below zero"]]);
 
 t.done();
 process.exit(process.exitCode || 0);

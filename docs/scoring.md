@@ -153,9 +153,9 @@ These are dashboard rules around the score, not part of it:
 - **Which jobs.** One JSearch search (first page, about ten listings) built from the job seeker's data:
   `"<focus>[ remote] jobs in <place>"`, where *focus* is their latest job title from the experience on
   the first resume (a job with no end date, otherwise the one that ended most recently; the later start
-  wins a tie), or their
-  first three skills if they have no titled experience; ` remote` is added when their arrangement is
-  `remote`; *place* is the first place in their preferred location, or `Philippines` if none.
+  wins a tie), or their first three skills if they have no titled experience; ` remote` is added when
+  their arrangement is `remote`; *place* is the first place in their preferred location, or
+  `Philippines` if none. (A query over 200 characters is cut to fit the job search's limit.)
 - **Order.** Highest score first; for equal scores, the job that mentions **more** of their skills
   first; otherwise the search's own order.
 - **"Job Matches" counter** = the number of listed jobs scoring **50 or more**.
@@ -221,6 +221,9 @@ skill scores 100 on skills and 100 on location; the salary is left out, so the s
    boundary, so `SQL` next to `é` still matches.
 8. **Whole-number arithmetic.** Part scores are rounded before they are weighted; the overall is
    rounded once at the end (half up), so a result such as 58.25 becomes 58.
+9. **Nonsense pay is not filtered.** A listing with a negative salary would give a negative salary score
+   (and so could pull an overall score below 0). JSearch does not send one; the golden tests pin what
+   happens so the server and the browser agree even then.
 
 ## Where it runs and how it is checked
 

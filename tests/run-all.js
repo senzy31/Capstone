@@ -8,7 +8,6 @@ const path = require("path");
 const withBackend = process.argv.includes("--backend");
 
 const suites = [
-    ["scoring rules (unit)", "unit/suitability.check.js"],
     ["scoring golden file (matches the frozen reference)", "unit/golden.check.js"],
     ["Jobs page", "e2e/jobs-page.check.js"],
     ["dashboard recommendations", "e2e/dashboard-recommendations.check.js"],

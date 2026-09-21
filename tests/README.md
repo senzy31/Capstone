@@ -22,17 +22,16 @@ npx playwright install chromium
 
 | File | Covers |
 | --- | --- |
-| `unit/suitability.check.js` | the recommended-jobs score, in Node (no browser) |
 | `unit/golden.check.js` | `golden/suitability.golden.json` (617 job + profile cases and the exact score, band, sub-scores and notes the browser scorer gave for each) and `golden/lowercase.golden.json` (how JavaScript lower-cases every character) are what `golden/reference/` (a frozen copy of the browser scorer) produces. The .NET tests check the C# scorer against these files. Regenerate on purpose only: `node golden/generate.js` |
 | `e2e/jobs-page.check.js` | Jobs page search and filters |
-| `e2e/dashboard-recommendations.check.js` | dashboard scores, empty/setup states, external jobs keep their score |
+| `e2e/dashboard-recommendations.check.js` | the dashboard's server-scored list (Free sees the overall score and an upgrade invitation, Premium the breakdown and matched skills, and a page never draws a breakdown the server did not mark detailed), setup/empty/error states, external jobs keep a working Apply |
 | `e2e/apply-flow.check.js` | Apply button labels, new tab, redirect, failures, "Did you finish applying?" |
 | `e2e/tracker.check.js` | Applications page: badges, sorting, Mark as applied, logging by hand |
 | `e2e/login-session.check.js` | login token, old sessions without one, signup, logout |
 | `e2e/account.check.js` | Profile and Resume Builder: only name + email are sent, the password prompt for an email change, the resume email kept apart from the login email |
 | `e2e/plans.check.js` | Plans page (prices, the simulated checkout and the demo-only note, cancel, every state and error), the Plans link on every page, the placeholder ads (Free sees two, Premium and an unreadable plan see none, nothing loaded from another site) and the upgrade prompt on a 403 |
 | `e2e/backend.check.js` | real API + database: tokens, accounts (what `/api/User` used to allow), profile / resumes / entries / skills / preferences, and notifications / saved jobs / matches / the skills list (one user against another), the endpoints that spend money (search, AI), Free/Premium plans (simulated checkout, expiry, the plan read from the database on every request), Priority Application (stored at apply time, snapshot, external never priority, same 20/day limit), recommendations (scored on the caller's own resume, Free sees only the overall score and band, Premium the parts, the plan read on every request; JSearch fake), apply flow, rate limit, lockdown, JSearch import |
-| `e2e/full-stack.check.js` | real browser + real backend: login page, Profile (name + email with the password prompt), Resume Builder (month date, delete an entry, skills), apply to a confirmed application, the Free ad, the real 403 upgrade prompt, Activate Premium (Demo) and Cancel |
+| `e2e/full-stack.check.js` | real browser + real backend: login page, Profile (name + email with the password prompt), Resume Builder (month date, delete an entry, skills), apply to a confirmed application, the Free ad, the real 403 upgrade prompt, Activate Premium (Demo) and Cancel, and the dashboard's real recommendations as Free (overall score only) and then Premium (the breakdown) on the same login |
 
 The two "real" checks create their own test users and jobs and delete them afterwards.
 

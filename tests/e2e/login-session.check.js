@@ -123,9 +123,7 @@ const LOGIN_OK = (role = "user") => ({ json: { message: "Login successful", toke
     t.section("logging out");
     {
         const { context, page } = await open("/DASHBOARD/dashboard.html", { apiSetup: a => {
-            a.on("GET", /^\/Resume\/by-user\/\d+$/, () => ({ json: [] }));
-            a.on("GET", /^\/Skills$/, () => ({ json: [] }));
-            a.on("GET", /^\/JobPreference\/by-user\/\d+$/, () => ({ status: 404 }));
+            a.on("GET", /^\/Recommendations$/, () => ({ json: { status: "OK", query: null, page: 1, skillCount: 0, hasPreferences: false, detailed: false, data: [] } }));
         } });
         await page.click("#logoutBtn");
         await page.click("#confirmLogout");
