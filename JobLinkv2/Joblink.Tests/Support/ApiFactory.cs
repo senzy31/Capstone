@@ -8,6 +8,7 @@ using JobLinkv2.Services.Accounts;
 using JobLinkv2.Services.Apply;
 using JobLinkv2.Services.MyData;
 using JobLinkv2.Services.Resumes;
+using JobLinkv2.Services.Subscriptions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,6 +36,8 @@ namespace Joblink.Tests.Support
         public InMemoryApplyStore Store { get; } = new();
         public InMemoryUserStore UserStore { get; } = new();
         public FakeAiGenerator Ai { get; } = new();
+        public InMemorySubscriptionStore Subscriptions { get; } = new();
+        public FakeUsageReader Usage { get; } = new();
 
         // The stores for resumes, notifications, saved jobs and skills have no fake. Here they point at a server that is not
         // there, so a test that wrongly reaches it fails loudly instead of touching a real
@@ -62,6 +65,13 @@ namespace Joblink.Tests.Support
 
                 services.RemoveAll<SkillStore>();
                 services.AddSingleton(new SkillStore(DataConnectionString));
+
+                // Plans are read from a store the tests control, on the tests' clock.
+                services.RemoveAll<ISubscriptionStore>();
+                services.AddSingleton<ISubscriptionStore>(Subscriptions);
+
+                services.RemoveAll<IUsageReader>();
+                services.AddSingleton<IUsageReader>(Usage);
 
                 // Claude costs money: tests get a stand-in that only counts.
                 services.RemoveAll<IAiResumeGenerator>();

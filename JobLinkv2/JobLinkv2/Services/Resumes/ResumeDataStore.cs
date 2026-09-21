@@ -168,6 +168,14 @@ namespace JobLinkv2.Services.Resumes
                 new { userId }).ToList();
         }
 
+        public int CountResumes(int userId)
+        {
+            using var db = Open();
+
+            return db.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM Resumes WHERE user_id = @userId AND is_deleted = 0", new { userId });
+        }
+
         public ResumeModel? GetResume(int userId, int resumeId)
         {
             using var db = Open();

@@ -99,6 +99,14 @@ namespace JobLinkv2.Services.MyData
                 new { userId }).ToList();
         }
 
+        public int CountSavedJobs(int userId)
+        {
+            using var db = Open();
+
+            return db.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM Saved_Jobs WHERE user_id = @userId AND is_deleted = 0", new { userId });
+        }
+
         // Saves a job for the caller - or brings back one they un-saved. Saving what
         // is already saved is fine. The job has to exist.
         public SaveJobOutcome SaveJob(int userId, int jobId)

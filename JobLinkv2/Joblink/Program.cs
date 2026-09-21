@@ -2,12 +2,14 @@ using Dapper;
 using Joblink.Security;
 using Joblink.Services;
 using Joblink.Services.Accounts;
+using Joblink.Services.Subscriptions;
 using JobLinkv2.Repositories;
 using JobLinkv2.Services;
 using JobLinkv2.Services.Accounts;
 using JobLinkv2.Services.Apply;
 using JobLinkv2.Services.MyData;
 using JobLinkv2.Services.Resumes;
+using JobLinkv2.Services.Subscriptions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 
@@ -78,6 +80,14 @@ builder.Services.AddSingleton(new SkillStore(connectionString));
 // ✅ AI resume text: a job seeker login, and 20 requests an hour each
 builder.Services.AddSingleton<IAiResumeGenerator, AiResumeServices>();
 builder.Services.AddSingleton<UserRateLimiter>();
+
+// ✅ Job seeker plans (Free / Premium). Payments are SIMULATED. The plan is read from the
+// database on every request, never from the login token.
+builder.Services.AddSingleton<ISubscriptionStore>(new SqlSubscriptionStore(connectionString));
+builder.Services.AddSingleton<SubscriptionService>();
+builder.Services.AddSingleton<IUsageReader, StoreUsageReader>();
+builder.Services.AddSingleton<IPlanReader>(services => services.GetRequiredService<SubscriptionService>());
+builder.Services.AddSingleton(new SubscriptionOptions { DemoCheckout = builder.Configuration.GetValue("Subscription:DemoCheckout", true) });
 
 // ✅ Apply flow
 builder.Services.AddSingleton<IApplyStore>(new SqlApplyStore(connectionString));

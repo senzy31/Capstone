@@ -129,3 +129,56 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Applications_User_Type
     CREATE INDEX IX_Applications_User_Type_AppliedAt
         ON Applications (user_id, application_type, applied_at);
 GO
+
+
+-- =====================================================================
+-- Subscriptions: the two-tier plan for JOB SEEKERS (Free / Premium).
+-- Payments are simulated - there is no payment gateway.
+--
+-- Its own table, not columns on Users: nothing that reads or writes an
+-- account (the User endpoints, UserModel) knows this table exists, so a
+-- plan can't be changed through them by construction. A user with no row
+-- is on the Free plan.
+--
+-- A user is Premium only while [plan] = 'Premium' AND premium_until > now (plan is a
+-- reserved word in T-SQL, so it is always written [plan]).
+-- When premium_until passes, nothing has to run: the app checks the date
+-- on every request, so the row can keep saying 'Premium' and still mean
+-- Free. cancelled_at means "don't renew" - Premium lasts until premium_until.
+-- All times are UTC.
+-- =====================================================================
+IF OBJECT_ID('Subscriptions', 'U') IS NULL
+    CREATE TABLE Subscriptions (
+        user_id            INT         NOT NULL
+            CONSTRAINT PK_Subscriptions PRIMARY KEY
+            CONSTRAINT FK_Subscriptions_User FOREIGN KEY REFERENCES Users(user_id),
+        [plan]             VARCHAR(10) NOT NULL CONSTRAINT DF_Subscriptions_plan DEFAULT 'Free',
+        plan_billing       VARCHAR(10) NULL,        -- Monthly | Quarterly | Annual (NULL on Free)
+        premium_started_at DATETIME    NULL,
+        premium_until      DATETIME    NULL,
+        cancelled_at       DATETIME    NULL,
+        updated_at         DATETIME    NOT NULL CONSTRAINT DF_Subscriptions_updated DEFAULT GETUTCDATE(),
+        CONSTRAINT CK_Subscriptions_plan CHECK ([plan] IN ('Free', 'Premium')),
+        CONSTRAINT CK_Subscriptions_billing CHECK (plan_billing IS NULL OR plan_billing IN ('Monthly', 'Quarterly', 'Annual')),
+        -- Premium always says how it is billed and for how long; Free has no billing.
+        CONSTRAINT CK_Subscriptions_shape CHECK (
+            ([plan] = 'Free' AND plan_billing IS NULL)
+            OR
+            ([plan] = 'Premium' AND plan_billing IS NOT NULL AND premium_started_at IS NOT NULL AND premium_until IS NOT NULL))
+    );
+GO
+
+-- =====================================================================
+-- Priority Application (Premium): whether the applicant was Premium at the
+-- moment they applied. Internal applications only - an external redirect
+-- never has a priority. The suitability score never depends on it; it only
+-- breaks ties when an employer's applicants are ranked.
+-- =====================================================================
+IF COL_LENGTH('Applications', 'is_priority') IS NULL
+    ALTER TABLE Applications ADD is_priority BIT NOT NULL
+        CONSTRAINT DF_Applications_is_priority DEFAULT 0;
+GO
+IF OBJECT_ID('CK_Applications_priority_internal', 'C') IS NULL
+    ALTER TABLE Applications ADD CONSTRAINT CK_Applications_priority_internal CHECK (
+        is_priority = 0 OR application_type = 'Internal');
+GO

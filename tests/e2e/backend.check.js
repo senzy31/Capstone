@@ -330,6 +330,43 @@ async function makeUser(label, role) {
             await statuses([["POST", "/Skills", A.token, { skillName: "   " }], ["POST", "/Skills", A.token, { skillName: "s".repeat(101) }], ["POST", "/Skills", A.token, { skillName: "日本語" }], ["PUT", "/Skills", A.token, { skillId: sk1.json.skillId, skillName: "HACKED" }], ["DELETE", `/Skills/${sk1.json.skillId}`, A.token]]), [400, 400, 400, 405, 405]);
         check("...and the skill kept its name", scalar(`SELECT skill_name FROM Skills WHERE skill_id = ${sk1.json.skillId};`), skillName);
 
+        // ================= subscriptions (Free / Premium, simulated checkout) =================
+        console.log("\nsubscriptions (real SQL): the plan is read from the database on every request");
+        const planRow = id => sql(`SELECT ISNULL([plan], 'none'), ISNULL(plan_billing, 'NULL'), CASE WHEN premium_started_at IS NULL THEN 'NULL' ELSE 'set' END, ISNULL(DATEDIFF(month, premium_started_at, premium_until), -1), CASE WHEN cancelled_at IS NULL THEN 'NULL' ELSE 'set' END FROM Subscriptions WHERE user_id = ${id};`)[0]?.split("|") ?? ["no row"];
+        const subUrls = [["GET", "/Subscription"], ["POST", "/Subscription/upgrade", undefined, { billing: "Monthly" }], ["POST", "/Subscription/cancel"]];
+        check("every plan endpoint needs a login (401), and an employer has no plans (403)", [await statuses(subUrls), await statuses(subUrls.map(([m, u, , b]) => [m, u, E.token, b]))], [[401, 401, 401], [403, 403, 403]]);
+        check("an employer's failed upgrade created nothing", planRow(E.id), ["no row"]);
+
+        const planFree = await call("GET", "/Subscription", { token: A.token });
+        check("a new job seeker is on Free: 1 resume, 10 saved jobs, ads, no premium features; prices listed",
+            [planFree.json.plan, planFree.json.limits, planFree.json.features.showAds, planFree.json.features.detailedScore, planFree.json.features.priorityApplication, planFree.json.plans.map(p => p.pricePhp)],
+            ["Free", { resumeVersions: 1, savedJobs: 10 }, true, false, false, [99, 249, 899]]);
+
+        const upgraded = await call("POST", "/Subscription/upgrade", { token: A.token, body: { billing: "quarterly", plan: "Premium", premiumUntil: "2099-12-31T00:00:00Z", premiumStartedAt: "2000-01-01T00:00:00Z", userId: B.id } });
+        check("upgrade: the request can only name a billing period - the row is A's, Quarterly, 3 months, started now",
+            [upgraded.status, upgraded.json.plan, upgraded.json.billing, planRow(A.id), planRow(B.id)], [200, "Premium", "Quarterly", ["Premium", "Quarterly", "set", "3", "NULL"], ["no row"]]);
+        const planNow = await call("GET", "/Subscription", { token: A.token });
+        check("the SAME login token now sees Premium: no ads, unlimited saved jobs, 10 resumes (the plan is not in the token)",
+            [planNow.json.plan, planNow.json.features.showAds, planNow.json.limits], ["Premium", false, { resumeVersions: 10, savedJobs: null }]);
+
+        const viaUser = await call("PUT", "/User", { token: B.token, body: { fullName: "E2E b", plan: "Premium", premiumUntil: "2099-12-31T00:00:00Z", planBilling: "Annual" } });
+        check("the account endpoint cannot grant a plan (B stays Free, no row)", [viaUser.status, (await call("GET", "/Subscription", { token: B.token })).json.plan, planRow(B.id)], [200, "Free", ["no row"]]);
+        check("a bad billing period is a 400 and changes nothing", [(await call("POST", "/Subscription/upgrade", { token: B.token, body: { billing: "Weekly" } })).status, planRow(B.id)], [400, ["no row"]]);
+
+        const cancelled = await call("POST", "/Subscription/cancel", { token: A.token });
+        check("cancel keeps Premium until the end date (cancelled_at set); cancelling twice is fine; Free has nothing to cancel (409)",
+            [cancelled.status, cancelled.json.plan, cancelled.json.cancelled, planRow(A.id)[4], (await call("POST", "/Subscription/cancel", { token: A.token })).status, (await call("POST", "/Subscription/cancel", { token: B.token })).status],
+            [200, "Premium", true, "set", 200, 409]);
+
+        sql(`UPDATE Subscriptions SET premium_until = DATEADD(minute, -1, GETUTCDATE()) WHERE user_id = ${A.id};`);
+        const lapsed = await call("GET", "/Subscription", { token: A.token });
+        check("when premium_until passes, the next request sees Free - no job ran, the same token, the row is unchanged",
+            [lapsed.json.plan, lapsed.json.features.showAds, lapsed.json.limits, lapsed.json.billing, planRow(A.id)[0]], ["Free", true, { resumeVersions: 1, savedJobs: 10 }, null, "Premium"]);
+        const rebought = await call("POST", "/Subscription/upgrade", { token: A.token, body: { billing: "Monthly" } });
+        check("buying again after it lapsed starts a fresh Monthly period and clears the cancellation", [rebought.json.plan, rebought.json.billing, rebought.json.cancelled, planRow(A.id)], ["Premium", "Monthly", false, ["Premium", "Monthly", "set", "1", "NULL"]]);
+        const stacked = await call("POST", "/Subscription/upgrade", { token: A.token, body: { billing: "Annual" } });
+        check("buying while Premium adds after the current end (1 + 12 months)", [stacked.json.billing, planRow(A.id)[3]], ["Annual", "13"]);
+
         // ================= tracker + lockdown (real SQL) =================
         console.log("\ntracker flow + lockdown");
         const mj = await call("POST", "/Joblisting", { token: A.token, body: { title: "E2E Manual Job", company: "Manual Co", location: "Davao", source: "Internal", employerId: E.id, sourceApi: "jsearch", applyUrl: "https://evil.example/phish", applyIsDirect: true, publisher: "LinkedIn", applyOptions: "[{\"apply_link\":\"https://evil.example\",\"is_direct\":true}]", isExpired: true } });
@@ -401,6 +438,7 @@ async function makeUser(label, role) {
             sql(`
               DELETE FROM Applications WHERE user_id IN (${uids}) OR job_id IN (${jids});
               DELETE FROM Notifications WHERE user_id IN (${uids});
+              DELETE FROM Subscriptions WHERE user_id IN (${uids});
               DELETE FROM Job_Match WHERE user_id IN (${uids});
               DELETE FROM Saved_Jobs WHERE user_id IN (${uids});
               DELETE FROM Skills WHERE skill_name LIKE 'E2E g3 Skill ${STAMP}';
