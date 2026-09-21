@@ -23,6 +23,7 @@ npx playwright install chromium
 | File | Covers |
 | --- | --- |
 | `unit/suitability.check.js` | the recommended-jobs score, in Node (no browser) |
+| `unit/golden.check.js` | `golden/suitability.golden.json` (612 job + profile cases and the exact score, band, sub-scores and notes the browser scorer gave for each) is what `golden/reference/` (a frozen copy of the browser scorer) produces. The .NET tests check the C# scorer against this file. Regenerate on purpose only: `node golden/generate.js` |
 | `e2e/jobs-page.check.js` | Jobs page search and filters |
 | `e2e/dashboard-recommendations.check.js` | dashboard scores, empty/setup states, external jobs keep their score |
 | `e2e/apply-flow.check.js` | Apply button labels, new tab, redirect, failures, "Did you finish applying?" |
