@@ -367,7 +367,7 @@ document.getElementById("signupForm")?.addEventListener("submit", async (e) => {
     const payload = {
         fullName: fullName,
         email: email,
-        passwordHash: password,
+        password: password,
         role: accountRole,
         companyName: isEmployer ? companyName : null,
     };

@@ -114,6 +114,9 @@ const LOGIN_OK = (role = "user") => ({ json: { message: "Login successful", toke
         await page.click("#signupSubmit");
         await page.waitForURL("**/DASHBOARD/dashboard.html", { timeout: 8000 });
         t.check("after signup the token is saved and the dashboard opens", [(await stored(page)).token, api.callsTo("POST", /^\/User$/).length], [TOKEN, 1]);
+        const signupBody = api.callsTo("POST", /^\/User$/)[0].body;
+        t.check("the signup request sends `password` (not a field called passwordHash) and the chosen account type",
+            [signupBody.password, "passwordHash" in signupBody, signupBody.role, signupBody.companyName], ["Secret123!", false, "user", null]);
         await context.close();
     }
 

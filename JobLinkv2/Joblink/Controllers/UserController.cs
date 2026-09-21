@@ -1,86 +1,71 @@
-﻿using BCrypt.Net;
 using Joblink.Security;
-using JobLinkv2.Models;
-using JobLinkv2.Services;
+using Joblink.Services.Accounts;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Joblink.Controllers
 {
+    // Sign up, log in, and the logged-in user's own account.
+    //
+    // Nothing here returns a password hash or accepts a database row from the
+    // client: requests are the small classes in AccountDtos.cs, responses are
+    // AccountResponse. There is no "list all users" and no delete - the pages
+    // don't use them, and both were open to anyone.
     [Route("api/[controller]")]
     [ApiController]
     public class UserController : ControllerBase
     {
-        UserServices userServices = new UserServices();
-
+        private readonly UserAccountService _accounts;
         private readonly JwtTokenService _tokens;
 
-        public UserController(JwtTokenService tokens)
+        public UserController(UserAccountService accounts, JwtTokenService tokens)
         {
+            _accounts = accounts;
             _tokens = tokens;
         }
 
-        // ✅ GET ALL USERS
-        [HttpGet]
-        public IActionResult GetAll()
-        {
-            var users = userServices.GetAll();
-            return Ok(users);
-        }
-
-        // ✅ GET USER BY ID
+        // Your own account. Asking for anyone else's is a 403.
         [HttpGet("{id}")]
+        [Authorize]
         public IActionResult GetUserId(int id)
         {
-            var user = userServices.GetUserId(id);
+            if (User.GetUserId() is not int callerId)
+                return Unauthorized();
 
-            if (user == null)
-                return NotFound();
+            if (id != callerId)
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You can only view your own account." });
 
-            return Ok(user);
+            var user = _accounts.Get(callerId);
+
+            if (user is null)
+                return NotFound(new { message = "Account not found." });
+
+            return Ok(AccountResponse.From(user));
         }
 
-        // ✅ REGISTER (SIGNUP)
+        // Sign up. Errors are plain text: the signup page shows them as they are.
         [HttpPost]
-        public IActionResult AddUser([FromBody] UserModel user)
+        public IActionResult AddUser([FromBody] SignupRequest? request)
         {
-            if (user == null)
-                return BadRequest();
+            var result = _accounts.Signup(request);
 
-            if (string.IsNullOrWhiteSpace(user.PasswordHash))
-                return BadRequest("Password is required");
-
-            // The client sends the raw password over HTTPS (transport is
-            // already encrypted); it never touches the database until it's
-            // hashed here.
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
-            user.CreatedAt = DateTime.Now;
-            user.IsDeleted = false;
-
-            var result = userServices.AddUser(user);
-
-            if (!result)
-                return BadRequest("Failed to create user");
-
-            return Ok(new { message = "User registered successfully" });
+            return result.Outcome switch
+            {
+                AccountOutcome.Ok => Ok(new { message = "User registered successfully" }),
+                AccountOutcome.Duplicate => Conflict(result.Message),
+                _ => BadRequest(result.Message)
+            };
         }
 
-        // ✅ LOGIN
         [HttpPost("login")]
-        public IActionResult Login([FromBody] LoginRequest request)
+        public IActionResult Login([FromBody] LoginRequest? request)
         {
-            if (request == null)
-                return BadRequest();
+            var result = _accounts.Login(request?.Email, request?.Password);
 
-            var users = userServices.GetAll();
+            if (!result.IsOk)
+                return Unauthorized(result.Message);
 
-            var user = users.FirstOrDefault(u =>
-                u.Email == request.Email && !u.IsDeleted);
-
-            if (user == null)
-                return Unauthorized("User not found");
-
-            if (!VerifyAndUpgradePassword(user, request.Password))
-                return Unauthorized("Invalid password");
+            var user = result.Value!;
 
             return Ok(new
             {
@@ -97,58 +82,35 @@ namespace Joblink.Controllers
             });
         }
 
-        // ✅ UPDATE
+        // Change your own name, email and (employers) company name. Which user
+        // it is comes from the login token; nothing else can be changed here.
+        //
+        // A wrong current password is a 403, not a 401: the pages treat a 401
+        // as an expired login and sign the user out.
         [HttpPut]
-        public IActionResult Update([FromBody] UserModel user)
+        [Authorize]
+        public IActionResult Update([FromBody] UpdateAccountRequest? request)
         {
-            var result = userServices.UpdateUser(user);
+            if (User.GetUserId() is not int callerId)
+                return Unauthorized();
 
-            if (!result)
-                return BadRequest("Update failed");
+            var result = _accounts.UpdateAccount(callerId, request);
 
-            return Ok(new { message = "User updated successfully" });
-        }
-
-        // ✅ DELETE
-        [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
-        {
-            var result = userServices.DeleteUser(id);
-
-            if (!result)
-                return BadRequest("Delete failed");
-
-            return Ok(new { message = "User deleted successfully" });
-        }
-
-        // Verifies a login attempt against a bcrypt hash. Accounts created
-        // before bcrypt was introduced still have a plain-text password_hash
-        // (not a valid bcrypt hash, so BCrypt.Verify throws SaltParseException)
-        // - for those, fall back to a plain comparison once and, if it
-        // matches, transparently rehash and save it so it's never stored in
-        // plain text again.
-        private bool VerifyAndUpgradePassword(UserModel user, string suppliedPassword)
-        {
-            try
+            return result.Outcome switch
             {
-                return BCrypt.Net.BCrypt.Verify(suppliedPassword, user.PasswordHash);
-            }
-            catch (SaltParseException)
-            {
-                if (user.PasswordHash != suppliedPassword)
-                    return false;
-
-                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(suppliedPassword);
-                userServices.UpdateUser(user);
-                return true;
-            }
+                AccountOutcome.Ok => Ok(new { message = "User updated successfully", user = AccountResponse.From(result.Value!) }),
+                AccountOutcome.NotFound => NotFound(new { message = result.Message }),
+                AccountOutcome.Duplicate => Conflict(new { message = result.Message, code = "email_taken" }),
+                AccountOutcome.PasswordRequired => BadRequest(new { message = result.Message, code = "password_required" }),
+                AccountOutcome.WrongPassword => StatusCode(StatusCodes.Status403Forbidden, new { message = result.Message, code = "wrong_password" }),
+                _ => BadRequest(new { message = result.Message, code = "invalid" })
+            };
         }
     }
 
-    // ✅ LOGIN REQUEST MODEL
     public class LoginRequest
     {
-        public string Email { get; set; }
-        public string Password { get; set; }
+        public string? Email { get; set; }
+        public string? Password { get; set; }
     }
 }

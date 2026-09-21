@@ -1,7 +1,9 @@
 using Dapper;
 using Joblink.Security;
 using Joblink.Services;
+using Joblink.Services.Accounts;
 using JobLinkv2.Repositories;
+using JobLinkv2.Services.Accounts;
 using JobLinkv2.Services.Apply;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 
@@ -28,9 +30,14 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+var connectionString = builder.Configuration.GetConnectionString("Joblink") ?? DbConfig.DefaultConnectionString;
+
+// ✅ Accounts: sign up, log in, your own details
+builder.Services.AddSingleton<IUserStore>(new SqlUserStore(connectionString));
+builder.Services.AddSingleton<UserAccountService>();
+
 // ✅ Apply flow
-builder.Services.AddSingleton<IApplyStore>(new SqlApplyStore(
-    builder.Configuration.GetConnectionString("Joblink") ?? DbConfig.DefaultConnectionString));
+builder.Services.AddSingleton<IApplyStore>(new SqlApplyStore(connectionString));
 builder.Services.AddSingleton<ApplyService>();
 builder.Services.AddSingleton<ApplicationTrackerService>();
 builder.Services.AddSingleton<JobImportService>();

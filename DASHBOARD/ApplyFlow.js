@@ -13,55 +13,18 @@
 (function () {
     "use strict";
 
-    const API = "https://localhost:7142/api";
-    const LOGIN_PAGE = "../LOGIN/login.html";
+    // The login token and authFetch are shared with the other pages: see ApiClient.js.
+    if (!window.ApiClient) {
+        throw new Error("ApplyFlow needs ApiClient.js loaded first.");
+    }
+
+    const { API, EXPIRED_KEY, getToken, authFetch } = window.ApiClient;
+
     const PENDING_KEY = "joblink.pendingApply";
-    const EXPIRED_KEY = "joblink.sessionExpired";
 
     const escapeText = (value) => String(value ?? "")
         .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-
-
-    // ======================================================
-    // LOGIN TOKEN
-    // ======================================================
-
-    function getToken() {
-        return localStorage.getItem("token");
-    }
-
-    // The saved session has no valid token (never had one, or it expired).
-    function endSession() {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        sessionStorage.setItem(EXPIRED_KEY, "1");
-        window.location.href = LOGIN_PAGE;
-    }
-
-    // fetch() with the login token attached. A missing or rejected token sends
-    // the user back to log in.
-    async function authFetch(url, options = {}) {
-
-        const token = getToken();
-
-        if (!token) {
-            endSession();
-            throw new Error("Please log in again.");
-        }
-
-        const response = await fetch(url, {
-            ...options,
-            headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` }
-        });
-
-        if (response.status === 401) {
-            endSession();
-            throw new Error("Your session expired. Please log in again.");
-        }
-
-        return response;
-    }
 
 
     // ======================================================

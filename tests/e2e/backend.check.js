@@ -3,7 +3,9 @@
 //
 //   - needs: the backend running, SQL Server LocalDB, and `sqlcmd` on the PATH
 //   - makes ONE live JSearch call (the import check), so it spends a little RapidAPI quota
-//   - creates its own users and jobs and deletes exactly what it created when it finishes
+//   - creates its own users and jobs and deletes exactly what it created when it finishes -
+//     except the listings the JSearch call imports: a normal search keeps them, and the backend
+//     caches their ids, so deleting them would break the next run (and a second run reuses the cache)
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";   // the dev HTTPS certificate is self-signed
 const { execSync } = require("child_process");
 const fs = require("fs");
@@ -38,7 +40,7 @@ async function call(method, url, { token, body } = {}) {
 
 async function makeUser(label, role) {
     const email = `e2e.${label}.${STAMP}@example.com`, password = "E2ePassw0rd!";
-    const created = await call("POST", "/User", { body: { fullName: `E2E ${label}`, email, passwordHash: password, role, companyName: role === "employer" ? "E2E Co" : null } });
+    const created = await call("POST", "/User", { body: { fullName: `E2E ${label}`, email, password, role, companyName: role === "employer" ? "E2E Co" : null } });
     if (created.status !== 200) throw new Error("signup failed: " + JSON.stringify(created));
     const login = await call("POST", "/User/login", { body: { email, password } });
     return { email, password, login, token: login.json.token, id: login.json.user.userId };
@@ -64,6 +66,69 @@ async function makeUser(label, role) {
         check("wrong password is still 401 and has no token", [wrong.status, wrong.json?.token], [401, undefined]);
         const payload = JSON.parse(Buffer.from(A.token.split(".")[1], "base64url").toString());
         check("token holds only sub + role (+ standard exp/iss/aud)", Object.keys(payload).sort(), ["aud", "exp", "iss", "nbf", "role", "sub"]);
+
+        // ================= accounts =================
+        console.log("\naccounts (real SQL): what /api/User used to allow");
+        const userRow = id => sql(`SELECT full_name, email, role, ISNULL(company_name,'NULL'), CONVERT(varchar(23), created_at, 121), is_deleted, password_hash FROM Users WHERE user_id = ${id};`)[0].split("|");
+        const bHashBefore = userRow(B.id)[6], aHashBefore = userRow(A.id)[6], aCreatedBefore = userRow(A.id)[4];
+
+        check("there is no list of users (405, with or without a login)", [(await call("GET", "/User")).status, (await call("GET", "/User", { token: A.token })).status], [405, 405]);
+        check("reading an account needs a login", (await call("GET", `/User/${A.id}`)).status, 401);
+        const own = await call("GET", `/User/${A.id}`, { token: A.token });
+        check("your own account: 200 with these fields and no password hash", [own.status, Object.keys(own.json).sort(), JSON.stringify(own.json).includes("$2")], [200, ["companyName", "createdAt", "email", "fullName", "role", "userId"], false]);
+        const theirs = await call("GET", `/User/${B.id}`, { token: A.token });
+        check("someone else's account -> 403 and their email is not in the answer", [theirs.status, JSON.stringify(theirs.json).includes(B.email)], [403, false]);
+        check("DELETE /User/{id} no longer exists (405) and the user is still there", [(await call("DELETE", `/User/${B.id}`, { token: A.token })).status, (await call("DELETE", `/User/${B.id}`)).status, userRow(B.id)[5]], [405, 405, "0"]);
+        check("changing an account needs a login", (await call("PUT", "/User", { body: { fullName: "Anon" } })).status, 401);
+
+        // the attack: A names B's id and every column an attacker would like to set
+        const attack = await call("PUT", "/User", { token: A.token, body: {
+            userId: B.id, fullName: "Mallory Was Here", email: A.email, role: "admin", passwordHash: "pwn", password: "pwn",
+            isDeleted: true, createdAt: "2000-01-01T00:00:00", plan: "premium", premiumUntil: "2099-12-31T00:00:00", companyName: "Sneaky Corp" } });
+        check("the attack request itself is accepted (unknown fields are ignored)", attack.status, 200);
+        const aAfter = userRow(A.id), bAfter = userRow(B.id);
+        check("A: only the name changed - role, hash, deleted flag, created date and company are untouched",
+            [aAfter[0], aAfter[2], aAfter[6] === aHashBefore, aAfter[5], aAfter[4] === aCreatedBefore, aAfter[3]], ["Mallory Was Here", "user", true, "0", true, "NULL"]);
+        check("B (named in the body): not touched at all", [bAfter[0], bAfter[2], bAfter[6] === bHashBefore, bAfter[5]], ["E2E b", "user", true, "0"]);
+        check("B can still log in; 'pwn' works for nobody", [(await call("POST", "/User/login", { body: { email: B.email, password: B.password } })).status,
+            (await call("POST", "/User/login", { body: { email: B.email, password: "pwn" } })).status, (await call("POST", "/User/login", { body: { email: A.email, password: "pwn" } })).status], [200, 401, 401]);
+
+        // changing the email needs the current password
+        const newEmail = `e2e.a2.${STAMP}@example.com`;
+        const noPw = await call("PUT", "/User", { token: A.token, body: { email: newEmail } });
+        check("new email without the password -> 400 password_required, nothing changed", [noPw.status, noPw.json.code, userRow(A.id)[1]], [400, "password_required", A.email]);
+        const badPw = await call("PUT", "/User", { token: A.token, body: { email: newEmail, currentPassword: "guess" } });
+        check("wrong password -> 403 wrong_password (never 401), nothing changed", [badPw.status, badPw.json.code, userRow(A.id)[1]], [403, "wrong_password", A.email]);
+        const takenTry = await call("PUT", "/User", { token: A.token, body: { email: B.email.toUpperCase(), currentPassword: A.password } });
+        check("an email someone else has (any capitals) -> 409 email_taken", [takenTry.status, takenTry.json.code, userRow(A.id)[1]], [409, "email_taken", A.email]);
+        const goodPw = await call("PUT", "/User", { token: A.token, body: { email: newEmail, currentPassword: A.password } });
+        check("right password -> 200 and the new email is saved", [goodPw.status, goodPw.json.user.email, userRow(A.id)[1]], [200, newEmail, newEmail]);
+        check("you now log in with the new email, not the old one", [(await call("POST", "/User/login", { body: { email: newEmail, password: A.password } })).status, (await call("POST", "/User/login", { body: { email: A.email, password: A.password } })).status], [200, 401]);
+        A.email = newEmail;
+
+        // signup
+        const signup = body => call("POST", "/User", { body: { fullName: "E2E Signup", password: "E2ePassw0rd!", ...body } });
+        const s = e => `e2e.${e}.${STAMP}@example.com`;
+        const adminTry = await signup({ email: s("admin"), role: "admin" });
+        check("signup as 'admin' is refused with a plain-text 400", [adminTry.status, typeof adminTry.json, Number(scalar(`SELECT COUNT(*) FROM Users WHERE email = '${s("admin")}';`))], [400, "string", 0]);
+        const dupTry = await signup({ email: B.email.toUpperCase() });
+        check("signing up with a taken email (any capitals) -> 409 plain text", [dupTry.status, typeof dupTry.json, /already exists/.test(dupTry.json)], [409, "string", true]);
+        check("a short password and an employer without a company are 400", [(await signup({ email: s("short"), password: "short" })).status, (await signup({ email: s("nocompany"), role: "employer" })).status], [400, 400]);
+        const extra = await signup({ email: s("extra"), passwordHash: "plain", userId: 1, isDeleted: true, createdAt: "2000-01-01", plan: "premium", premiumUntil: "2099-01-01", companyName: "Sneaky" });
+        const xr = sql(`SELECT role, ISNULL(company_name,'NULL'), is_deleted, LEFT(password_hash, 4), DATEDIFF(minute, created_at, GETDATE()), user_id FROM Users WHERE email = '${s("extra")}';`)[0].split("|");
+        check("signup ignores every field a client should not choose (role user, live, hashed, created now, no company)", [extra.status, xr[0], xr[1], xr[2], xr[3], Number(xr[4]) >= 0 && Number(xr[4]) <= 5, Number(xr[5]) !== 1], [200, "user", "NULL", "0", "$2a$", true, true]);
+        check("...and that new user can log in with the password they chose", (await call("POST", "/User/login", { body: { email: s("extra"), password: "E2ePassw0rd!" } })).status, 200);
+
+        // login
+        const unknown = await call("POST", "/User/login", { body: { email: s("nobody"), password: "E2ePassw0rd!" } });
+        const wrongPw = await call("POST", "/User/login", { body: { email: B.email, password: "not-it" } });
+        check("unknown email and wrong password give the same 401 and the same text", [unknown.status, wrongPw.status, unknown.json === wrongPw.json, unknown.json], [401, 401, true, "Invalid email or password"]);
+        check("an email full of SQL is just an unknown email", (await call("POST", "/User/login", { body: { email: "' OR 1=1 --", password: "x" } })).status, 401);
+        check("login ignores the capitals in the email", (await call("POST", "/User/login", { body: { email: B.email.toUpperCase(), password: B.password } })).status, 200);
+        sql(`INSERT INTO Users (full_name, email, password_hash, role, created_at, is_deleted) VALUES ('E2E legacy', '${s("legacy")}', 'legacy-pass-1', 'user', GETDATE(), 0);`);
+        const legacy = await call("POST", "/User/login", { body: { email: s("legacy"), password: "legacy-pass-1" } });
+        const legacyHash = scalar(`SELECT LEFT(password_hash, 4) FROM Users WHERE email = '${s("legacy")}';`);
+        check("an old plain-text account logs in once and is rehashed on the spot", [legacy.status, legacyHash, (await call("POST", "/User/login", { body: { email: s("legacy"), password: "legacy-pass-1" } })).status], [200, "$2a$", 200]);
 
         // ================= seed jobs =================
         const ids = {};
@@ -98,7 +163,7 @@ async function makeUser(label, role) {
         const row = sql(`SELECT user_id, job_id, status, application_type, redirected_at, confirmed_at, CASE WHEN applied_at IS NULL THEN 'null' ELSE 'set' END, is_deleted FROM Applications WHERE application_id = ${first.json.applicationId};`)[0].split("|");
         check("row saved as Internal/Submitted with applied_at set", [Number(row[0]), Number(row[1]), row[2], row[3], row[4], row[5], row[6], row[7]], [A.id, internalIds[0], "Submitted", "Internal", "NULL", "NULL", "set", "0"]);
         const notes = sql(`SELECT user_id, CAST(message AS nvarchar(400)) FROM Notifications WHERE notification_id > ${startNotifications};`);
-        check("employer was notified (name + job title)", [notes.length, notes[0].startsWith(`${E.id}|`), notes[0].includes("E2E a"), notes[0].includes("E2E Internal Job 1")], [1, true, true, true]);
+        check("employer was notified (name + job title)", [notes.length, notes[0].startsWith(`${E.id}|`), notes[0].includes("Mallory Was Here"), notes[0].includes("E2E Internal Job 1")], [1, true, true, true]);
         const again = await call("POST", `/jobs/${internalIds[0]}/apply`, { token: A.token });
         check("applying again -> alreadyApplied with the same id", [again.status, again.json.alreadyApplied, again.json.applicationId === first.json.applicationId], [200, true, true]);
         check("still one row, still one notification", [Number(scalar(`SELECT COUNT(*) FROM Applications WHERE user_id=${A.id} AND job_id=${internalIds[0]};`)), Number(scalar(`SELECT COUNT(*) FROM Notifications WHERE notification_id > ${startNotifications};`))], [1, 1]);
@@ -196,7 +261,8 @@ async function makeUser(label, role) {
         const s1 = await call("GET", `/JobSearch/search?query=${encodeURIComponent(q1)}&page=1`);
         if (s1.status !== 200) throw new Error("search failed " + JSON.stringify(s1.json));
         const jobs1 = s1.json.data;
-        jobs1.forEach(j => createdJobIds.add(j.joblink_job_id));
+        // NOT added to createdJobIds: a normal search keeps what it imports, and the backend caches
+        // these ids for 15 minutes - deleting the rows would leave that cache pointing at nothing.
         check("every result is tagged with joblink_job_id + joblink_source", [jobs1.length > 0, jobs1.every(j => Number.isInteger(j.joblink_job_id)), jobs1.every(j => j.joblink_source === "External")], [true, true, true]);
         check("original JSearch fields are all still there", ["job_id", "job_title", "employer_name", "job_apply_link", "apply_options", "job_publisher"].every(k => k in jobs1[0]), true);
         const j0 = jobs1[0];
@@ -226,7 +292,7 @@ async function makeUser(label, role) {
               DELETE FROM Applications WHERE user_id IN (${uids}) OR job_id IN (${jids});
               DELETE FROM Notifications WHERE user_id IN (${uids});
               DELETE FROM Job_Listings WHERE job_id IN (${jids});
-              DELETE FROM Users WHERE user_id IN (${uids});`);
+              DELETE FROM Users WHERE user_id IN (${uids}) OR email LIKE 'e2e.%.${STAMP}@example.com';`);
             console.log("\ncleanup done (removed this run's users, jobs, applications and notifications)");
         } catch (e) { console.log("CLEANUP FAILED - remove rows for e2e.*@example.com by hand:", e.message); }
         try { fs.unlinkSync(TMP); } catch {}

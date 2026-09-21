@@ -1,0 +1,142 @@
+/* ======================================================
+   API CLIENT - the "enter your password" dialog (ApiClient.js)
+====================================================== */
+
+.ac-overlay {
+    position: fixed;
+
+    inset: 0;
+
+    z-index: 4000;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    padding: 20px;
+
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.ac-modal {
+    width: 100%;
+    max-width: 420px;
+
+    padding: 28px;
+
+    border-radius: 14px;
+
+    background: #ffffff;
+
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+
+    font-family: inherit;
+}
+
+.ac-modal h3 {
+    margin-bottom: 10px;
+
+    font-size: 19px;
+
+    color: #1a1a1a;
+}
+
+.ac-modal p {
+    font-size: 14px;
+
+    line-height: 1.55;
+
+    color: #444444;
+}
+
+.ac-input {
+    width: 100%;
+
+    margin-top: 16px;
+    padding: 11px 13px;
+
+    border: 1px solid #cfd6df;
+
+    border-radius: 8px;
+
+    font-family: inherit;
+    font-size: 14px;
+
+    color: #1a1a1a;
+
+    background: #ffffff;
+}
+
+.ac-input:focus {
+    outline: none;
+
+    border-color: #2A5BA1;
+
+    box-shadow: 0 0 0 3px rgba(42, 91, 161, 0.18);
+}
+
+.ac-error {
+    margin-top: 10px;
+
+    font-size: 13px !important;
+
+    font-weight: 600;
+
+    color: #c0392b !important;
+}
+
+.ac-actions {
+    display: flex;
+
+    justify-content: flex-end;
+
+    gap: 10px;
+
+    margin-top: 22px;
+}
+
+.ac-btn {
+    padding: 10px 18px;
+
+    border: none;
+
+    border-radius: 8px;
+
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition: 0.2s;
+}
+
+.ac-btn-primary {
+    color: #ffffff;
+
+    background: #2A5BA1;
+}
+
+.ac-btn-primary:hover {
+    background: #164fab;
+}
+
+.ac-btn-secondary {
+    color: #444444;
+
+    background: #eef2f7;
+}
+
+.ac-btn-secondary:hover {
+    background: #dfe5ec;
+}
+
+@media (max-width: 480px) {
+
+    .ac-actions {
+        flex-direction: column-reverse;
+    }
+
+}

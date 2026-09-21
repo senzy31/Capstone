@@ -348,7 +348,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
 
-            const userResponse = await fetch(`${API_BASE}/User/${userId}`);
+            const userResponse = await ApiClient.authFetch(`${API_BASE}/User/${userId}`);
 
             if (!userResponse.ok) {
                 throw new Error(`Failed to load user (${userResponse.status})`);
@@ -380,7 +380,7 @@ document.addEventListener("DOMContentLoaded", () => {
             state.personal = {
                 fullName: userRecord.fullName || "",
                 headline: extras.headline || "",
-                email: userRecord.email || "",
+                email: extras.resumeEmail || userRecord.email || "",
                 phone: profileRecord?.phone || "",
                 location: profileRecord?.address || "",
                 links: extras.links || "",
@@ -488,26 +488,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const p = state.personal;
 
 
-        /* Users table */
+        /* Users table - the name only. The email on the resume is kept with the
+           resume (extras, below): the email you log in with changes on the Profile
+           page, where it asks for your password, not on every autosave. */
 
-        const userPayload = {
-            ...(userRecord || {}),
-            userId,
-            fullName: p.fullName,
-            email: p.email
-        };
-
-        const userResponse = await fetch(`${API_BASE}/User`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(userPayload)
-        });
-
-        if (!userResponse.ok) {
-            throw new Error(`User sync failed (${userResponse.status})`);
+        if (p.fullName && p.fullName.trim()) {
+            userRecord = await ApiClient.saveAccount({ fullName: p.fullName });
         }
-
-        userRecord = userPayload;
 
 
         /* Profiles table (create-or-update, same as Profile.html) */
@@ -581,7 +568,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         /* Local-only extras */
 
-        extras = { headline: p.headline, links: p.links };
+        /* resumeEmail is only kept when it differs from your account email, so
+           the resume follows the account until you type a different one. */
+
+        extras = {
+            headline: p.headline,
+            links: p.links,
+            resumeEmail: (p.email || "") === (userRecord?.email || "") ? "" : (p.email || "")
+        };
 
         saveExtras();
 
@@ -590,8 +584,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         localStorage.setItem("user", JSON.stringify({
             ...currentUser,
-            fullName: p.fullName,
-            email: p.email
+            fullName: p.fullName
         }));
 
 
@@ -1196,18 +1189,18 @@ document.addEventListener("DOMContentLoaded", () => {
         const saved = localStorage.getItem(LOCAL_KEY);
 
         if (!saved) {
-            return { headline: "", links: "" };
+            return { headline: "", links: "", resumeEmail: "" };
         }
 
         try {
 
             const parsed = JSON.parse(saved);
 
-            return { headline: parsed.headline || "", links: parsed.links || "" };
+            return { headline: parsed.headline || "", links: parsed.links || "", resumeEmail: parsed.resumeEmail || "" };
 
         } catch (error) {
 
-            return { headline: "", links: "" };
+            return { headline: "", links: "", resumeEmail: "" };
 
         }
 

@@ -2,6 +2,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
+using Joblink.Services.Accounts;
+using JobLinkv2.Services.Accounts;
 using JobLinkv2.Services.Apply;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -28,6 +30,7 @@ namespace Joblink.Tests.Support
         }
 
         public InMemoryApplyStore Store { get; } = new();
+        public InMemoryUserStore UserStore { get; } = new();
         public TestClock Clock { get; } = new();
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -37,8 +40,15 @@ namespace Joblink.Tests.Support
                 services.RemoveAll<IApplyStore>();
                 services.AddSingleton<IApplyStore>(Store);
 
+                services.RemoveAll<IUserStore>();
+                services.AddSingleton<IUserStore>(UserStore);
+
                 services.RemoveAll<TimeProvider>();
                 services.AddSingleton<TimeProvider>(Clock);
+
+                // Work factor 4: hashing is real, just fast enough for tests.
+                services.RemoveAll<UserAccountService>();
+                services.AddSingleton(new UserAccountService(UserStore, Clock, bcryptWorkFactor: 4));
             });
         }
 

@@ -6,7 +6,7 @@
 // token header and the PATCH request.
 //   - needs: the backend running, SQL Server LocalDB and `sqlcmd` on the PATH
 //   - makes ONE live JSearch call; the jobs a search imports are left in Job_Listings (that is
-//     what a normal search does) - the test user and their applications are removed
+//     what a normal search does) - the test user and everything the pages created for them are removed
 const { chromium } = require("playwright");
 const { execSync } = require("child_process");
 const fs = require("fs");
@@ -36,7 +36,7 @@ function sql(query) {
 
     try {
         const created = await fetch(`${API}/User`, { method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ fullName: "E2E Fullstack", email, passwordHash: password, role: "user" }) });
+            body: JSON.stringify({ fullName: "E2E Fullstack", email, password, role: "user" }) });
         if (!created.ok) throw new Error("could not create the test user (is the backend running?)");
         userId = Number(sql(`SELECT user_id FROM Users WHERE email = '${email}';`)[0]);
 
@@ -47,7 +47,7 @@ function sql(query) {
         const page = await context.newPage();
         const problems = [];
         page.on("pageerror", e => problems.push("pageerror: " + e));
-        page.on("console", m => { if (m.type() === "error" && !/favicon|Failed to load resource: the server responded with a status of (404|410)/.test(m.text())) problems.push("console: " + m.text()); });
+        page.on("console", m => { if (m.type() === "error" && !/favicon|Failed to load resource: the server responded with a status of (400|403|404|410)/.test(m.text())) problems.push("console: " + m.text()); });
         page.on("dialog", d => d.accept());
 
         t.section("log in through the login page");
@@ -108,13 +108,41 @@ function sql(query) {
             [(await card.locator(".status-badge").innerText()).trim(), (await card.locator(".job-details").innerText()).replace(/\s+/g, " ").includes(`via ${publisher}`), await card.locator(".mark-applied-btn").count(), await card.locator(".status-select").count()],
             ["Applied Externally", true, 0, 0]);
 
+        t.section("the Profile page: change the name, then the email through the password prompt");
+        await page.goto(`${server.baseUrl}/DASHBOARD/Profile.html`);
+        await page.waitForFunction(() => document.getElementById("fullNameDisplay")?.textContent.includes("E2E Fullstack"), null, { timeout: 15000 });
+        await page.click("#editProfileBtn");
+        await page.fill("#fullNameInput", "E2E Renamed");
+        await page.click("#saveBtn");
+        await page.getByText("Profile updated successfully!").waitFor({ timeout: 15000 });
+        t.check("a name change saves for real, with no password dialog", [sql(`SELECT full_name FROM Users WHERE user_id = ${userId};`)[0], await page.locator(".ac-overlay").count()], ["E2E Renamed", 0]);
+
+        const newEmail = `e2e.fullstack2.${STAMP}@example.com`;
+        await page.getByText("Profile updated successfully!").waitFor({ state: "detached", timeout: 15000 });
+        await page.click("#editProfileBtn");
+        await page.fill("#emailInput", newEmail);
+        await page.click("#saveBtn");
+        await page.locator(".ac-overlay").waitFor({ timeout: 15000 });
+        await page.fill(".ac-input", "not-my-password");
+        await page.keyboard.press("Enter");
+        await page.waitForSelector(".ac-error:not([hidden])", { timeout: 15000 });
+        t.check("the real server refuses a wrong password, the dialog asks again, and you stay logged in",
+            [(await page.locator(".ac-error").innerText()).trim(), sql(`SELECT email FROM Users WHERE user_id = ${userId};`)[0], page.url().includes("Profile.html"), await page.evaluate(() => Boolean(localStorage.getItem("token")))],
+            ["That password isn't correct.", email, true, true]);
+        await page.fill(".ac-input", password);
+        await page.keyboard.press("Enter");
+        for (let i = 0; i < 50 && sql(`SELECT email FROM Users WHERE user_id = ${userId};`)[0] !== newEmail; i++) await sleep(200);
+        t.check("the right password changes the login email in the database", sql(`SELECT email FROM Users WHERE user_id = ${userId};`)[0], newEmail);
+        const relogin = await fetch(`${API}/User/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: newEmail, password }) });
+        t.check("...and the new email logs in", relogin.status, 200);
+
         t.section("no browser errors (this is where a CORS problem would show up)");
         t.check("no page errors or console errors", problems, []);
         await context.close();
     } finally {
         try {
-            if (userId) sql(`DELETE FROM Applications WHERE user_id = ${userId}; DELETE FROM Notifications WHERE user_id = ${userId}; DELETE FROM Users WHERE user_id = ${userId};`);
-            console.log("\ncleanup done (test user and their applications removed)");
+            if (userId) sql(`DELETE FROM Applications WHERE user_id = ${userId}; DELETE FROM Notifications WHERE user_id = ${userId}; DELETE FROM Profiles WHERE user_id = ${userId}; DELETE FROM Job_Preferences WHERE user_id = ${userId}; DELETE FROM Users WHERE user_id = ${userId};`);
+            console.log("\ncleanup done (test user and everything the pages created for them removed)");
         } catch (e) { console.log("CLEANUP FAILED - remove", email, "by hand:", e.message); }
         try { fs.unlinkSync(TMP); } catch {}
         await browser.close();

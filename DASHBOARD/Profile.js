@@ -80,7 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
        real user + profile records are back.
     ===================================== */
 
-    let userRecord = null;      // full UserModel from the API (kept intact for PUT)
+    let userRecord = null;      // your account from the API (name, email, role, company - never a password hash)
     let profileRecord = null;   // full ProfileModel from the API, or null if none yet
     let extras = loadExtras();
 
@@ -352,7 +352,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
 
-            const userResponse = await fetch(`${API_BASE}/User/${userId}`);
+            const userResponse = await ApiClient.authFetch(`${API_BASE}/User/${userId}`);
 
             if (!userResponse.ok) {
                 throw new Error(`Failed to load user (${userResponse.status})`);
@@ -624,8 +624,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
             console.error("Unable to save profile:", error);
 
+            /* The server (or the password dialog) explained itself - say that. */
+
             showToast(
-                "Couldn't save to the server. Check that the API is running and try again.",
+                error.cancelled || error.fromServer
+                    ? error.message
+                    : "Couldn't save to the server. Check that the API is running and try again.",
                 "error"
             );
 
@@ -640,26 +644,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
+    /* Only name and email go up. The server knows who you are from your login,
+       and asks for your current password if the email is changing. */
+
     async function saveUserRecord(updatedProfile) {
 
-        const payload = {
-            ...(userRecord || {}),
-            userId: userId,
+        userRecord = await ApiClient.saveAccount({
             fullName: updatedProfile.fullName,
             email: updatedProfile.email
-        };
-
-        const response = await fetch(`${API_BASE}/User`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
         });
-
-        if (!response.ok) {
-            throw new Error(`User update failed (${response.status})`);
-        }
-
-        userRecord = payload;
 
     }
 
