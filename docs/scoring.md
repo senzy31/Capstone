@@ -1,9 +1,11 @@
 # JobLink suitability score - the exact rules
 
-This is what the code does today, written down so it can be checked against the research paper.
-Every rule below was read from `DASHBOARD/Suitability.js` and the helpers it uses in
+This is what the code does, written down so it can be checked against the research paper.
+Every rule below was read from the browser's `DASHBOARD/Suitability.js` and the helpers it used in
 `DASHBOARD/JobsShared.js` (as of commit `dad9e84`), and the worked examples were produced by running
-that code. Where the code does something a reader might not expect, it is listed in
+that code. The rules then moved to the server **unchanged** (see
+[Where it runs and how it is checked](#where-it-runs-and-how-it-is-checked)). Where the code does
+something a reader might not expect, it is listed in
 [Things to know](#things-to-know-when-describing-it) rather than smoothed over.
 
 ## In one paragraph
@@ -219,6 +221,38 @@ skill scores 100 on skills and 100 on location; the salary is left out, so the s
    boundary, so `SQL` next to `é` still matches.
 8. **Whole-number arithmetic.** Part scores are rounded before they are weighted; the overall is
    rounded once at the end (half up), so a result such as 58.25 becomes 58.
+
+## Where it runs and how it is checked
+
+The score is worked out **on the server**, in C#, in `JobLinkv2/JobLinkv2/Services/Matching/`:
+
+| File | What it does |
+| --- | --- |
+| `SuitabilityScorer.cs` | the rules above - pure code: a job and a job seeker in, a score out; no database, no network |
+| `MatchPresenter.cs` | what a plan is shown of a score (Free: overall % and band; Premium: also the parts) |
+| `RecommendationQuery.cs` | the job search text, and how the latest job title is chosen |
+| `ScoringModels.cs`, `JsCompat.cs` | the inputs and results; the few places that must round and read numbers the way the browser's JavaScript did |
+
+The browser no longer computes it (its copy is frozen in `tests/golden/reference/`, only to check
+the C# against).
+
+**Proof that the numbers are the same.** `tests/golden/suitability.golden.json` holds 600+ jobs and
+job seekers - every rule and edge in this document, its worked examples, and 500 seeded random
+ones - together with what the original browser code answered for each: the score, the band, all three
+part scores and their notes. The .NET tests require the C# scorer to give **exactly** the same for
+every one. `tests/golden/lowercase.golden.json` does the same for lower-casing, which matching
+depends on.
+
+**The only differences** (none can occur with data the app accepts):
+
+1. A work arrangement that is not `onsite`, `remote` or `hybrid` (the preferences page never saves
+   one) made the browser's note read "you prefer undefined"; the server writes the value instead. The
+   score is unchanged.
+2. Lower-casing agrees with JavaScript for every character except `İ` (U+0130) and 55 capital letters
+   added in Unicode 16 or later (Cyrillic, Latin Extended-D, Garay, Beria Erfe), which the .NET 8
+   runtime does not yet know how to lower-case.
+3. A salary given as a JSON array or object (JSearch never does) reads as "not given"; JavaScript
+   would read `[5000]` as 5000.
 
 ## How this differs from the Python service
 

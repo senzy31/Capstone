@@ -16,6 +16,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- What the browser's scorer answered for 600+ cases, and how JavaScript lower-cases every character: the C# scorer is checked against them. -->
+    <Content Include="..\..\tests\golden\*.golden.json" Link="golden\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Joblink\Joblink.csproj" />
     <ProjectReference Include="..\JobLinkv2\JobLinkv2.csproj" />
   </ItemGroup>
