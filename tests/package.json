@@ -1,0 +1,12 @@
+{
+  "name": "joblink-frontend-tests",
+  "private": true,
+  "description": "Browser (Playwright) and script checks for the JobLink front end. See README.md.",
+  "scripts": {
+    "test": "node run-all.js",
+    "test:backend": "node run-all.js --backend"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}
