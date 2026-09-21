@@ -60,13 +60,14 @@ const FIXTURE = [
 
     t.section("the page");
     {
-        const { context, page, errors } = await openDashboard();
+        const { context, page, errors, api } = await openDashboard();
         await settle(page);
         t.check("the job filter is gone", await Promise.all(["workSetup", "locationInput", "minSalary", "maxSalary", "jobType", "applyFilters", "resetFilters"].map(id => page.locator("#" + id).count())), [0, 0, 0, 0, 0, 0, 0]);
         t.check("titled Recommended Jobs, greets by first name",
             [await page.locator(".job-section-header h2").innerText(), await page.locator("#welcomeText").innerText()], ["Recommended Jobs", "Welcome, Maria!"]);
         t.check("sidebar: Dashboard active, Jobs links to the Jobs page",
             [(await page.locator(".nav-links li.active a").innerText()).trim(), await page.locator('.nav-links a:has-text("Jobs")').getAttribute("href")], ["Dashboard", "Jobs.html"]);
+        t.check("every API call the dashboard makes (resume, skills, preferences, job search) carries the login token", [api.calls.length >= 5, api.calls.every(c => c.headers.authorization === "Bearer test-token")], [true, true]);
         t.check("no page errors", errors, []);
         await context.close();
     }

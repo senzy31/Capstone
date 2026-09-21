@@ -1,3 +1,4 @@
+using Joblink.Services.Tracker;
 using JobLinkv2.Models;
 using JobLinkv2.Services;
 using JobLinkv2.Services.Apply;
@@ -43,12 +44,17 @@ namespace Joblink.Controllers
         // Returns the created listing (with its new jobId).
         [HttpPost]
         [Authorize(Roles = "user")]
-        public ActionResult Add([FromBody] JoblistingModel? joblist)
+        public ActionResult Add([FromBody] LogJobRequest? request)
         {
-            if (joblist is null)
+            if (request is null)
                 return BadRequest(new { message = "A job is required." });
 
-            var result = _tracker.LogManualListing(joblist);
+            var result = _tracker.LogManualListing(new JoblistingModel
+            {
+                Title = request.Title,
+                Company = request.Company,
+                Location = request.Location
+            });
 
             return result.IsOk
                 ? Ok(result.Value)

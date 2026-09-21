@@ -1,23 +1,41 @@
 using Anthropic.Exceptions;
+using Joblink.Security;
 using JobLinkv2.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading.Tasks;
 
 namespace Joblink.Controllers
 {
+    // Resume text written by Claude. Every request costs money on the server's own
+    // Anthropic key, so it needs a job seeker login and each user gets a fixed number
+    // per hour - otherwise anyone who found the address could run up the bill.
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "user")]
     public class AiResumeController : ControllerBase
     {
-        AiResumeServices aiResumeServices = new AiResumeServices();
+        public const int RequestsPerHour = 20;
+
+        private readonly IAiResumeGenerator _ai;
+        private readonly UserRateLimiter _limiter;
+
+        public AiResumeController(IAiResumeGenerator ai, UserRateLimiter limiter)
+        {
+            _ai = ai;
+            _limiter = limiter;
+        }
 
         [HttpPost("summary")]
         public async Task<IActionResult> GenerateSummary([FromBody] AiSummaryRequest request)
         {
+            if (TooMany() is { } limited)
+                return limited;
+
             try
             {
-                var summary = await aiResumeServices.GenerateSummaryAsync(request);
+                var summary = await _ai.GenerateSummaryAsync(request);
 
                 return Ok(new { summary });
             }
@@ -30,9 +48,12 @@ namespace Joblink.Controllers
         [HttpPost("experience-description")]
         public async Task<IActionResult> GenerateExperienceDescription([FromBody] AiExperienceRequest request)
         {
+            if (TooMany() is { } limited)
+                return limited;
+
             try
             {
-                var description = await aiResumeServices.GenerateExperienceDescriptionAsync(request);
+                var description = await _ai.GenerateExperienceDescriptionAsync(request);
 
                 return Ok(new { description });
             }
@@ -40,6 +61,30 @@ namespace Joblink.Controllers
             {
                 return HandleAiError(ex);
             }
+        }
+
+        // Both endpoints share one allowance per user. Requests that fail validation
+        // never get here, so they don't use any of it.
+        private IActionResult? TooMany()
+        {
+            if (User.GetUserId() is not int userId)
+                return Unauthorized();
+
+            var decision = _limiter.TryTake($"ai:{userId}", RequestsPerHour, TimeSpan.FromHours(1));
+
+            if (decision.Allowed)
+                return null;
+
+            var seconds = (int)Math.Ceiling(decision.RetryAfter.TotalSeconds);
+            var minutes = Math.Max(1, (int)Math.Ceiling(decision.RetryAfter.TotalMinutes));
+
+            Response.Headers["Retry-After"] = seconds.ToString();
+
+            return StatusCode(StatusCodes.Status429TooManyRequests, new
+            {
+                message = $"You've used your {RequestsPerHour} AI requests for this hour. Try again in about {minutes} minute{(minutes == 1 ? "" : "s")}.",
+                retryAfterSeconds = seconds
+            });
         }
 
         // Most-specific exception first - each category gets a distinct,

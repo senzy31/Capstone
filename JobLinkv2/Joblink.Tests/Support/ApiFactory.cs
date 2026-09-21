@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
 using Joblink.Services.Accounts;
+using JobLinkv2.Services;
 using JobLinkv2.Services.Accounts;
 using JobLinkv2.Services.Apply;
 using JobLinkv2.Services.MyData;
@@ -33,6 +34,7 @@ namespace Joblink.Tests.Support
 
         public InMemoryApplyStore Store { get; } = new();
         public InMemoryUserStore UserStore { get; } = new();
+        public FakeAiGenerator Ai { get; } = new();
 
         // The stores for resumes, notifications, saved jobs and skills have no fake. Here they point at a server that is not
         // there, so a test that wrongly reaches it fails loudly instead of touching a real
@@ -60,6 +62,10 @@ namespace Joblink.Tests.Support
 
                 services.RemoveAll<SkillStore>();
                 services.AddSingleton(new SkillStore(DataConnectionString));
+
+                // Claude costs money: tests get a stand-in that only counts.
+                services.RemoveAll<IAiResumeGenerator>();
+                services.AddSingleton<IAiResumeGenerator>(Ai);
 
                 services.RemoveAll<TimeProvider>();
                 services.AddSingleton<TimeProvider>(Clock);

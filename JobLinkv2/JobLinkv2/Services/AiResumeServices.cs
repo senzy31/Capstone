@@ -2,6 +2,8 @@ using Anthropic;
 using Anthropic.Exceptions;
 using Anthropic.Models.Messages;
 using System;
+using System.Collections;
+using System.ComponentModel.DataAnnotations;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -12,7 +14,14 @@ namespace JobLinkv2.Services
     /// Generates resume text with Claude. The API key lives server-side only
     /// (ANTHROPIC_API_KEY environment variable) - it never reaches the browser.
     /// </summary>
-    public class AiResumeServices
+    public interface IAiResumeGenerator
+    {
+        Task<string> GenerateSummaryAsync(AiSummaryRequest request);
+
+        Task<string> GenerateExperienceDescriptionAsync(AiExperienceRequest request);
+    }
+
+    public class AiResumeServices : IAiResumeGenerator
     {
         private const string Model = "claude-opus-5";
 
@@ -142,21 +151,52 @@ namespace JobLinkv2.Services
     }
 
 
+    // What a client may send to have text written. Every field is limited, because each
+    // request is paid for (tokens) and goes into a prompt: without limits one request
+    // could be as big and expensive as the client likes.
     public class AiSummaryRequest
     {
-        public string? FullName { get; set; }
-        public string? Headline { get; set; }
-        public List<string>? Skills { get; set; }
-        public List<string>? ExperienceHighlights { get; set; }
-        public List<string>? EducationHighlights { get; set; }
-        public string? Notes { get; set; }
+        [StringLength(200)] public string? FullName { get; set; }
+        [StringLength(200)] public string? Headline { get; set; }
+        [MaxCount(50), MaxItemLength(200)] public List<string>? Skills { get; set; }
+        [MaxCount(20), MaxItemLength(1000)] public List<string>? ExperienceHighlights { get; set; }
+        [MaxCount(20), MaxItemLength(1000)] public List<string>? EducationHighlights { get; set; }
+        [StringLength(2000)] public string? Notes { get; set; }
     }
 
 
     public class AiExperienceRequest
     {
-        public string? Position { get; set; }
-        public string? CompanyName { get; set; }
-        public string? Notes { get; set; }
+        [StringLength(200)] public string? Position { get; set; }
+        [StringLength(200)] public string? CompanyName { get; set; }
+        [StringLength(2000)] public string? Notes { get; set; }
+    }
+
+
+    /// <summary>At most this many items in a list.</summary>
+    public sealed class MaxCountAttribute : ValidationAttribute
+    {
+        private readonly int _max;
+
+        public MaxCountAttribute(int max) => _max = max;
+
+        protected override ValidationResult? IsValid(object? value, ValidationContext validationContext) =>
+            value is ICollection { Count: var count } && count > _max
+                ? new ValidationResult($"{validationContext.DisplayName} can have at most {_max} items.")
+                : ValidationResult.Success;
+    }
+
+
+    /// <summary>Every text in a list is at most this long.</summary>
+    public sealed class MaxItemLengthAttribute : ValidationAttribute
+    {
+        private readonly int _max;
+
+        public MaxItemLengthAttribute(int max) => _max = max;
+
+        protected override ValidationResult? IsValid(object? value, ValidationContext validationContext) =>
+            value is IEnumerable<string?> items && items.Any(item => item is { Length: > 0 } && item.Length > _max)
+                ? new ValidationResult($"Each item in {validationContext.DisplayName} can be at most {_max} characters.")
+                : ValidationResult.Success;
     }
 }

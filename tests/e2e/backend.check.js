@@ -360,7 +360,7 @@ async function makeUser(label, role) {
         // ================= JSearch import (real API) =================
         console.log("\nJSearch import (live API call)");
         const q1 = "software developer jobs in Makati";
-        const s1 = await call("GET", `/JobSearch/search?query=${encodeURIComponent(q1)}&page=1`);
+        const s1 = await call("GET", `/JobSearch/search?query=${encodeURIComponent(q1)}&page=1`, { token: A.token });
         if (s1.status !== 200) throw new Error("search failed " + JSON.stringify(s1.json));
         const jobs1 = s1.json.data;
         // NOT added to createdJobIds: a normal search keeps what it imports, and the backend caches
@@ -383,7 +383,15 @@ async function makeUser(label, role) {
         console.log("    ->", real.json.publisher, real.json.redirectUrl?.slice(0, 80));
 
         // (Re-importing the same job updates its row - covered by SqlApplyStoreDbTests.)
-        check("search still works with no token (public)", s1.status, 200);
+
+        // ================= the endpoints that spend money =================
+        console.log("\njob search, AI text and the template leftover: nothing here is public any more (none of these calls costs anything)");
+        const spend = ["/JobSearch/search?query=developer", "/JobSearch/details?jobId=x", "/JobSearch/salary?jobTitle=developer&location=Manila"];
+        check("job search, details and salary need a login (401)", await statuses(spend.map(u => ["GET", u])), [401, 401, 401]);
+        check("AI text needs a job seeker login: 401 anonymous, 403 for an employer",
+            await statuses([["POST", "/AiResume/summary", undefined, { fullName: "x" }], ["POST", "/AiResume/experience-description", undefined, { position: "x" }], ["POST", "/AiResume/summary", E.token, { fullName: "x" }]]), [401, 401, 403]);
+        check("an oversized AI request is refused (400) before anything is paid for", (await call("POST", "/AiResume/summary", { token: A.token, body: { notes: "n".repeat(2001) } })).status, 400);
+        check("the template WeatherForecast endpoint is gone (404)", (await fetch("https://localhost:7142/WeatherForecast")).status, 404);
 
     } finally {
         // ================= cleanup: only what this run created =================

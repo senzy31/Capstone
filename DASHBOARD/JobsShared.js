@@ -362,7 +362,7 @@ async function openPopup(job) {
 
         if (job.job_id) {
 
-            const response = await fetch(
+            const response = await ApiClient.authFetch(
                 `${JOB_API}/details?jobId=${encodeURIComponent(job.job_id)}`
             );
 
@@ -400,7 +400,7 @@ async function loadSalary(job) {
             return;
         }
 
-        const response = await fetch(
+        const response = await ApiClient.authFetch(
             `${JOB_API}/salary` +
             `?jobTitle=${encodeURIComponent(job.job_title)}` +
             `&location=${encodeURIComponent(getJobLocation(job))}`

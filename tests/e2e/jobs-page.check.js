@@ -43,7 +43,7 @@ const FIXTURE = [
         t.check("sidebar highlights Jobs", (await page.locator(".nav-links li.active a").innerText()).trim(), "Jobs");
         t.check("title + navbar name", [await page.locator(".welcome-section h1").innerText(), await page.locator("#userName").innerText()], ["Find Jobs", "Maria"]);
         t.check("all filter fields present", await Promise.all(["workSetup", "locationInput", "minSalary", "maxSalary", "jobType", "applyFilters", "resetFilters"].map(id => page.locator("#" + id).count())), [1, 1, 1, 1, 1, 1, 1]);
-        t.check("search results need no login token from the page", api.callsTo("GET", /search/)[0].headers.authorization, undefined);
+        t.check("every API call the page makes (search, preferences, resume data) carries the login token", [api.calls.length > 0, api.calls.every(c => c.headers.authorization === "Bearer test-token")], [true, true]);
         t.check("no page errors", errors, []);
 
         t.section("filters (on top of the search results)");

@@ -181,7 +181,7 @@ async function loadRecommendations(userId) {
 
         const query = buildRecommendationQuery(profile);
 
-        const response = await fetch(
+        const response = await ApiClient.authFetch(
             `${JOB_API}/search?query=${encodeURIComponent(query)}&page=1`
         );
 

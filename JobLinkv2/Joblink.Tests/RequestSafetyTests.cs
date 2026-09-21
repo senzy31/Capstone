@@ -93,15 +93,9 @@ namespace Joblink.Tests
             Assert.DoesNotContain(names, n => n.Contains("password") || n.Contains("hash"));
         }
 
-        // Controllers that still bind a database model straight from the request
-        // body. Each one is reduced to the allowed fields before it is saved (and
-        // has its own tests); the list shrinks as they move to request classes.
-        private static readonly HashSet<string> StillBindingModels = new()
-        {
-            "ApplicationController",
-            "JoblistingController"
-        };
-
+        // No endpoint takes a database model straight from the request body: each takes a
+        // small request class with only the fields a client may set. A model would let a
+        // client fill in every column - the owner, the deleted flag, a plan.
         [Fact]
         public void Endpoints_do_not_bind_database_models_from_the_request()
         {
@@ -111,9 +105,6 @@ namespace Joblink.Tests
 
             foreach (var controller in controllers)
             {
-                if (StillBindingModels.Contains(controller.Name))
-                    continue;
-
                 foreach (var action in controller.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
                 {
                     if (action.GetCustomAttributes<HttpMethodAttribute>().Any() == false)
@@ -128,22 +119,15 @@ namespace Joblink.Tests
         }
 
         [Fact]
-        public void The_list_of_controllers_still_binding_models_has_no_stale_entries()
+        public void There_are_endpoints_to_check()
         {
-            var actual = Web.GetTypes()
+            // guards the test above against silently checking nothing
+            var actions = Web.GetTypes()
                 .Where(t => t.IsClass && !t.IsAbstract && typeof(ControllerBase).IsAssignableFrom(t))
-                .Where(c => c.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-                    .Where(m => m.GetCustomAttributes<HttpMethodAttribute>().Any())
-                    .SelectMany(m => m.GetParameters())
-                    .Any(p => IsDatabaseModel(p.ParameterType)))
-                .Select(c => c.Name)
-                .ToHashSet();
+                .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                .Count(m => m.GetCustomAttributes<HttpMethodAttribute>().Any() && m.GetParameters().Any());
 
-            // anything listed as "still binding" must really still bind a model,
-            // so converting a controller forces its removal from the list
-            var stale = StillBindingModels.Where(name => !actual.Contains(name)).ToList();
-
-            Assert.True(stale.Count == 0, "No longer binds a model - remove from StillBindingModels: " + string.Join(", ", stale));
+            Assert.True(actions > 30, $"only {actions} endpoints with parameters found");
         }
 
         private static bool IsDatabaseModel(Type type)

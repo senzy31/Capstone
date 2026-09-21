@@ -1,4 +1,5 @@
 using Joblink.Security;
+using Joblink.Services.Tracker;
 using JobLinkv2.Models;
 using JobLinkv2.Services.Apply;
 using Microsoft.AspNetCore.Authorization;
@@ -59,30 +60,35 @@ namespace Joblink.Controllers
         // "Log Application": record a job you applied to somewhere else.
         // The user always comes from the token; status must be a manual one.
         [HttpPost]
-        public ActionResult Add([FromBody] ApplicationModel? application)
+        public ActionResult Add([FromBody] LogApplicationRequest? request)
         {
             if (User.GetUserId() is not int userId)
                 return Unauthorized();
 
-            if (application is null)
+            if (request is null)
                 return BadRequest(new { message = "An application is required." });
 
-            var result = _tracker.LogManual(userId, application);
+            var result = _tracker.LogManual(userId, new ApplicationModel
+            {
+                JobId = request.JobId ?? 0,
+                Status = request.Status,
+                AppliedAt = request.AppliedAt
+            });
 
             return result.IsOk ? Ok(true) : ToError(result.Outcome, result.Message);
         }
 
         // Only the status can change, and only among the tracker's own statuses.
         [HttpPut]
-        public ActionResult Update([FromBody] ApplicationModel? application)
+        public ActionResult Update([FromBody] ChangeApplicationStatusRequest? request)
         {
             if (User.GetUserId() is not int userId)
                 return Unauthorized();
 
-            if (application is null)
+            if (request is null)
                 return BadRequest(new { message = "An application is required." });
 
-            var result = _tracker.ChangeStatus(userId, application.ApplicationId, application.Status);
+            var result = _tracker.ChangeStatus(userId, request.ApplicationId ?? 0, request.Status);
 
             return result.IsOk ? Ok(true) : ToError(result.Outcome, result.Message);
         }

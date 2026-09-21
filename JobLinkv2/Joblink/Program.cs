@@ -3,6 +3,7 @@ using Joblink.Security;
 using Joblink.Services;
 using Joblink.Services.Accounts;
 using JobLinkv2.Repositories;
+using JobLinkv2.Services;
 using JobLinkv2.Services.Accounts;
 using JobLinkv2.Services.Apply;
 using JobLinkv2.Services.MyData;
@@ -73,6 +74,10 @@ builder.Services.AddSingleton(new ResumeDataStore(connectionString));
 // ✅ Notifications, saved jobs and matches (yours only), and the shared skills list
 builder.Services.AddSingleton(new UserDataStore(connectionString));
 builder.Services.AddSingleton(new SkillStore(connectionString));
+
+// ✅ AI resume text: a job seeker login, and 20 requests an hour each
+builder.Services.AddSingleton<IAiResumeGenerator, AiResumeServices>();
+builder.Services.AddSingleton<UserRateLimiter>();
 
 // ✅ Apply flow
 builder.Services.AddSingleton<IApplyStore>(new SqlApplyStore(connectionString));

@@ -151,7 +151,7 @@ async function loadJobs(search = DEFAULT_SEARCH) {
 
     try {
 
-        const response = await fetch(
+        const response = await ApiClient.authFetch(
             `${JOB_API}/search?query=${encodeURIComponent(search)}&page=1`
         );
 

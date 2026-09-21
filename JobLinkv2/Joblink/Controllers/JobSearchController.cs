@@ -1,4 +1,5 @@
 using Joblink.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using System.Text.Json;
@@ -8,8 +9,12 @@ namespace Joblink.Controllers
     // Server-side proxy for the JSearch job feed (RapidAPI). The RapidAPI key
     // lives in server config ("RapidApi:Key" - dotnet user-secrets or the
     // RapidApi__Key environment variable) and never reaches the browser.
+    //
+    // Every search spends part of that plan's small monthly allowance, so it needs a
+    // login (any role): an anonymous caller could use it all up.
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class JobSearchController : ControllerBase
     {
         private const string UpstreamBase = "https://jsearch.p.rapidapi.com";
