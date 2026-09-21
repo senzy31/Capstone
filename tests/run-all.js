@@ -1,6 +1,7 @@
 // Runs the checks one after another and prints a summary.
 //   node run-all.js             the checks that need nothing running (fake API)
-//   node run-all.js --backend   also the ones that use the real backend + database
+//   node run-all.js --backend   also the ones that use the real backend + database (JSearch faked;
+//                               JOBLINK_LIVE_JSEARCH=1 uses your running backend and the real JSearch)
 const { spawnSync } = require("child_process");
 const path = require("path");
 

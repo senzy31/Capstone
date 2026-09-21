@@ -4,15 +4,18 @@
 //
 // This is the one check that proves the browser's cross-origin rules (CORS) accept the login
 // token header and the PATCH request.
-//   - needs: the backend running, SQL Server LocalDB and `sqlcmd` on the PATH
-//   - makes ONE live JSearch call; the jobs a search imports are left in Job_Listings (that is
-//     what a normal search does) - the test user and everything the pages created for them are removed
+//   - needs: SQL Server LocalDB and `sqlcmd` on the PATH, and port 7142 free: by default it builds and
+//     starts its own backend pointed at a FAKE JSearch (liveBackend.js), so it spends no RapidAPI quota
+//   - JOBLINK_LIVE_JSEARCH=1 instead uses the backend you already have running and the REAL JSearch
+//     (one call); the jobs a search imports are then left in Job_Listings (that is what a normal
+//     search does) - the test user and everything the pages created for them are removed either way
 const { chromium } = require("playwright");
 const { execSync } = require("child_process");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { startStaticServer, createChecker, sleep, nextTab } = require("./helpers");
+const { startBackend } = require("./liveBackend");
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";   // the dev HTTPS certificate is self-signed
 
@@ -29,6 +32,7 @@ function sql(query) {
 
 (async () => {
     const server = await startStaticServer();
+    const backend = await startBackend({ stamp: STAMP });
     const browser = await chromium.launch();
     const t = createChecker("Full stack (real browser + real backend + real database)");
     const email = `e2e.fullstack.${STAMP}@example.com`, password = "E2ePassw0rd!";
@@ -219,11 +223,15 @@ function sql(query) {
     } finally {
         try {
             if (userId) sql(`DELETE FROM Applications WHERE user_id = ${userId}; DELETE FROM Notifications WHERE user_id = ${userId}; DELETE FROM Resume_Skills WHERE resume_id IN (SELECT resume_id FROM Resumes WHERE user_id = ${userId}); DELETE FROM Education WHERE resume_id IN (SELECT resume_id FROM Resumes WHERE user_id = ${userId}); DELETE FROM Experience WHERE resume_id IN (SELECT resume_id FROM Resumes WHERE user_id = ${userId}); DELETE FROM Resumes WHERE user_id = ${userId}; DELETE FROM Skills WHERE skill_name = 'E2E Skill ${STAMP}'; DELETE FROM Profiles WHERE user_id = ${userId}; DELETE FROM Job_Preferences WHERE user_id = ${userId}; DELETE FROM Subscriptions WHERE user_id = ${userId}; DELETE FROM Users WHERE user_id = ${userId};`);
+            // What the fake JSearch imported is ours to remove (this run's backend, and its cache, goes with it);
+            // what the real one imported is kept, like any normal search.
+            if (backend.fake) sql(`DELETE FROM Job_Listings WHERE external_job_id LIKE 'e2e-fake-${STAMP}-%';`);
             console.log("\ncleanup done (test user and everything the pages created for them removed)");
         } catch (e) { console.log("CLEANUP FAILED - remove", email, "by hand:", e.message); }
         try { fs.unlinkSync(TMP); } catch {}
         await browser.close();
         await server.close();
+        await backend.stop();
     }
 
     t.done();

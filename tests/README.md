@@ -16,7 +16,8 @@ npx playwright install chromium
 | Command | What runs | Needs |
 | --- | --- | --- |
 | `npm test` | every check below except the two "real" ones | nothing running - the API is faked and the pages are served by a tiny built-in server |
-| `npm run test:backend` | all of the above **plus** `backend.check.js` and `full-stack.check.js` | backend running on `https://localhost:7142`, SQL Server LocalDB, `sqlcmd` on the PATH |
+| `npm run test:backend` | all of the above **plus** `backend.check.js` and `full-stack.check.js`, each against its own backend with **JSearch faked** (no RapidAPI quota) | SQL Server LocalDB, `sqlcmd` on the PATH, .NET SDK, and port `7142` **free** (stop your own backend first) |
+| `JOBLINK_LIVE_JSEARCH=1 npm run test:backend` | the same, but against the backend you already have running and the **real** JSearch | your backend running on `https://localhost:7142`; spends RapidAPI quota (one call per real check) |
 | `node e2e/apply-flow.check.js` | one file | same as above for that file |
 
 | File | Covers |
@@ -32,11 +33,18 @@ npx playwright install chromium
 | `e2e/backend.check.js` | real API + database: tokens, accounts (what `/api/User` used to allow), profile / resumes / entries / skills / preferences, and notifications / saved jobs / matches / the skills list (one user against another), the endpoints that spend money (search, AI), Free/Premium plans (simulated checkout, expiry, the plan read from the database on every request), Priority Application (stored at apply time, snapshot, external never priority, same 20/day limit), apply flow, rate limit, lockdown, JSearch import |
 | `e2e/full-stack.check.js` | real browser + real backend: login page, Profile (name + email with the password prompt), Resume Builder (month date, delete an entry, skills), apply to a confirmed application, the Free ad, the real 403 upgrade prompt, Activate Premium (Demo) and Cancel |
 
-The two "real" checks create their own test users and jobs and delete them afterwards (the listings
-a JSearch search imports are the exception: a normal search keeps them, and the backend caches their ids).
-`backend.check.js` makes one live JSearch call and `full-stack.check.js` another, so each spends a
-little of the RapidAPI quota. `full-stack.check.js` leaves the jobs a search imports (that is what a
-normal search does).
+The two "real" checks create their own test users and jobs and delete them afterwards.
+
+**JSearch is faked by default.** The check builds the backend, starts it on port 7142 with
+`RapidApi__BaseUrl` pointing at a small fake JSearch server (`e2e/fakeJSearch.js`) and a throwaway
+`RapidApi__Key`, runs, and stops it - so the real call path (HTTP, JSON, import into `Job_Listings`,
+the 15 minute cache) still runs, but nothing reaches RapidAPI and the listings it imports are removed
+at the end. If something is already listening on 7142 (probably your own backend, which uses your real
+key) the check stops with a message instead of running. Set `JOBLINK_LIVE_JSEARCH=1` to use that backend and
+the real JSearch instead; each real check then makes one call, and the jobs a real search imports are kept
+(that is what a normal search does, and the backend caches their ids).
+
+On Windows PowerShell: `$env:JOBLINK_LIVE_JSEARCH = "1"; npm run test:backend`.
 
 ## The .NET tests
 

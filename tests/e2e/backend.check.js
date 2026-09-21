@@ -1,17 +1,21 @@
 // End-to-end check of login tokens, the apply flow and the locked-down endpoints against the
 // REAL backend (https://localhost:7142) and the local Joblinkv2 database.
 //
-//   - needs: the backend running, SQL Server LocalDB, and `sqlcmd` on the PATH
-//   - makes ONE live JSearch call (the import check), so it spends a little RapidAPI quota
-//   - creates its own users and jobs and deletes exactly what it created when it finishes -
-//     except the listings the JSearch call imports: a normal search keeps them, and the backend
-//     caches their ids, so deleting them would break the next run (and a second run reuses the cache)
+//   - needs: SQL Server LocalDB and `sqlcmd` on the PATH, and port 7142 free: by default it builds and
+//     starts its own backend pointed at a FAKE JSearch (liveBackend.js), so it spends no RapidAPI quota
+//   - JOBLINK_LIVE_JSEARCH=1 instead uses the backend you already have running and the REAL JSearch
+//     (one call, the import check, so it spends a little quota)
+//   - creates its own users and jobs and deletes exactly what it created when it finishes - the
+//     listings the fake JSearch imports included (its backend, and so its cache, is gone by then);
+//     against the real JSearch a normal search keeps what it imports and the backend caches those
+//     ids, so those are left in place
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";   // the dev HTTPS certificate is self-signed
 const { execSync } = require("child_process");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { createChecker } = require("./helpers");
+const { startBackend } = require("./liveBackend");
 
 const API = "https://localhost:7142/api";
 const STAMP = Date.now();
@@ -47,6 +51,8 @@ async function makeUser(label, role) {
 }
 
 (async () => {
+    const backend = await startBackend({ stamp: STAMP });
+    const fake = backend.fake;   // null against the real JSearch
     const startMaxApp = Number(scalar("SELECT ISNULL(MAX(application_id),0) FROM Applications;"));
     const startNotifications = Number(scalar("SELECT ISNULL(MAX(notification_id),0) FROM Notifications;"));
     let users = [];
@@ -498,13 +504,15 @@ async function makeUser(label, role) {
         check("a tracker-logged job can't be applied to (no link -> 410)", (await call("POST", `/jobs/${mj.json.jobId}/apply`, { token: A.token })).status, 410);
 
         // ================= JSearch import (real API) =================
-        console.log("\nJSearch import (live API call)");
+        console.log(`\nJSearch import (${fake ? "fake JSearch, no quota" : "live API call"})`);
         const q1 = "software developer jobs in Makati";
         const s1 = await call("GET", `/JobSearch/search?query=${encodeURIComponent(q1)}&page=1`, { token: A.token });
         if (s1.status !== 200) throw new Error("search failed " + JSON.stringify(s1.json));
         const jobs1 = s1.json.data;
-        // NOT added to createdJobIds: a normal search keeps what it imports, and the backend caches
-        // these ids for 15 minutes - deleting the rows would leave that cache pointing at nothing.
+        // Against the real JSearch these are NOT added to createdJobIds: a normal search keeps what it
+        // imports, and the backend caches these ids for 15 minutes - deleting the rows would leave that
+        // cache pointing at nothing. Against the fake, this run's backend is stopped afterwards, so they go.
+        if (fake) jobs1.forEach(j => createdJobIds.add(j.joblink_job_id));
         check("every result is tagged with joblink_job_id + joblink_source", [jobs1.length > 0, jobs1.every(j => Number.isInteger(j.joblink_job_id)), jobs1.every(j => j.joblink_source === "External")], [true, true, true]);
         check("original JSearch fields are all still there", ["job_id", "job_title", "employer_name", "job_apply_link", "apply_options", "job_publisher"].every(k => k in jobs1[0]), true);
         const j0 = jobs1[0];
@@ -523,6 +531,19 @@ async function makeUser(label, role) {
         console.log("    ->", real.json.publisher, real.json.redirectUrl?.slice(0, 80));
 
         // (Re-importing the same job updates its row - covered by SqlApplyStoreDbTests.)
+
+        if (fake) {
+            // The upstream service is called only when it has to be: a repeat within 15 minutes is answered from the cache.
+            const before = fake.callsTo("/search-v2").length;
+            const repeat = await call("GET", `/JobSearch/search?query=${encodeURIComponent(q1)}&page=1`, { token: A.token });
+            check("the fake JSearch was called once for the search, and a repeat is served from the cache (no second upstream call)",
+                [before, fake.callsTo("/search-v2").length, repeat.json.data.map(j => j.joblink_job_id).join() === jobs1.map(j => j.joblink_job_id).join()], [1, 1, true]);
+            check("the backend sent its (fake) key to the fake service, never a real one, and asked for the query it was given",
+                [fake.callsTo("/search-v2")[0].headers["x-rapidapi-key"], fake.callsTo("/search-v2")[0].query.query], ["fake-key-never-sent-to-rapidapi", q1]);
+            const det = await call("GET", `/JobSearch/details?jobId=${encodeURIComponent(j0.job_id)}`, { token: A.token });
+            const sal = await call("GET", "/JobSearch/salary?jobTitle=Developer&location=Manila", { token: A.token });
+            check("details and salary pass the upstream answer through", [det.status, det.json.data[0].job_description, sal.status, sal.json.data[0].median_salary], [200, "FAKE FULL DESCRIPTION", 200, 30000]);
+        }
 
         // ================= the endpoints that spend money =================
         console.log("\njob search, AI text and the template leftover: nothing here is public any more (none of these calls costs anything)");
@@ -557,6 +578,7 @@ async function makeUser(label, role) {
             console.log("\ncleanup done (removed this run's users, jobs, applications and notifications)");
         } catch (e) { console.log("CLEANUP FAILED - remove rows for e2e.*@example.com by hand:", e.message); }
         try { fs.unlinkSync(TMP); } catch {}
+        await backend.stop();
     }
 
     t.done();

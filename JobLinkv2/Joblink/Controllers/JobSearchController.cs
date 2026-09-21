@@ -9,6 +9,8 @@ namespace Joblink.Controllers
     // Server-side proxy for the JSearch job feed (RapidAPI). The RapidAPI key
     // lives in server config ("RapidApi:Key" - dotnet user-secrets or the
     // RapidApi__Key environment variable) and never reaches the browser.
+    // "RapidApi:BaseUrl" (optional) points the server at another JSearch-shaped service -
+    // the live checks use it to run against a local fake instead of spending the allowance.
     //
     // Every search spends part of that plan's small monthly allowance, so it needs a
     // login (any role): an anonymous caller could use it all up.
@@ -17,7 +19,7 @@ namespace Joblink.Controllers
     [Authorize]
     public class JobSearchController : ControllerBase
     {
-        private const string UpstreamBase = "https://jsearch.p.rapidapi.com";
+        private const string DefaultUpstreamBase = "https://jsearch.p.rapidapi.com";
         private const string UpstreamHost = "jsearch.p.rapidapi.com";
 
         // The free RapidAPI plan allows only 200 requests/month, so
@@ -29,6 +31,7 @@ namespace Joblink.Controllers
         private readonly IMemoryCache _cache;
         private readonly JobImportService _import;
         private readonly string? _apiKey;
+        private readonly string _upstreamBase;
 
         public JobSearchController(
             IHttpClientFactory httpClientFactory,
@@ -40,6 +43,10 @@ namespace Joblink.Controllers
             _cache = cache;
             _import = import;
             _apiKey = configuration["RapidApi:Key"];
+
+            var baseUrl = configuration["RapidApi:BaseUrl"];
+
+            _upstreamBase = string.IsNullOrWhiteSpace(baseUrl) ? DefaultUpstreamBase : baseUrl.Trim().TrimEnd('/');
         }
 
         // GET api/JobSearch/search?query=developer%20manila&page=1
@@ -164,7 +171,7 @@ namespace Joblink.Controllers
             var queryString = string.Join("&", query.Select(pair =>
                 $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(pair.Value)}"));
 
-            var url = $"{UpstreamBase}{path}?{queryString}";
+            var url = $"{_upstreamBase}{path}?{queryString}";
 
             if (_cache.TryGetValue(url, out JsonElement cached))
                 return (cached, null);
