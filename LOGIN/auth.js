@@ -39,11 +39,36 @@ document.addEventListener("DOMContentLoaded", () => {
     const userData =
         localStorage.getItem("user");
 
-    if (userData &&
-        (
-            currentPage.includes("login") ||
-            currentPage.includes("signup")
-        )) {
+    // Match the file name: the folder itself is called LOGIN, so "login"
+    // appears in the path of the signup page too.
+    const fileName = currentPage.split("/").pop();
+
+    const onLoginPage = fileName.startsWith("login");
+
+    const onAuthPage = onLoginPage || fileName.startsWith("signup");
+
+    // Signed in before login tokens existed, or the token was cleared: that
+    // session can't call the API any more. Drop it (rather than bouncing
+    // between here and the dashboard) and ask them to log in once more.
+    if (userData && !localStorage.getItem("token")) {
+
+        localStorage.removeItem("user");
+
+        sessionStorage.setItem("joblink.sessionExpired", "1");
+
+    }
+
+    if (onAuthPage && sessionStorage.getItem("joblink.sessionExpired")) {
+
+        sessionStorage.removeItem("joblink.sessionExpired");
+
+        if (onLoginPage) {
+            alert("Your session expired. Please log in again.");
+        }
+
+    }
+
+    if (localStorage.getItem("user") && onAuthPage) {
 
         try {
             const user = JSON.parse(userData);

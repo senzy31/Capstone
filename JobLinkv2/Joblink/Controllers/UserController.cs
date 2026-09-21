@@ -1,4 +1,5 @@
 ﻿using BCrypt.Net;
+using Joblink.Security;
 using JobLinkv2.Models;
 using JobLinkv2.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -10,6 +11,13 @@ namespace Joblink.Controllers
     public class UserController : ControllerBase
     {
         UserServices userServices = new UserServices();
+
+        private readonly JwtTokenService _tokens;
+
+        public UserController(JwtTokenService tokens)
+        {
+            _tokens = tokens;
+        }
 
         // ✅ GET ALL USERS
         [HttpGet]
@@ -77,6 +85,7 @@ namespace Joblink.Controllers
             return Ok(new
             {
                 message = "Login successful",
+                token = _tokens.CreateToken(user),
                 user = new
                 {
                     user.UserId,
