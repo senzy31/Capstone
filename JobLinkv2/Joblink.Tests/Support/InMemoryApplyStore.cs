@@ -10,15 +10,12 @@ namespace Joblink.Tests.Support
     {
         public List<JoblistingModel> Listings { get; } = new();
         public List<ApplicationModel> Applications { get; } = new();
-        public List<(int UserId, string Message)> Notifications { get; } = new();
         public Dictionary<int, string> UserNames { get; } = new();
         public Dictionary<int, int> PrimaryResumes { get; } = new();
 
         // Set to make the next insert lose a "race": another request's application
         // for the same user and job appears first, so the insert hits the unique index.
         public bool LoseNextInsertRace { get; set; }
-
-        public bool NotificationsFail { get; set; }
 
         // Set to make importing a search result fail, like a database that has gone away.
         public bool ImportsFail { get; set; }
@@ -203,14 +200,6 @@ namespace Joblink.Tests.Support
 
         public string? GetUserName(int userId) =>
             UserNames.TryGetValue(userId, out var name) ? name : null;
-
-        public void AddNotification(int userId, string message)
-        {
-            if (NotificationsFail)
-                throw new InvalidOperationException("notifications are down");
-
-            Notifications.Add((userId, message));
-        }
 
         private static ApplicationModel Clone(ApplicationModel a) => new()
         {

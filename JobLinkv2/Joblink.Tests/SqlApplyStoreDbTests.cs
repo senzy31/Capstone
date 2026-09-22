@@ -450,15 +450,14 @@ namespace Joblink.Tests
 
         // ----- people -----------------------------------------------------------
 
+        // Notification creation itself moved to INotificationSender/SqlNotificationSender -
+        // see SqlNotificationSenderDbTests - this is just the name/resume lookups AddNotification's
+        // caller (ApplyService.NotifyEmployer) also depends on.
         [DbFact]
-        public void Notifications_and_lookups_work_including_unicode_names()
+        public void Lookups_work_including_unicode_names()
         {
-            var employer = NewUser("employer");
             var seeker = NewUser();
 
-            _store.AddNotification(employer, $"María Ñ applied for QA {_tag}.");
-
-            Assert.Equal(1, Count("SELECT COUNT(*) FROM Notifications WHERE user_id = @employer AND is_deleted = 0", new { employer }));
             Assert.Equal($"dbtest {_tag}", _store.GetUserName(seeker));
             Assert.Null(_store.GetUserName(int.MaxValue));
             Assert.Null(_store.GetPrimaryResumeId(seeker));

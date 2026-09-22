@@ -51,7 +51,7 @@ namespace Joblink.Services.Employer
             var purchase = _jobs.RecordPurchase(employerId, option, UtcNow);
 
             _notifications.Send(employerId, NotificationTypes.PurchaseConfirmed,
-                $"Payment confirmed: {option.Description} (PHP {option.PricePhp:0.##}).", "/employer/jobs");
+                $"Payment confirmed: {option.Description} (PHP {option.PricePhp:0.##}).", "/Employer Dashboard/dashboard.html");
 
             return (PurchaseOutcome.Ok, new PurchaseView(purchase.Package, purchase.AmountPhp, purchase.CreditsGranted, purchase.PurchasedAt, GetCredits(employerId)));
         }
@@ -115,7 +115,7 @@ namespace Joblink.Services.Employer
             await GeocodeBestEffort(job, cancellationToken);
 
             _notifications.Send(employerId, NotificationTypes.JobPublished,
-                $"\"{job.Title}\" is now live on JobLink for the next {JobPostCatalogue.ActiveDays} days.", "/employer/jobs");
+                $"\"{job.Title}\" is now live on JobLink for the next {JobPostCatalogue.ActiveDays} days.", $"/Employer Dashboard/dashboard.html?job={job.JobId}");
 
             return (PublishOutcome.Ok, DescribeOwnJob(employerId, jobId));
         }
@@ -202,7 +202,7 @@ namespace Joblink.Services.Employer
         private void NotifyExpiry(int employerId, JoblistingModel job, DateTime now)
         {
             var effective = JobPostingRules.EffectiveStatus(job.Status, job.ExpiresAt, now);
-            var link = $"/employer/jobs/{job.JobId}";
+            var link = $"/Employer Dashboard/dashboard.html?job={job.JobId}";
 
             if (effective == JobStatuses.Expired && job.ExpiresAt is { } expiredAt)
             {

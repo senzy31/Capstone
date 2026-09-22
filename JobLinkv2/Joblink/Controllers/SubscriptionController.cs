@@ -36,6 +36,9 @@ namespace Joblink.Controllers
             if (User.GetUserId() is not int userId)
                 return Unauthorized();
 
+            // Checked here, not in GetStatus itself - see SubscriptionService.CheckExpiryNotifications.
+            _plans.CheckExpiryNotifications(userId);
+
             return Ok(Describe(userId, _plans.GetStatus(userId)));
         }
 

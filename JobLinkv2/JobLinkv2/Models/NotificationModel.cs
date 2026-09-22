@@ -31,6 +31,16 @@ namespace JobLinkv2.Models
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }
 
+        // One of the literal values in NotificationTypes (JobLinkv2.Services.Notifications).
+        // Null for old rows created before this column existed.
+        [Column("type")]
+        public string? Type { get; set; }
+
+        // Where clicking the notification should take you - a path into the front end, not a
+        // full URL. Null when there's nowhere in particular to go.
+        [Column("link")]
+        public string? Link { get; set; }
+
         [ForeignKey("UserId")]
         public UserModel User { get; set; }
     }

@@ -185,7 +185,7 @@ namespace Joblink.Tests
         {
             var user = NewUser();
             var clock = new TestClock("2026-09-22T10:00:00Z");
-            var service = new SubscriptionService(_store, clock);
+            var service = new SubscriptionService(_store, clock, new InMemoryNotificationSender());
 
             Assert.False(service.IsPremium(user));
 

@@ -15,14 +15,16 @@ namespace Joblink.Tests
 
         private readonly InMemoryApplyStore _store = new();
         private readonly TestClock _clock = new();
+        private readonly InMemoryNotificationSender _notifications;
         private readonly ApplicationTrackerService _tracker;
         private readonly ApplyService _apply;
 
         public ApplicationTrackerServiceTests()
         {
             _store.PrimaryResumes[Owner] = 5;
-            _tracker = new ApplicationTrackerService(_store, _clock);
-            _apply = new ApplyService(_store, _clock, new FakePlanReader());
+            _notifications = new InMemoryNotificationSender(_clock);
+            _tracker = new ApplicationTrackerService(_store, _clock, _notifications);
+            _apply = new ApplyService(_store, _clock, new FakePlanReader(), _notifications);
         }
 
         private JoblistingModel ManualJob() =>
@@ -324,6 +326,49 @@ namespace Joblink.Tests
             }
 
             Assert.IsType<ApplyRateLimited>(_apply.Apply(Owner, jobs[20].JobId));
+        }
+
+        // =====================================================================
+        // "Did you finish applying?" reminder (a stale external redirect)
+        // =====================================================================
+
+        [Fact]
+        public void Listing_reminds_about_a_redirect_left_unconfirmed_for_24_hours_but_only_once()
+        {
+            var external = _store.AddExternalJob();
+            _apply.Apply(Owner, external.JobId);           // creates a Redirected application
+
+            _clock.Advance(TimeSpan.FromHours(23));
+            _tracker.List(Owner);
+            Assert.Empty(_notifications.Sent.Where(n => n.Type == "ConfirmExternalReminder"));
+
+            _clock.Advance(TimeSpan.FromHours(2));          // now 25 hours since the redirect
+            _tracker.List(Owner);
+            _tracker.List(Owner);                           // a second look (page reload) doesn't repeat it
+
+            var reminder = Assert.Single(_notifications.Sent, n => n.Type == "ConfirmExternalReminder");
+            Assert.Equal(Owner, reminder.UserId);
+        }
+
+        [Fact]
+        public void Listing_does_not_remind_about_a_confirmed_redirect_or_an_internal_application()
+        {
+            var external = _store.AddExternalJob();
+            var redirect = Assert.IsType<ExternalRedirect>(_apply.Apply(Owner, external.JobId));
+            _clock.Advance(TimeSpan.FromHours(48));
+
+            // Confirming it clears its status away from Redirected before the reminder ever gets asked.
+            var confirmed = _tracker.Get(Owner, redirect.ApplicationId).Value!;
+            confirmed.Status = "Applied Externally";
+            confirmed.ConfirmedAt = _clock.UtcNow;
+            _store.UpdateApplication(confirmed);
+
+            var internalJob = _store.AddInternalJob(Employer);
+            _apply.Apply(Owner, internalJob.JobId);
+
+            _tracker.List(Owner);
+
+            Assert.Empty(_notifications.Sent.Where(n => n.Type == "ConfirmExternalReminder"));
         }
     }
 }

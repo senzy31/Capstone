@@ -1,4 +1,5 @@
 using JobLinkv2.Models;
+using JobLinkv2.Services.Notifications;
 
 namespace JobLinkv2.Services.Apply
 {
@@ -29,17 +30,59 @@ namespace JobLinkv2.Services.Apply
     {
         private const int MaxTextLength = 300;
 
+        // A "did you finish applying?" reminder fires once, this long after the redirect - the
+        // frontend already asks right away when the tab regains focus; this catches anyone who
+        // never comes back to answer it.
+        public static readonly TimeSpan ReminderAfter = TimeSpan.FromHours(24);
+
         private readonly IApplyStore _store;
         private readonly TimeProvider _time;
+        private readonly INotificationSender _notifications;
 
-        public ApplicationTrackerService(IApplyStore store, TimeProvider time)
+        public ApplicationTrackerService(IApplyStore store, TimeProvider time, INotificationSender notifications)
         {
             _store = store;
             _time = time;
+            _notifications = notifications;
         }
 
-        public IReadOnlyList<ApplicationModel> List(int userId) =>
-            _store.GetApplicationsByUser(userId);
+        // Also where the "did you finish applying?" reminder is checked - opportunistically,
+        // whenever the caller looks at their own applications, no background job.
+        public IReadOnlyList<ApplicationModel> List(int userId)
+        {
+            var applications = _store.GetApplicationsByUser(userId);
+
+            RemindAboutStaleRedirects(userId, applications);
+
+            return applications;
+        }
+
+        private void RemindAboutStaleRedirects(int userId, IReadOnlyList<ApplicationModel> applications)
+        {
+            var cutoff = _time.GetUtcNow().UtcDateTime - ReminderAfter;
+
+            foreach (var application in applications)
+            {
+                if (application.ApplicationType != ApplicationTypes.External || application.Status != ApplicationStatuses.Redirected)
+                    continue;
+
+                if (application.RedirectedAt is not { } redirectedAt || redirectedAt > cutoff)
+                    continue;
+
+                var link = $"/DASHBOARD/Application.html?id={application.ApplicationId}";
+
+                try
+                {
+                    if (!_notifications.AlreadySent(userId, NotificationTypes.ConfirmExternalReminder, redirectedAt, link))
+                        _notifications.Send(userId, NotificationTypes.ConfirmExternalReminder,
+                            "Did you finish applying? Confirm it so your tracker stays accurate.", link);
+                }
+                catch
+                {
+                    // Best effort - the list must still come back even if this fails.
+                }
+            }
+        }
 
         public TrackerResult<ApplicationModel> Get(int userId, int applicationId)
         {

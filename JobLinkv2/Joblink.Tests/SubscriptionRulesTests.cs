@@ -238,9 +238,14 @@ namespace Joblink.Tests
     {
         private readonly InMemorySubscriptionStore _store = new();
         private readonly TestClock _clock = new();
+        private readonly InMemoryNotificationSender _notifications;
         private readonly SubscriptionService _service;
 
-        public SubscriptionServiceTests() => _service = new SubscriptionService(_store, _clock);
+        public SubscriptionServiceTests()
+        {
+            _notifications = new InMemoryNotificationSender(_clock);
+            _service = new SubscriptionService(_store, _clock, _notifications);
+        }
 
         private static BillingOption Option(string billing) => PlanCatalogue.Find(billing)!;
 
@@ -294,6 +299,75 @@ namespace Joblink.Tests
             Parallel.For(0, 24, _ => _service.Upgrade(1, Option("Monthly")));
 
             Assert.Equal(_clock.UtcNow.AddMonths(24), _service.GetStatus(1).Until);   // no lost update
+        }
+
+        [Fact]
+        public void Upgrading_sends_a_PremiumActivated_notification()
+        {
+            _service.Upgrade(1, Option("Monthly"));
+
+            var sent = Assert.Single(_notifications.Sent);
+            Assert.Equal(1, sent.UserId);
+            Assert.Equal("PremiumActivated", sent.Type);
+            Assert.Contains("Monthly", sent.Message);
+        }
+
+        [Fact]
+        public void CheckExpiryNotifications_does_nothing_for_someone_with_no_row_or_far_from_expiring()
+        {
+            _service.CheckExpiryNotifications(1);       // no row at all
+            Assert.Empty(_notifications.Sent);
+
+            _service.Upgrade(2, Option("Annual"));      // just the PremiumActivated from Upgrade
+            _service.CheckExpiryNotifications(2);       // a year out - nowhere near the 3-day window
+
+            Assert.DoesNotContain(_notifications.Sent, n => n.Type != "PremiumActivated");
+        }
+
+        [Fact]
+        public void CheckExpiryNotifications_warns_within_3_days_of_expiring_but_only_once()
+        {
+            _service.Upgrade(1, Option("Monthly"));
+            _clock.Advance(TimeSpan.FromDays(29));       // 2 days left on a 1-month plan
+
+            _service.CheckExpiryNotifications(1);
+            _service.CheckExpiryNotifications(1);        // asking again (another page load) doesn't repeat it
+
+            var warning = Assert.Single(_notifications.Sent, n => n.Type == "PremiumExpiringSoon");
+            Assert.Equal(1, warning.UserId);
+            Assert.Contains("/DASHBOARD/Plans.html", warning.Link);
+        }
+
+        [Fact]
+        public void CheckExpiryNotifications_reports_expired_once_and_never_for_a_plan_that_was_always_free()
+        {
+            _service.Upgrade(1, Option("Monthly"));
+            _clock.Advance(TimeSpan.FromDays(31));        // just lapsed
+
+            _service.CheckExpiryNotifications(1);
+            _service.CheckExpiryNotifications(1);         // repeat check: still only once
+
+            var expired = _notifications.Sent.Where(n => n.Type == "PremiumExpired").ToList();
+            Assert.Single(expired);
+            Assert.Equal(1, expired[0].UserId);
+
+            // A user who was never Premium at all never gets an "expired" notification.
+            _service.CheckExpiryNotifications(2);
+            Assert.DoesNotContain(_notifications.Sent, n => n.UserId == 2);
+        }
+
+        [Fact]
+        public void CheckExpiryNotifications_re_arms_for_a_second_premium_cycle()
+        {
+            _service.Upgrade(1, Option("Monthly"));
+            _clock.Advance(TimeSpan.FromDays(31));
+            _service.CheckExpiryNotifications(1);          // first "expired" notification
+
+            _service.Upgrade(1, Option("Monthly"));         // buys Premium again
+            _clock.Advance(TimeSpan.FromDays(31));
+            _service.CheckExpiryNotifications(1);           // should fire again for THIS cycle's expiry
+
+            Assert.Equal(2, _notifications.Sent.Count(n => n.Type == "PremiumExpired"));
         }
     }
 }

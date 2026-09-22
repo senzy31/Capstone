@@ -16,6 +16,7 @@ namespace Joblink.Tests
 
         protected ApiFactory Factory { get; }
         protected InMemoryApplyStore Store => Factory.Store;
+        protected InMemoryNotificationSender Notifications => Factory.Notifications;
 
         protected EndpointTestBase(ApiFactory factory) => Factory = factory;
 
@@ -120,7 +121,7 @@ namespace Joblink.Tests
             Assert.Equal("Submitted", json.GetProperty("status").GetString());
             Assert.True(json.GetProperty("applicationId").GetInt32() > 0);
             Assert.False(json.GetProperty("alreadyApplied").GetBoolean());
-            Assert.Contains(Store.Notifications, n => n.UserId == employer);
+            Assert.Contains(Notifications.Sent, n => n.UserId == employer);
         }
 
         [Fact]
@@ -200,7 +201,7 @@ namespace Joblink.Tests
 
             Assert.True(json.GetProperty("isPriority").GetBoolean());
             Assert.True(Store.Applications.Single(a => a.UserId == user && a.JobId == job.JobId).IsPriority);
-            Assert.Contains(Store.Notifications, n => n.UserId == employer && n.Message.StartsWith("Priority application:") && n.Message.Contains("Data Analyst"));
+            Assert.Contains(Notifications.Sent, n => n.UserId == employer && n.Message.StartsWith("Priority application:") && n.Message.Contains("Data Analyst"));
         }
 
         [Fact]

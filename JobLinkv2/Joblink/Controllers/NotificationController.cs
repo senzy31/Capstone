@@ -14,6 +14,8 @@ namespace Joblink.Controllers
     [Authorize]
     public class NotificationController : ControllerBase
     {
+        private const int PageSize = 20;
+
         private readonly UserDataStore _data;
 
         public NotificationController(UserDataStore data)
@@ -21,17 +23,31 @@ namespace Joblink.Controllers
             _data = data;
         }
 
-        // Your notifications, newest first (this used to return everyone's).
+        // Your notifications, newest first, one page at a time - and, on the same request, the
+        // total count and how many are unread (the bell dropdown needs both without asking twice).
         [HttpGet]
-        public IActionResult GetAll()
+        public IActionResult GetAll([FromQuery] int page = 1)
         {
             if (User.GetUserId() is not int userId)
                 return Unauthorized();
 
-            return Ok(_data.ListNotifications(userId));
+            var result = _data.ListNotificationsPage(userId, Math.Max(page, 1), PageSize);
+
+            return Ok(new { data = result.Items, page = Math.Max(page, 1), pageSize = PageSize, totalCount = result.TotalCount, unreadCount = result.UnreadCount });
         }
 
-        [HttpGet("{id}")]
+        // Polled every 30s for the bell's badge - cheap enough on its own that the page doesn't
+        // have to fetch (and re-render) the whole list just to know whether the count changed.
+        [HttpGet("unread-count")]
+        public IActionResult UnreadCount()
+        {
+            if (User.GetUserId() is not int userId)
+                return Unauthorized();
+
+            return Ok(new { count = _data.UnreadNotificationCount(userId) });
+        }
+
+        [HttpGet("{id:int}")]
         public IActionResult GetById(int id)
         {
             if (User.GetUserId() is not int userId)
@@ -55,6 +71,26 @@ namespace Joblink.Controllers
             return _data.SetNotificationRead(userId, notificationId, request.IsRead)
                 ? Ok(_data.GetNotification(userId, notificationId))
                 : NotFound(new { message = "Notification not found." });
+        }
+
+        [HttpPatch("{id:int}/read")]
+        public IActionResult MarkRead(int id)
+        {
+            if (User.GetUserId() is not int userId)
+                return Unauthorized();
+
+            return _data.SetNotificationRead(userId, id, true)
+                ? Ok(_data.GetNotification(userId, id))
+                : NotFound(new { message = "Notification not found." });
+        }
+
+        [HttpPatch("read-all")]
+        public IActionResult MarkAllRead()
+        {
+            if (User.GetUserId() is not int userId)
+                return Unauthorized();
+
+            return Ok(new { updated = _data.MarkAllNotificationsRead(userId) });
         }
 
         [HttpDelete]

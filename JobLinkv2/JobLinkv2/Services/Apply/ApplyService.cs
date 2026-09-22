@@ -1,4 +1,5 @@
 using JobLinkv2.Models;
+using JobLinkv2.Services.Notifications;
 using JobLinkv2.Services.Subscriptions;
 
 namespace JobLinkv2.Services.Apply
@@ -28,12 +29,14 @@ namespace JobLinkv2.Services.Apply
         private readonly IApplyStore _store;
         private readonly TimeProvider _time;
         private readonly IPlanReader _plans;
+        private readonly INotificationSender _notifications;
 
-        public ApplyService(IApplyStore store, TimeProvider time, IPlanReader plans)
+        public ApplyService(IApplyStore store, TimeProvider time, IPlanReader plans, INotificationSender notifications)
         {
             _store = store;
             _time = time;
             _plans = plans;
+            _notifications = notifications;
         }
 
         private DateTime UtcNow => _time.GetUtcNow().UtcDateTime;
@@ -135,9 +138,10 @@ namespace JobLinkv2.Services.Apply
 
                 var title = listing.Title ?? "your job posting";
 
-                _store.AddNotification(employerId, priority
+                _notifications.Send(employerId, NotificationTypes.NewApplication, priority
                     ? $"Priority application: {applicant} applied for {title}."
-                    : $"{applicant} applied for {title}.");
+                    : $"{applicant} applied for {title}.",
+                    "/Employer Dashboard/dashboard.html");
             }
             catch
             {

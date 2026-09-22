@@ -123,10 +123,11 @@ namespace Joblink.Tests
             var newer = NewNotification(a, "newer", DateTime.Now.AddHours(-1));
             NewNotification(b, "SECRET for b");
 
-            var list = await Json(await Call(As(a), "GET", "/api/Notification"));
+            var response = await Json(await Call(As(a), "GET", "/api/Notification"));
+            var list = response.GetProperty("data");
 
             Assert.Equal(new[] { newer, older }, list.EnumerateArray().Select(n => n.GetProperty("notificationId").GetInt32()).ToArray());
-            Assert.DoesNotContain("SECRET", list.GetRawText());
+            Assert.DoesNotContain("SECRET", response.GetRawText());
         }
 
         [DbFact]
@@ -135,9 +136,9 @@ namespace Joblink.Tests
             var boss = NewUser("employer");
             NewNotification(boss, "Maria applied to your job");
 
-            var list = await Json(await Call(As(boss, "employer"), "GET", "/api/Notification"));
+            var response = await Json(await Call(As(boss, "employer"), "GET", "/api/Notification"));
 
-            Assert.Equal("Maria applied to your job", list[0].GetProperty("message").GetString());
+            Assert.Equal("Maria applied to your job", response.GetProperty("data")[0].GetProperty("message").GetString());
         }
 
         [DbFact]
@@ -179,8 +180,55 @@ namespace Joblink.Tests
             Assert.False(Value<bool>("SELECT CAST(is_read AS bit) FROM Notifications WHERE notification_id = @id", new { id }));
 
             Assert.Equal(HttpStatusCode.OK, (await Call(As(a), "DELETE", $"/api/Notification?id={id}")).StatusCode);
-            Assert.Equal(0, (await Json(await Call(As(a), "GET", "/api/Notification"))).GetArrayLength());
+            Assert.Equal(0, (await Json(await Call(As(a), "GET", "/api/Notification"))).GetProperty("data").GetArrayLength());
             Assert.Equal(HttpStatusCode.NotFound, (await Call(As(a), "GET", $"/api/Notification/{id}")).StatusCode);
+        }
+
+        [DbFact]
+        public async Task Paging_reports_the_total_and_unread_counts_alongside_the_page_you_asked_for()
+        {
+            var a = NewUser();
+            var ids = Enumerable.Range(1, 25).Select(i => NewNotification(a, $"msg {i}", DateTime.Now.AddMinutes(-i))).ToList();
+
+            var page1 = await Json(await Call(As(a), "GET", "/api/Notification?page=1"));
+            var page2 = await Json(await Call(As(a), "GET", "/api/Notification?page=2"));
+
+            Assert.Equal(20, page1.GetProperty("data").GetArrayLength());
+            Assert.Equal(5, page2.GetProperty("data").GetArrayLength());
+            Assert.Equal(25, page1.GetProperty("totalCount").GetInt32());
+            Assert.Equal(25, page1.GetProperty("unreadCount").GetInt32());
+
+            // Page 1 is the newest 20 (the notifications were created oldest-minute-offset last).
+            Assert.Equal(ids[0], page1.GetProperty("data")[0].GetProperty("notificationId").GetInt32());
+            Assert.Equal(ids[20], page2.GetProperty("data")[0].GetProperty("notificationId").GetInt32());
+        }
+
+        [DbFact]
+        public async Task Unread_count_and_mark_read_and_mark_all_read_work_and_stay_private()
+        {
+            var a = NewUser();
+            var b = NewUser();
+            var first = NewNotification(a, "one");
+            var second = NewNotification(a, "two");
+            NewNotification(b, "not yours");
+
+            Assert.Equal(2, (await Json(await Call(As(a), "GET", "/api/Notification/unread-count"))).GetProperty("count").GetInt32());
+
+            // Marking b's notification read from a's session doesn't exist as far as a is concerned.
+            Assert.Equal(HttpStatusCode.NotFound, (await Call(As(a), "PATCH", $"/api/Notification/{Value<int>("SELECT notification_id FROM Notifications WHERE user_id = @b", new { b })}/read")).StatusCode);
+
+            var marked = await Json(await Call(As(a), "PATCH", $"/api/Notification/{first}/read"));
+            Assert.True(marked.GetProperty("isRead").GetBoolean());
+            Assert.Equal(1, (await Json(await Call(As(a), "GET", "/api/Notification/unread-count"))).GetProperty("count").GetInt32());
+
+            var markAll = await Json(await Call(As(a), "PATCH", "/api/Notification/read-all"));
+            Assert.Equal(1, markAll.GetProperty("updated").GetInt32());   // only "two" was still unread
+            Assert.Equal(0, (await Json(await Call(As(a), "GET", "/api/Notification/unread-count"))).GetProperty("count").GetInt32());
+
+            // b is unaffected by a's mark-all-read.
+            Assert.Equal(1, (await Json(await Call(As(b), "GET", "/api/Notification/unread-count"))).GetProperty("count").GetInt32());
+
+            Assert.True(Value<bool>("SELECT CAST(is_read AS bit) FROM Notifications WHERE notification_id = @second", new { second }));
         }
 
         // ----- saved jobs -------------------------------------------------------

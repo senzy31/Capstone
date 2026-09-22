@@ -68,7 +68,5 @@ namespace JobLinkv2.Services.Apply
         int? GetPrimaryResumeId(int userId);
 
         string? GetUserName(int userId);
-
-        void AddNotification(int userId, string message);
     }
 }

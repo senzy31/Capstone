@@ -338,14 +338,5 @@ namespace JobLinkv2.Services.Apply
                 new { userId });
         }
 
-        public void AddNotification(int userId, string message)
-        {
-            using var db = Open();
-
-            db.Execute(
-                @"INSERT INTO Notifications (user_id, message, is_read, created_at, is_deleted)
-                  VALUES (@userId, @message, 0, @createdAt, 0)",
-                new { userId, message, createdAt = DateTime.UtcNow });
-        }
     }
 }

@@ -12,6 +12,8 @@ namespace JobLinkv2.Services.MyData
         LimitReached
     }
 
+    public sealed record NotificationPage(IReadOnlyList<NotificationModel> Items, int TotalCount, int UnreadCount);
+
     // The things that belong to one user and aren't part of a resume: their
     // notifications, the jobs they saved, and their job matches.
     //
@@ -27,7 +29,8 @@ namespace JobLinkv2.Services.MyData
 
         private const string NotificationColumns = @"
             notification_id AS NotificationId, user_id AS UserId, message AS Message,
-            ISNULL(is_read, 0) AS IsRead, created_at AS CreatedAt, ISNULL(is_deleted, 0) AS IsDeleted";
+            ISNULL(is_read, 0) AS IsRead, created_at AS CreatedAt, ISNULL(is_deleted, 0) AS IsDeleted,
+            type AS Type, link AS Link";
 
         private const string SavedJobColumns = @"
             user_id AS UserId, job_id AS JobId, ISNULL(is_deleted, 0) AS IsDeleted";
@@ -71,6 +74,41 @@ namespace JobLinkv2.Services.MyData
                 new { notificationId, userId });
         }
 
+        // Newest first, one page at a time, with the total count (for pagination) and how many
+        // are unread (shown on the same request the bell dropdown already makes).
+        public NotificationPage ListNotificationsPage(int userId, int page, int pageSize)
+        {
+            using var db = Open();
+
+            var offset = (Math.Max(page, 1) - 1) * pageSize;
+
+            using var multi = db.QueryMultiple($@"
+                SELECT {NotificationColumns} FROM Notifications
+                 WHERE user_id = @userId AND is_deleted = 0
+                 ORDER BY created_at DESC, notification_id DESC
+                 OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY;
+
+                SELECT COUNT(*) FROM Notifications WHERE user_id = @userId AND is_deleted = 0;
+
+                SELECT COUNT(*) FROM Notifications WHERE user_id = @userId AND is_deleted = 0 AND ISNULL(is_read, 0) = 0;",
+                new { userId, offset, pageSize });
+
+            var items = multi.Read<NotificationModel>().ToList();
+            var totalCount = multi.ReadSingle<int>();
+            var unreadCount = multi.ReadSingle<int>();
+
+            return new NotificationPage(items, totalCount, unreadCount);
+        }
+
+        public int UnreadNotificationCount(int userId)
+        {
+            using var db = Open();
+
+            return db.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM Notifications WHERE user_id = @userId AND is_deleted = 0 AND ISNULL(is_read, 0) = 0",
+                new { userId });
+        }
+
         // The only thing a user may change about a notification.
         public bool SetNotificationRead(int userId, int notificationId, bool isRead)
         {
@@ -79,6 +117,16 @@ namespace JobLinkv2.Services.MyData
             return db.Execute(
                 "UPDATE Notifications SET is_read = @isRead WHERE notification_id = @notificationId AND user_id = @userId AND is_deleted = 0",
                 new { isRead, notificationId, userId }) == 1;
+        }
+
+        // Returns how many were actually flipped (already-read ones don't count).
+        public int MarkAllNotificationsRead(int userId)
+        {
+            using var db = Open();
+
+            return db.Execute(
+                "UPDATE Notifications SET is_read = 1 WHERE user_id = @userId AND is_deleted = 0 AND ISNULL(is_read, 0) = 0",
+                new { userId });
         }
 
         public bool DeleteNotification(int userId, int notificationId)

@@ -53,8 +53,6 @@ async function makeUser(label, role) {
 (async () => {
     const backend = await startBackend({ stamp: STAMP });
     const fake = backend.fake;   // null against the real JSearch
-    const startMaxApp = Number(scalar("SELECT ISNULL(MAX(application_id),0) FROM Applications;"));
-    const startNotifications = Number(scalar("SELECT ISNULL(MAX(notification_id),0) FROM Notifications;"));
     let users = [];
     const createdJobIds = new Set();
     const skillsToRemove = [];
@@ -227,6 +225,10 @@ async function makeUser(label, role) {
 
         // ================= internal apply =================
         console.log("\ninternal apply (real SQL)");
+        // Baselines taken here, not at the top of the script: an earlier section (Z's simulated
+        // checkout) already sent its own PremiumActivated notification, unrelated to applying.
+        const startMaxApp = Number(scalar("SELECT ISNULL(MAX(application_id),0) FROM Applications;"));
+        const startNotifications = Number(scalar("SELECT ISNULL(MAX(notification_id),0) FROM Notifications;"));
         const first = await call("POST", `/jobs/${internalIds[0]}/apply`, { token: A.token });
         check("internal apply -> 200 {type,applicationId,status,alreadyApplied}", [first.status, first.json.type, first.json.status, first.json.alreadyApplied, Number.isInteger(first.json.applicationId)], [200, "internal", "Submitted", false, true]);
         const row = sql(`SELECT user_id, job_id, status, application_type, redirected_at, confirmed_at, CASE WHEN applied_at IS NULL THEN 'null' ELSE 'set' END, is_deleted FROM Applications WHERE application_id = ${first.json.applicationId};`)[0].split("|");
@@ -301,11 +303,12 @@ async function makeUser(label, role) {
         // ================= notifications, saved jobs, job matches, skills =================
         console.log("\nnotifications, saved jobs, job matches, skills (real SQL)");
         const eNotes = await call("GET", "/Notification", { token: E.token });
-        const newestFirst = eNotes.json.every((n, i, all) => i === 0 || all[i - 1].createdAt >= n.createdAt);
-        check("the employer sees the notifications the applies made for them, all theirs, newest first",
-            [eNotes.status, eNotes.json.length >= 21, eNotes.json.every(n => n.userId === E.id), newestFirst], [200, true, true, true]);
-        check("job seekers see none of them (this used to return everyone's)", [(await call("GET", "/Notification", { token: A.token })).json.length, (await call("GET", "/Notification", { token: B.token })).json.length], [0, 0]);
-        const nid = eNotes.json[0].notificationId;
+        const eList = eNotes.json.data;
+        const newestFirst = eList.every((n, i, all) => i === 0 || all[i - 1].createdAt >= n.createdAt);
+        check("the employer sees the notifications the applies made for them, all theirs, newest first (paged, 20 at a time, with the true total)",
+            [eNotes.status, eNotes.json.totalCount >= 21, eList.length, eList.every(n => n.userId === E.id), newestFirst], [200, true, 20, true, true]);
+        check("job seekers see none of them (this used to return everyone's)", [(await call("GET", "/Notification", { token: A.token })).json.data.length, (await call("GET", "/Notification", { token: B.token })).json.data.length], [0, 0]);
+        const nid = eList[0].notificationId;
         check("A cannot read, mark or delete the employer's notification (404)", await statuses([["GET", `/Notification/${nid}`, A.token], ["PUT", "/Notification", A.token, { notificationId: nid, isRead: true }], ["DELETE", `/Notification?id=${nid}`, A.token]]), [404, 404, 404]);
         const nBefore = sql(`SELECT CAST(message AS varchar(60)), user_id, is_read, is_deleted FROM Notifications WHERE notification_id = ${nid};`)[0].split("|");
         const marked = await call("PUT", "/Notification", { token: E.token, body: { notificationId: nid, isRead: true, message: "HACKED", userId: A.id, isDeleted: true } });

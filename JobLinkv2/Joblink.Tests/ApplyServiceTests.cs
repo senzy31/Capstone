@@ -14,13 +14,14 @@ namespace Joblink.Tests
         private readonly InMemoryApplyStore _store = new();
         private readonly TestClock _clock = new();
         private readonly FakePlanReader _plans = new();
+        private readonly InMemoryNotificationSender _notifications = new();
         private readonly ApplyService _service;
 
         public ApplyServiceTests()
         {
             _store.UserNames[Seeker] = "Maria Santos";
             _store.PrimaryResumes[Seeker] = 5;
-            _service = new ApplyService(_store, _clock, _plans);
+            _service = new ApplyService(_store, _clock, _plans, _notifications);
         }
 
         private List<JoblistingModel> InternalJobs(int count) =>
@@ -63,17 +64,18 @@ namespace Joblink.Tests
 
             _service.Apply(Seeker, job.JobId);
 
-            var (userId, message) = Assert.Single(_store.Notifications);
-            Assert.Equal(Employer, userId);
-            Assert.Contains("Maria Santos", message);
-            Assert.Contains("Backend Developer", message);
+            var sent = Assert.Single(_notifications.Sent);
+            Assert.Equal(Employer, sent.UserId);
+            Assert.Equal("NewApplication", sent.Type);
+            Assert.Contains("Maria Santos", sent.Message);
+            Assert.Contains("Backend Developer", sent.Message);
         }
 
         [Fact]
         public void A_failed_notification_does_not_fail_the_application()
         {
             var job = _store.AddInternalJob(Employer);
-            _store.NotificationsFail = true;
+            _notifications.SendFails = true;
 
             var result = _service.Apply(Seeker, job.JobId);
 
@@ -105,7 +107,7 @@ namespace Joblink.Tests
             Assert.Equal(first.ApplicationId, second.ApplicationId);
             Assert.Equal("Submitted", second.Status);
             Assert.Single(_store.Applications);
-            Assert.Single(_store.Notifications);             // the employer is told once
+            Assert.Single(_notifications.Sent);             // the employer is told once
         }
 
         [Fact]
@@ -237,9 +239,9 @@ namespace Joblink.Tests
 
             _service.Apply(Seeker, job.JobId);
 
-            var (userId, message) = Assert.Single(_store.Notifications);
-            Assert.Equal(Employer, userId);
-            Assert.Equal("Priority application: Maria Santos applied for Backend Developer.", message);
+            var sent = Assert.Single(_notifications.Sent);
+            Assert.Equal(Employer, sent.UserId);
+            Assert.Equal("Priority application: Maria Santos applied for Backend Developer.", sent.Message);
         }
 
         [Fact]
@@ -249,9 +251,9 @@ namespace Joblink.Tests
 
             _service.Apply(Seeker, job.JobId);
 
-            var (_, message) = Assert.Single(_store.Notifications);
-            Assert.Equal("Maria Santos applied for Backend Developer.", message);
-            Assert.DoesNotContain("Priority", message);
+            var sent = Assert.Single(_notifications.Sent);
+            Assert.Equal("Maria Santos applied for Backend Developer.", sent.Message);
+            Assert.DoesNotContain("Priority", sent.Message);
         }
 
         [Fact]
@@ -264,7 +266,7 @@ namespace Joblink.Tests
 
             Assert.False(result.IsPriority);                      // applying is never blocked by the plan lookup
             Assert.Single(_store.Applications);
-            Assert.Single(_store.Notifications);
+            Assert.Single(_notifications.Sent);
         }
 
         [Fact]
@@ -297,7 +299,7 @@ namespace Joblink.Tests
 
             Assert.Equal(24 * 3600, limited.RetryAfterSeconds);
             Assert.Equal(20, _store.Applications.Count);
-            Assert.Equal(20, _store.Notifications.Count);
+            Assert.Equal(20, _notifications.Sent.Count);
         }
 
         [Fact]
@@ -336,7 +338,7 @@ namespace Joblink.Tests
 
             Assert.Equal(24 * 3600, limited.RetryAfterSeconds);      // all 20 happened "now"
             Assert.Equal(20, _store.Applications.Count);              // nothing was created
-            Assert.Equal(20, _store.Notifications.Count);             // and the employer wasn't told
+            Assert.Equal(20, _notifications.Sent.Count);             // and the employer wasn't told
         }
 
         [Fact]
@@ -481,7 +483,7 @@ namespace Joblink.Tests
             Assert.Equal(_clock.UtcNow, saved.RedirectedAt);
             Assert.Null(saved.AppliedAt);                    // not applied until the user confirms
             Assert.Null(saved.ConfirmedAt);
-            Assert.Empty(_store.Notifications);              // there is no employer to tell
+            Assert.Empty(_notifications.Sent);              // there is no employer to tell
         }
 
         [Fact]
