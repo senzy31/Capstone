@@ -57,11 +57,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const FEATURES = [
         { label: "Job listings, filters and recommendations", free: "Included", premium: "Included" },
         { label: "Overall suitability score", free: "Included", premium: "Included" },
-        { label: "Standard resume formats (Harvard, Functional, Reverse Chronological)", free: "Included", premium: "Included", soon: true },
+        { label: "Standard resume formats (Harvard, Functional, Reverse Chronological)", free: "Included", premium: "Included" },
         { label: "Resume PDF downloads", free: "Unlimited", premium: "Unlimited" },
         { label: "Saved resume versions", free: "1", premium: "Up to 10", soon: true },
         { label: "Saved jobs", free: "Up to 10", premium: "Unlimited", soon: true },
-        { label: "Advanced resume templates", free: "Locked", premium: "Included", soon: true },
+        { label: "Advanced resume templates (ATS-Friendly)", free: "Locked", premium: "Included" },
         { label: "Detailed score breakdown (skills, salary, location) and matched skills", free: "Overall % only", premium: "Included" },
         { label: "Missing skills analysis", free: "Locked", premium: "Included", soon: true },
         { label: "Dashboard ads", free: "Shown", premium: "Hidden" },

@@ -80,7 +80,7 @@ function plan({ premium = false, billing = null, until = null, cancelled = false
             "Resume PDF downloads: Unlimited",
             "Saved resume versions: 1",
             "Saved jobs: Up to 10",
-            "Advanced resume templates: Locked",
+            "Advanced resume templates (ATS-Friendly): Locked",
             "Detailed score breakdown (skills, salary, location) and matched skills: Overall % only",
             "Missing skills analysis: Locked",
             "Dashboard ads: Shown",
@@ -88,7 +88,7 @@ function plan({ premium = false, billing = null, until = null, cancelled = false
         ]);
         t.check("Premium: the same rows, upgraded (PDF downloads stay unlimited on both)", premiumRows,
             ["Included", "Included", "Included", "Unlimited", "Up to 10", "Unlimited", "Included", "Included", "Included", "Hidden", "Included"]);
-        t.check("features that aren't built yet say so instead of promising them (6 rows, in both columns)", [await page.locator("#freeFeatures .soon-badge").count(), await page.locator("#premiumFeatures .soon-badge").count()], [6, 6]);
+        t.check("features that aren't built yet say so instead of promising them (4 rows, in both columns) - resume formats and advanced templates shipped, so they no longer say Coming soon", [await page.locator("#freeFeatures .soon-badge").count(), await page.locator("#premiumFeatures .soon-badge").count()], [4, 4]);
         t.check("locked rows get a lock, included rows a tick", [await page.locator("#freeFeatures li.is-locked").count(), await page.locator("#premiumFeatures li.is-locked").count()], [5, 0]);
         t.check("the Plans link is the active one in the sidebar", (await page.locator(".nav-links li.active").innerText()).trim(), "Plans");
         t.check("no script errors; nothing was called that we didn't fake", [errors, api.unmocked], [[], []]);
