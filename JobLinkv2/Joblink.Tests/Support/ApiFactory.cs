@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Text;
 using Joblink.Services.Accounts;
 using Joblink.Services.JobSearch;
+using Joblink.Services.Resume;
 using JobLinkv2.Services;
 using JobLinkv2.Services.Accounts;
 using JobLinkv2.Services.Apply;
@@ -42,6 +43,7 @@ namespace Joblink.Tests.Support
         public FakeUsageReader Usage { get; } = new();
         public FakeJobSearchService Search { get; } = new();
         public InMemoryScoringProfileReader Profiles { get; } = new();
+        public FakeResumeDocumentService Documents { get; } = new();
 
         // The stores for resumes, notifications, saved jobs and skills have no fake. Here they point at a server that is not
         // there, so a test that wrongly reaches it fails loudly instead of touching a real
@@ -88,6 +90,10 @@ namespace Joblink.Tests.Support
                 // Claude costs money: tests get a stand-in that only counts.
                 services.RemoveAll<IAiResumeGenerator>();
                 services.AddSingleton<IAiResumeGenerator>(Ai);
+
+                // The resume document service is JobLink-AI (Python), which tests never start.
+                services.RemoveAll<IResumeDocumentService>();
+                services.AddSingleton<IResumeDocumentService>(Documents);
 
                 services.RemoveAll<TimeProvider>();
                 services.AddSingleton<TimeProvider>(Clock);

@@ -130,11 +130,6 @@
 
             <div class="header-actions">
 
-                <button type="button" id="printBtn" class="btn btn-secondary">
-                    <i class="fa-solid fa-print"></i>
-                    Print / Save as PDF
-                </button>
-
                 <button type="button" id="saveBtn" class="btn btn-primary">
                     <i class="fa-solid fa-floppy-disk"></i>
                     Save Resume
@@ -159,6 +154,62 @@
                  FORM PANEL
             =================================== -->
             <div class="form-panel">
+
+
+                <!-- TEMPLATE & DOWNLOAD -->
+                <div class="builder-card">
+
+                    <h3>
+                        <i class="fa-solid fa-file-lines"></i>
+                        Template
+                    </h3>
+
+                    <div class="template-options" id="templateOptions" role="radiogroup" aria-label="Resume template">
+
+                        <label class="template-option">
+                            <input type="radio" name="template" value="harvard">
+                            <span class="template-name">Harvard</span>
+                            <span class="template-desc">Classic, conservative - leads with education.</span>
+                        </label>
+
+                        <label class="template-option">
+                            <input type="radio" name="template" value="reverse_chronological" checked>
+                            <span class="template-name">Reverse Chronological</span>
+                            <span class="template-desc">The most common format - leads with recent experience.</span>
+                        </label>
+
+                        <label class="template-option">
+                            <input type="radio" name="template" value="functional">
+                            <span class="template-name">Functional</span>
+                            <span class="template-desc">Groups by skill rather than by job timeline.</span>
+                        </label>
+
+                        <label class="template-option">
+                            <input type="radio" name="template" value="ats">
+                            <span class="template-name">
+                                ATS-Friendly
+                                <span class="premium-badge"><i class="fa-solid fa-crown"></i> Premium</span>
+                            </span>
+                            <span class="template-desc">Standard section headings, tuned for applicant tracking systems.</span>
+                        </label>
+
+                    </div>
+
+                    <div class="download-actions">
+
+                        <button type="button" id="downloadPdfBtn" class="btn btn-secondary">
+                            <i class="fa-solid fa-file-pdf"></i>
+                            Download PDF
+                        </button>
+
+                        <button type="button" id="downloadDocxBtn" class="btn btn-secondary">
+                            <i class="fa-solid fa-file-word"></i>
+                            Download DOCX
+                        </button>
+
+                    </div>
+
+                </div>
 
 
                 <!-- PERSONAL INFORMATION -->

@@ -105,6 +105,10 @@ builder.Services.AddSingleton<IScoringProfileReader>(services =>
     new SqlScoringProfileReader(services.GetRequiredService<ResumeDataStore>(), services.GetRequiredService<SkillStore>()));
 builder.Services.AddSingleton<RecommendationService>();
 
+// ✅ Resume documents (PDF/DOCX), built by JobLink-AI (Python, local service - "JobLinkAi:BaseUrl",
+// default http://127.0.0.1:8001, no key). The ATS-friendly template is Premium only.
+builder.Services.AddSingleton<Joblink.Services.Resume.IResumeDocumentService, Joblink.Services.Resume.PythonResumeService>();
+
 // ✅ Add CORS here
 builder.Services.AddCors(options =>
 {
@@ -114,7 +118,11 @@ builder.Services.AddCors(options =>
             policy
                 .AllowAnyOrigin()   // or specify your frontend URL
                 .AllowAnyHeader()
-                .AllowAnyMethod();
+                .AllowAnyMethod()
+                // Content-Disposition isn't one of the response headers a browser exposes to
+                // fetch() by default cross-origin - without this, the resume download endpoint's
+                // filename (GET /api/Resume/{id}/export) is invisible to the page that asked for it.
+                .WithExposedHeaders("Content-Disposition");
         });
 });
 

@@ -569,6 +569,59 @@ async function makeUser(label, role) {
             console.log("\nrecommendations: skipped against the real JSearch (the jobs are not predictable) - run without JOBLINK_LIVE_JSEARCH to include them");
         }
 
+        // ================= resume export (real SQL, real JobLink-AI if it's running): the Premium ATS template =================
+        const jobLinkAiUp = await fetch("http://127.0.0.1:8001/api/health").then(r => r.ok).catch(() => false);
+
+        if (jobLinkAiUp) {
+            console.log("\nresume export (real SQL, real JobLink-AI): PDF/DOCX, and the ATS template is Premium only");
+            const RX = await makeUser("rx", "user");
+            users.push(RX);
+            const rxResume = await call("POST", "/Resume", { token: RX.token, body: {} });
+            const rxResumeId = rxResume.json.resumeId;
+            const rxExp = await call("POST", "/Experience", { token: RX.token, body: { resumeId: rxResumeId } });
+            await call("PUT", "/Experience", {
+                token: RX.token,
+                body: { experienceId: rxExp.json.experienceId, resumeId: rxResumeId, position: "Frontend Developer", companyName: "Acme", description: "Built dashboards.\nWorked with SQL.", startDate: "2022-01-01" },
+            });
+            const rxSkill = sql(`INSERT INTO Skills (skill_name, is_deleted) OUTPUT INSERTED.skill_id VALUES ('e2e-rx-${STAMP}', 0);`)[0];
+            skillsToRemove.push(`e2e-rx-${STAMP}`);
+            await call("POST", "/ResumeSkills", { token: RX.token, body: { resumeId: rxResumeId, skillId: Number(rxSkill) } });
+
+            const exportUrl = (format, template) => `/Resume/${rxResumeId}/export?format=${format}&template=${template}`;
+
+            const pdfBytes = {};
+            for (const template of ["harvard", "reverse_chronological", "functional"])
+                pdfBytes[template] = await call("GET", exportUrl("pdf", template), { token: RX.token });
+
+            check("every free template downloads with 200 and a Content-Disposition filename",
+                ["harvard", "reverse_chronological", "functional"].map(t => [pdfBytes[t].status, pdfBytes[t].headers.get("content-disposition")?.includes("filename") ?? false]),
+                ["harvard", "reverse_chronological", "functional"].map(() => [200, true]));
+            check("it's a real PDF, starting with the %PDF header, not an error page", pdfBytes.harvard.json.startsWith("%PDF"), true);
+
+            const atsFree = await call("GET", exportUrl("pdf", "ats"), { token: RX.token });
+            check("Free: the ATS template is refused with the same upgrade shape every other limit uses",
+                [atsFree.status, atsFree.json.code, atsFree.json.upgradeRequired, atsFree.json.feature],
+                [403, "upgrade_required", true, "advancedTemplates"]);
+
+            await call("POST", "/Subscription/upgrade", { token: RX.token, body: { billing: "Monthly" } });
+            const atsPremium = await call("GET", exportUrl("pdf", "ats"), { token: RX.token });
+            check("Premium (same token, upgraded a moment ago): the ATS template now works", atsPremium.status, 200);
+
+            const docxPremium = await call("GET", exportUrl("docx", "ats"), { token: RX.token });
+            check("...and so does DOCX", docxPremium.status, 200);
+
+            const RY = await makeUser("ry", "user");
+            users.push(RY);
+            const stolen = await call("GET", exportUrl("pdf", "harvard"), { token: RY.token });
+            check("someone else's resume is a 404, not a peek at their data", stolen.status, 404);
+
+            const badFormat = await call("GET", exportUrl("exe", "harvard"), { token: RX.token });
+            const badTemplate = await call("GET", exportUrl("pdf", "made-up"), { token: RX.token });
+            check("a bad format or template is a 400, not a 500", [badFormat.status, badTemplate.status], [400, 400]);
+        } else {
+            console.log("\nresume export: skipped - JobLink-AI is not running on http://127.0.0.1:8001 (cd JobLink-AI && uvicorn app.main:app --port 8001)");
+        }
+
         // ================= tracker + lockdown (real SQL) =================
         console.log("\ntracker flow + lockdown");
         const mj = await call("POST", "/Joblisting", { token: A.token, body: { title: "E2E Manual Job", company: "Manual Co", location: "Davao", source: "Internal", employerId: E.id, sourceApi: "jsearch", applyUrl: "https://evil.example/phish", applyIsDirect: true, publisher: "LinkedIn", applyOptions: "[{\"apply_link\":\"https://evil.example\",\"is_direct\":true}]", isExpired: true } });

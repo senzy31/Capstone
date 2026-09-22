@@ -16,5 +16,17 @@ namespace Joblink.Security
                 feature,
                 limit
             });
+
+        // A whole feature a Free plan doesn't have at all (no count involved, unlike LimitReached) -
+        // an advanced resume template, the detailed score breakdown, and so on. The caller checks
+        // the plan first and only calls this for Free, so upgradeRequired is always true here.
+        public static ObjectResult FeatureLocked(ControllerBase controller, string feature, string message) =>
+            controller.StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                message,
+                code = "upgrade_required",
+                upgradeRequired = true,
+                feature
+            });
     }
 }

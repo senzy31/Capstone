@@ -1,4 +1,6 @@
+using Joblink.Services.Accounts;
 using JobLinkv2.Repositories;
+using JobLinkv2.Services.Accounts;
 using JobLinkv2.Services.Matching;
 using JobLinkv2.Services.MyData;
 using JobLinkv2.Services.Resumes;
@@ -9,10 +11,10 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Joblink.Tests.Support
 {
-    // The same in-memory app as ApiFactory, but the data stores talk to the real Joblinkv2
-    // database, plan usage is counted from it, and recommendations read the real resume. Only for the opt-in [DbFact] tests. (Plans
-    // themselves still come from the in-memory subscription store, on the test clock: these
-    // tests are about what the limits do to real rows.)
+    // The same in-memory app as ApiFactory, but the data stores - and accounts - talk to the real
+    // Joblinkv2 database, plan usage is counted from it, and recommendations read the real resume.
+    // Only for the opt-in [DbFact] tests. (Plans themselves still come from the in-memory
+    // subscription store, on the test clock: these tests are about what the limits do to real rows.)
     public sealed class DbApiFactory : ApiFactory
     {
         protected override string DataConnectionString => DbConfig.DefaultConnectionString;
@@ -25,6 +27,12 @@ namespace Joblink.Tests.Support
             {
                 services.RemoveAll<IUsageReader>();
                 services.AddSingleton<IUsageReader, StoreUsageReader>();
+
+                // A user made with NewUser()-style raw SQL exists only in the real database, not in
+                // ApiFactory's in-memory IUserStore - anything that looks a caller up by id (the
+                // resume export endpoint, for one) needs the real one here.
+                services.RemoveAll<IUserStore>();
+                services.AddSingleton<IUserStore>(new SqlUserStore(DbConfig.DefaultConnectionString));
 
                 // Recommendations read the caller's resume and preferences from the database, as they do for real.
                 services.RemoveAll<IScoringProfileReader>();

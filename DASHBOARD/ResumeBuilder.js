@@ -150,8 +150,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const saveBtn = document.getElementById("saveBtn");
     const saveStatus = document.getElementById("saveStatus");
-    const printBtn = document.getElementById("printBtn");
     const resetBtn = document.getElementById("resetBtn");
+
+    const templateOptions = document.getElementById("templateOptions");
+    const downloadPdfBtn = document.getElementById("downloadPdfBtn");
+    const downloadDocxBtn = document.getElementById("downloadDocxBtn");
 
     const generateSummaryBtn = document.getElementById("generateSummaryBtn");
 
@@ -279,12 +282,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     });
 
-    printBtn.addEventListener("click", () => {
-
-        window.print();
-
-    });
-
     resetBtn.addEventListener("click", () => {
 
         alert(
@@ -294,6 +291,30 @@ document.addEventListener("DOMContentLoaded", () => {
         );
 
     });
+
+
+    /* ======================================
+       TEMPLATE + DOWNLOAD
+    ======================================= */
+
+    templateOptions.addEventListener("change", event => {
+
+        if (event.target.name !== "template") {
+            return;
+        }
+
+        syncTemplate(event.target.value).catch(error => {
+
+            console.error("Unable to save template choice:", error);
+
+            flashSaveStatus("Couldn't save your template choice.", true);
+
+        });
+
+    });
+
+    downloadPdfBtn.addEventListener("click", () => downloadResume("pdf"));
+    downloadDocxBtn.addEventListener("click", () => downloadResume("docx"));
 
 
     /* ======================================
@@ -390,6 +411,7 @@ document.addEventListener("DOMContentLoaded", () => {
             setFormDisabled(false);
 
             fillPersonalInputs();
+            setSelectedTemplate(resumeRecord.templateType);
             renderEntries("experience");
             renderEntries("education");
             renderSkills();
@@ -859,6 +881,158 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         flashSaveStatus("Saved");
+
+    }
+
+
+    /* ======================================
+       TEMPLATE + DOWNLOAD
+
+       Which template is picked is sent explicitly on every download - it does not
+       have to be saved first. It's still saved to Resumes.template_type (syncTemplate)
+       so it's remembered next time the page loads.
+
+       The ATS-Friendly template is Premium only. The server is the one that checks
+       that (GET /api/Resume/{id}/export) - if a Free account is chosen it comes back
+       as a 403 that ApiClient.authFetch already turns into the upgrade dialog on its
+       own; the catch block below also puts the server's message in the save-status
+       toast, since a locked template is far more likely here than a genuine error.
+    ======================================= */
+
+    const KNOWN_TEMPLATES = ["harvard", "reverse_chronological", "functional", "ats"];
+
+    function getSelectedTemplate() {
+
+        const checked = templateOptions.querySelector('input[name="template"]:checked');
+
+        return checked ? checked.value : "reverse_chronological";
+
+    }
+
+
+    function setSelectedTemplate(templateType) {
+
+        const value = KNOWN_TEMPLATES.includes(templateType) ? templateType : "reverse_chronological";
+
+        const input = templateOptions.querySelector(`input[value="${value}"]`);
+
+        if (input) {
+            input.checked = true;
+        }
+
+    }
+
+
+    async function syncTemplate(templateType) {
+
+        const response = await ApiClient.authFetch(`${API_BASE}/Resume`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...resumeRecord, templateType })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Template save failed (${response.status})`);
+        }
+
+        resumeRecord = { ...resumeRecord, templateType };
+
+    }
+
+
+    // Everything the document is built from lives on the server, so a stale edit
+    // (still in its 800ms debounce) has to reach the database before the export
+    // reads it back - the same fields, re-sent, rather than new tracking of what
+    // changed since the last save.
+    async function flushPendingSaves() {
+
+        clearTimeout(personalSyncTimer);
+
+        entrySyncTimers.forEach(timer => clearTimeout(timer));
+        entrySyncTimers.clear();
+
+        await Promise.all([
+            syncPersonalInfo(),
+            ...state.experience.map(entry => syncEntry("experience", entry)),
+            ...state.education.map(entry => syncEntry("education", entry))
+        ]);
+
+    }
+
+
+    function filenameFromResponse(response, format) {
+
+        const disposition = response.headers.get("Content-Disposition") || "";
+
+        const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+
+        try {
+            return match ? decodeURIComponent(match[1]) : `resume.${format}`;
+        } catch (error) {
+            return `resume.${format}`;
+        }
+
+    }
+
+
+    async function downloadResume(format) {
+
+        const button = format === "pdf" ? downloadPdfBtn : downloadDocxBtn;
+        const otherButton = format === "pdf" ? downloadDocxBtn : downloadPdfBtn;
+        const originalHtml = button.innerHTML;
+
+        button.disabled = true;
+        otherButton.disabled = true;
+        button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Preparing...';
+
+        try {
+
+            await flushPendingSaves();
+
+            const template = getSelectedTemplate();
+
+            const response = await ApiClient.authFetch(
+                `${API_BASE}/Resume/${resumeRecord.resumeId}/export?format=${format}&template=${template}`
+            );
+
+            if (!response.ok) {
+
+                const data = await response.json().catch(() => ({}));
+
+                throw new Error(data.message || `Couldn't generate that file (${response.status}).`);
+
+            }
+
+            const blob = await response.blob();
+            const fileName = filenameFromResponse(response, format);
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement("a");
+
+            link.href = url;
+            link.download = fileName;
+
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+
+            URL.revokeObjectURL(url);
+
+            flashSaveStatus("Downloaded!");
+
+        } catch (error) {
+
+            console.error(`Unable to download ${format}:`, error);
+
+            flashSaveStatus(error.message || "Couldn't generate that file.", true);
+
+        } finally {
+
+            button.disabled = false;
+            otherButton.disabled = false;
+            button.innerHTML = originalHtml;
+
+        }
 
     }
 

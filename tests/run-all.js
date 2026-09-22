@@ -16,6 +16,7 @@ const suites = [
     ["login / session", "e2e/login-session.check.js"],
     ["account details", "e2e/account.check.js"],
     ["plans, ads and the upgrade prompt", "e2e/plans.check.js"],
+    ["resume builder: templates and downloads", "e2e/resume-builder.check.js"],
     ...(withBackend ? [
         ["backend (real API + database)", "e2e/backend.check.js"],
         ["full stack (real browser + backend)", "e2e/full-stack.check.js"],

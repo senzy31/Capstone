@@ -90,12 +90,17 @@ const CORS = {
     "access-control-allow-origin": "*",
     "access-control-allow-headers": "authorization, content-type",
     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+    // Matches the real backend's one CORS policy (Program.cs): Content-Disposition otherwise isn't
+    // a header fetch() exposes to a cross-origin caller, so a page could never read a download's name.
+    "access-control-expose-headers": "Content-Disposition",
 };
 
 // Fakes https://localhost:7142/api/**. Register handlers with api.on(method, /path-regex/, handler);
-// the handler gets (call, regexMatch) and returns { status = 200, json | text, delay = 0 }. Later
-// registrations win. Every request is recorded in api.calls; anything with no handler is 404
-// and listed in api.unmocked so a test can assert nothing unexpected was called.
+// the handler gets (call, regexMatch) and returns { status = 200, json | text | file, headers, delay = 0 }.
+// `file` is for a binary download: { contentType, body: Buffer, headers } (headers merges in, so a
+// route can set Content-Disposition). Later registrations win. Every request is recorded in
+// api.calls; anything with no handler is 404 and listed in api.unmocked so a test can assert
+// nothing unexpected was called.
 async function mockApi(context) {
     const handlers = [];
     const api = {
@@ -131,15 +136,17 @@ async function mockApi(context) {
         }
 
         const result = typeof match.h.handler === "function" ? match.h.handler(call, match.m) : match.h.handler;
-        const { status = 200, json, text, delay = 0, abort = false } = result || {};
+        const { status = 200, json, text, file, headers = {}, delay = 0, abort = false } = result || {};
 
         if (delay) await new Promise(resolve => setTimeout(resolve, delay));
 
         if (abort) return route.abort();
 
-        if (text !== undefined) return route.fulfill({ status, headers: CORS, contentType: "text/plain", body: text });
+        if (file) return route.fulfill({ status, headers: { ...CORS, ...file.headers, ...headers }, contentType: file.contentType, body: file.body });
 
-        return route.fulfill({ status, headers: CORS, contentType: "application/json", body: json === undefined ? "" : JSON.stringify(json) });
+        if (text !== undefined) return route.fulfill({ status, headers: { ...CORS, ...headers }, contentType: "text/plain", body: text });
+
+        return route.fulfill({ status, headers: { ...CORS, ...headers }, contentType: "application/json", body: json === undefined ? "" : JSON.stringify(json) });
     });
 
     return api;
