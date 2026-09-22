@@ -20,7 +20,9 @@ namespace JobLinkv2.Services.Apply
             posted_date AS PostedDate, ISNULL(is_deleted, 0) AS IsDeleted, source AS Source,
             employer_id AS EmployerId, apply_url AS ApplyUrl, apply_is_direct AS ApplyIsDirect,
             publisher AS Publisher, apply_options AS ApplyOptions, is_expired AS IsExpired,
-            latitude AS Latitude, longitude AS Longitude";
+            latitude AS Latitude, longitude AS Longitude, ISNULL(status, 'Draft') AS Status,
+            salary_min AS SalaryMin, salary_max AS SalaryMax, work_setup AS WorkSetup,
+            job_type AS JobType, published_at AS PublishedAt, expires_at AS ExpiresAt";
 
         private const string ApplicationColumns = @"
             application_id AS ApplicationId, ISNULL(user_id, 0) AS UserId, ISNULL(job_id, 0) AS JobId,

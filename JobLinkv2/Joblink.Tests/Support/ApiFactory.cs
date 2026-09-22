@@ -3,13 +3,16 @@ using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
 using Joblink.Services.Accounts;
+using Joblink.Services.Employer;
 using Joblink.Services.JobSearch;
 using Joblink.Services.Resume;
 using JobLinkv2.Services;
 using JobLinkv2.Services.Accounts;
 using JobLinkv2.Services.Apply;
+using JobLinkv2.Services.Employer;
 using JobLinkv2.Services.Matching;
 using JobLinkv2.Services.MyData;
+using JobLinkv2.Services.Notifications;
 using JobLinkv2.Services.Resumes;
 using JobLinkv2.Services.Subscriptions;
 using Microsoft.AspNetCore.Hosting;
@@ -44,6 +47,7 @@ namespace Joblink.Tests.Support
         public FakeJobSearchService Search { get; } = new();
         public InMemoryScoringProfileReader Profiles { get; } = new();
         public FakeResumeDocumentService Documents { get; } = new();
+        public InMemoryNotificationSender Notifications { get; } = new();
 
         // The stores for resumes, notifications, saved jobs and skills have no fake. Here they point at a server that is not
         // there, so a test that wrongly reaches it fails loudly instead of touching a real
@@ -72,6 +76,9 @@ namespace Joblink.Tests.Support
                 services.RemoveAll<SkillStore>();
                 services.AddSingleton(new SkillStore(DataConnectionString));
 
+                services.RemoveAll<EmployerJobStore>();
+                services.AddSingleton(new EmployerJobStore(DataConnectionString));
+
                 // Plans are read from a store the tests control, on the tests' clock.
                 services.RemoveAll<ISubscriptionStore>();
                 services.AddSingleton<ISubscriptionStore>(Subscriptions);
@@ -97,6 +104,14 @@ namespace Joblink.Tests.Support
 
                 services.RemoveAll<TimeProvider>();
                 services.AddSingleton<TimeProvider>(Clock);
+
+                // Nominatim is a real internet service (no key needed, so nothing stops a test
+                // from reaching it by accident) - tests never geocode for real.
+                services.RemoveAll<IGeocodingService>();
+                services.AddSingleton<IGeocodingService>(new NullGeocodingService());
+
+                services.RemoveAll<INotificationSender>();
+                services.AddSingleton<INotificationSender>(Notifications);
 
                 // Work factor 4: hashing is real, just fast enough for tests.
                 services.RemoveAll<UserAccountService>();

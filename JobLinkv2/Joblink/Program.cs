@@ -2,6 +2,7 @@ using Dapper;
 using Joblink.Security;
 using Joblink.Services;
 using Joblink.Services.Accounts;
+using Joblink.Services.Employer;
 using Joblink.Services.JobSearch;
 using Joblink.Services.Recommendations;
 using Joblink.Services.Subscriptions;
@@ -9,8 +10,10 @@ using JobLinkv2.Repositories;
 using JobLinkv2.Services;
 using JobLinkv2.Services.Accounts;
 using JobLinkv2.Services.Apply;
+using JobLinkv2.Services.Employer;
 using JobLinkv2.Services.Matching;
 using JobLinkv2.Services.MyData;
+using JobLinkv2.Services.Notifications;
 using JobLinkv2.Services.Resumes;
 using JobLinkv2.Services.Subscriptions;
 using Microsoft.AspNetCore.Mvc;
@@ -97,6 +100,17 @@ builder.Services.AddSingleton<IApplyStore>(new SqlApplyStore(connectionString));
 builder.Services.AddSingleton<ApplyService>();
 builder.Services.AddSingleton<ApplicationTrackerService>();
 builder.Services.AddSingleton<JobImportService>();
+
+// ✅ Notifications: one sender, used by anything that needs to tell a user something
+// (the apply flow's employer notice, and everything under Employer/ below).
+builder.Services.AddSingleton<INotificationSender>(new SqlNotificationSender(connectionString));
+
+// ✅ Paid employer job posting. Payments are SIMULATED - purchasing grants credits and charges
+// nothing. Nominatim (OpenStreetMap, no key) geocodes a job's location on publish, best-effort -
+// "Nominatim:BaseUrl" points it at a fake for tests/live checks, same override pattern as JSearch.
+builder.Services.AddSingleton(new EmployerJobStore(connectionString));
+builder.Services.AddSingleton<IGeocodingService, NominatimGeocodingService>();
+builder.Services.AddSingleton<EmployerJobService>();
 
 // ✅ The job feed (JSearch via RapidAPI, cached) and the recommendations built on it: each job scored
 // against the caller's own resume, and shown as much of that score as their plan allows.

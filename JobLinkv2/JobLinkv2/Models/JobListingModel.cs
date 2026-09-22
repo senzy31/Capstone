@@ -75,6 +75,32 @@ namespace JobLinkv2.Models
         [Column("longitude")]
         public decimal? Longitude { get; set; }
 
+        // ----- employer-posted (Internal) jobs -------------------------------
+
+        // Draft | Active | Closed | Expired. Meaningless for External jobs (never read for them).
+        [Column("status")]
+        public string Status { get; set; } = "Draft";
+
+        [Column("salary_min")]
+        public decimal? SalaryMin { get; set; }
+
+        [Column("salary_max")]
+        public decimal? SalaryMax { get; set; }
+
+        // onsite | remote | hybrid
+        [Column("work_setup")]
+        public string? WorkSetup { get; set; }
+
+        // FULLTIME | PARTTIME | CONTRACTOR | INTERN
+        [Column("job_type")]
+        public string? JobType { get; set; }
+
+        [Column("published_at")]
+        public DateTime? PublishedAt { get; set; }
+
+        [Column("expires_at")]
+        public DateTime? ExpiresAt { get; set; }
+
         //public ICollection<ApplicationModel> Applications { get; set; }
         //public ICollection<JobMatchModel> JobMatches { get; set; }
         //public ICollection<SavedJobsModel> SavedJobs { get; set; }

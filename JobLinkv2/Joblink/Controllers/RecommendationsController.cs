@@ -38,5 +38,35 @@ namespace Joblink.Controllers
                 _ => StatusCode(500)
             };
         }
+
+        // GET api/Recommendations/search?q=...&page=1&workSetup=&location=&minSalary=&maxSalary=&jobType=&minScore=
+        // The Jobs page: the caller's own search text and filters, not their resume. Internal jobs
+        // matching them come first (best match, then newest), external jobs after - each job still
+        // scored and shown as much of that score as the plan allows, exactly like GET api/Recommendations.
+        [HttpGet("search")]
+        public async Task<IActionResult> Search(
+            [FromQuery] string? q = null,
+            [FromQuery] int page = 1,
+            [FromQuery] string? workSetup = null,
+            [FromQuery] string? location = null,
+            [FromQuery] double? minSalary = null,
+            [FromQuery] double? maxSalary = null,
+            [FromQuery] string? jobType = null,
+            [FromQuery] int? minScore = null)
+        {
+            if (User.GetUserId() is not int userId)
+                return Unauthorized();
+
+            var filters = new SearchFilters(workSetup, location, minSalary, maxSalary, jobType, minScore);
+
+            var outcome = await _recommendations.SearchAsync(userId, q, Math.Clamp(page, 1, 10), filters, HttpContext.RequestAborted);
+
+            return outcome switch
+            {
+                Recommended r => Ok(new { status = "OK", query = r.Query, page = r.Page, skillCount = r.SkillCount, hasPreferences = r.HasPreferences, detailed = r.Detailed, data = r.Jobs }),
+                RecommendationFailed f => StatusCode(f.Status, new { message = f.Message }),
+                _ => StatusCode(500)
+            };
+        }
     }
 }

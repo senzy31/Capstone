@@ -1,7 +1,9 @@
 using System.Net;
 using System.Text.Json;
 using Dapper;
+using JobLinkv2.Models;
 using JobLinkv2.Repositories;
+using JobLinkv2.Services.Employer;
 using JobLinkv2.Services.Matching;
 using JobLinkv2.Services.MyData;
 using JobLinkv2.Services.Resumes;
@@ -40,6 +42,21 @@ namespace Joblink.Tests
             var id = db.QuerySingle<int>(
                 @"INSERT INTO Users (full_name, email, password_hash, role, created_at, is_deleted)
                   VALUES (@name, @email, 'x', 'user', GETDATE(), 0);
+                  SELECT CAST(SCOPE_IDENTITY() AS int);",
+                new { name = $"dbtest {_tag}", email = $"dbtest.{_tag}.{_userIds.Count}@example.com" });
+
+            _userIds.Add(id);
+
+            return id;
+        }
+
+        private int NewEmployer()
+        {
+            using var db = Open();
+
+            var id = db.QuerySingle<int>(
+                @"INSERT INTO Users (full_name, email, password_hash, role, created_at, is_deleted)
+                  VALUES (@name, @email, 'x', 'employer', GETDATE(), 0);
                   SELECT CAST(SCOPE_IDENTITY() AS int);",
                 new { name = $"dbtest {_tag}", email = $"dbtest.{_tag}.{_userIds.Count}@example.com" });
 
@@ -107,6 +124,10 @@ namespace Joblink.Tests
                 DELETE FROM Experience    WHERE resume_id IN (SELECT resume_id FROM Resumes WHERE user_id IN @users);
                 DELETE FROM Resumes WHERE user_id IN @users;
                 DELETE FROM Job_Preferences WHERE user_id IN @users;
+                DELETE FROM Applications WHERE job_id IN (SELECT job_id FROM Job_Listings WHERE employer_id IN @users);
+                DELETE FROM Job_Listing_Skills WHERE job_id IN (SELECT job_id FROM Job_Listings WHERE employer_id IN @users);
+                DELETE FROM Job_Listings WHERE employer_id IN @users;
+                DELETE FROM Job_Post_Purchases WHERE employer_id IN @users;
                 DELETE FROM Skills WHERE skill_name LIKE @skills OR skill_id IN @skillIds;
                 DELETE FROM Users WHERE user_id IN @users;",
                 new { users, skills = $"dbtest-{_tag}-%", skillIds = _skillIds.Count > 0 ? _skillIds : new List<int> { -1 } });
@@ -295,6 +316,93 @@ namespace Joblink.Tests
             var premium = JsonDocument.Parse(await client.GetStringAsync("/api/Recommendations")).RootElement;
 
             Assert.Equal(new[] { Tagged("React"), Tagged("SQL") }, premium.GetProperty("data")[0].GetProperty("joblink_match").GetProperty("skills").GetProperty("matched").EnumerateArray().Select(m => m.GetString()).ToArray());
+        }
+
+        // ----- api/Recommendations/search: employer-posted jobs merged in ---------------------------------------
+
+        [DbFact]
+        public async Task Search_puts_matching_internal_jobs_first_as_a_block_even_when_an_external_one_scores_higher_and_applies_filters_to_both()
+        {
+            var user = NewUser();
+            Preferences(user, "Manila", null, null, null);
+
+            var employer = NewEmployer();
+            var jobs = new EmployerJobStore(DbConfig.DefaultConnectionString);
+
+            jobs.RecordPurchase(employer, JobPostCatalogue.Find(JobPostPackages.Single)!, DateTime.UtcNow);
+
+            var internalJob = jobs.CreateDraft(new JoblistingModel
+            {
+                EmployerId = employer,
+                Title = Tagged("Developer"),
+                Company = "Acme",
+                Description = "Build things.",
+                Location = "Cebu",     // doesn't match the job seeker's "Manila" preference
+                WorkSetup = "remote"
+            });
+
+            Assert.Equal(PublishOutcome.Ok, jobs.Publish(employer, internalJob.JobId, DateTime.UtcNow));
+
+            _factory.Search.Returns(new Dictionary<string, object?>
+            {
+                ["job_id"] = "ext-1",
+                ["job_title"] = $"{Tagged("Developer")} (External)",
+                ["job_description"] = "Great role.",
+                ["job_city"] = "Manila",   // matches the preference - outscores the internal job
+                ["job_country"] = "PH",
+                ["job_is_remote"] = false
+            });
+
+            var client = _factory.ClientFor(user);
+            var q = Uri.EscapeDataString(Tagged("Developer"));
+
+            var unfiltered = JsonDocument.Parse(await client.GetStringAsync($"/api/Recommendations/search?q={q}")).RootElement;
+            var data = unfiltered.GetProperty("data").EnumerateArray().ToList();
+
+            Assert.Equal(2, data.Count);
+            Assert.Equal("Internal", data[0].GetProperty("joblink_source").GetString());
+            Assert.Equal("External", data[1].GetProperty("joblink_source").GetString());
+            Assert.True(
+                data[0].GetProperty("joblink_match").GetProperty("score").GetInt32() <
+                data[1].GetProperty("joblink_match").GetProperty("score").GetInt32(),
+                "the internal job should score lower, yet still be listed first");
+
+            // The work-setup filter applies to the internal job too: "onsite" excludes it (it's
+            // remote), leaving only the external one.
+            var filtered = JsonDocument.Parse(await client.GetStringAsync($"/api/Recommendations/search?q={q}&workSetup=onsite")).RootElement;
+            var filteredData = filtered.GetProperty("data").EnumerateArray().ToList();
+
+            Assert.Single(filteredData);
+            Assert.Equal("External", filteredData[0].GetProperty("joblink_source").GetString());
+        }
+
+        [DbFact]
+        public async Task Search_never_returns_a_closed_or_expired_internal_job()
+        {
+            var user = NewUser();
+            var employer = NewEmployer();
+            var jobs = new EmployerJobStore(DbConfig.DefaultConnectionString);
+
+            jobs.RecordPurchase(employer, JobPostCatalogue.Find(JobPostPackages.Bundle5)!, DateTime.UtcNow);
+
+            var closed = jobs.CreateDraft(new JoblistingModel { EmployerId = employer, Title = Tagged("ClosedJob"), Company = "Acme", Description = "d", Location = "Cebu" });
+            jobs.Publish(employer, closed.JobId, DateTime.UtcNow);
+            jobs.Close(employer, closed.JobId);
+
+            var expired = jobs.CreateDraft(new JoblistingModel { EmployerId = employer, Title = Tagged("ExpiredJob"), Company = "Acme", Description = "d", Location = "Cebu" });
+            jobs.Publish(employer, expired.JobId, DateTime.UtcNow);
+
+            using (var db = Open())
+                db.Execute("UPDATE Job_Listings SET expires_at = @past WHERE job_id = @id", new { past = DateTime.UtcNow.AddDays(-1), id = expired.JobId });
+
+            _factory.Search.Returns();
+
+            var client = _factory.ClientFor(user);
+            var q = Uri.EscapeDataString(Tagged("Job"));
+
+            var result = JsonDocument.Parse(await client.GetStringAsync($"/api/Recommendations/search?q={q}")).RootElement;
+
+            Assert.Empty(result.GetProperty("data").EnumerateArray());
         }
     }
 }
