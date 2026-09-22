@@ -23,6 +23,7 @@ class TemplateType(str, Enum):
     HARVARD = "harvard"
     REVERSE_CHRONOLOGICAL = "reverse_chronological"
     FUNCTIONAL = "functional"
+    ATS = "ats"
 
 
 class TemplateInfo(BaseModel):
