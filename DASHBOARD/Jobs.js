@@ -1,6 +1,10 @@
 // ======================================================
 // JOBLINK JOBS
-// Live job search (JSearch, through the JobLink backend) with filters.
+// Live job search, scored against the caller's own resume (GET /api/Recommendations/search) -
+// the same scoring GET /api/Recommendations uses, just driven by this page's own search text
+// and filters instead of the resume alone. Jobs an employer posted directly on JobLink are
+// scored the same way and always listed first, with a "Posted on JobLink" badge; filtering and
+// card rendering both happen on the server now - this page only shows what it is given.
 // Shared helpers live in JobsShared.js.
 // ======================================================
 
@@ -33,16 +37,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const keyword = new URLSearchParams(window.location.search).get("q")?.trim();
 
     if (keyword) {
-
         document.getElementById("searchInput").value = keyword;
-
-        applyFilters();
-
-    } else {
-
-        loadJobs(DEFAULT_SEARCH);
-
     }
+
+    loadJobs();
 
 });
 
@@ -59,7 +57,7 @@ function setupJobListeners() {
 
         clearTimeout(debounceTimer);
 
-        debounceTimer = setTimeout(applyFilters, 600);
+        debounceTimer = setTimeout(loadJobs, 600);
 
     });
 
@@ -69,13 +67,13 @@ function setupJobListeners() {
 
             clearTimeout(debounceTimer);
 
-            applyFilters();
+            loadJobs();
 
         }
 
     });
 
-    document.getElementById("applyFilters").addEventListener("click", applyFilters);
+    document.getElementById("applyFilters").addEventListener("click", loadJobs);
 
     document.getElementById("resetFilters").addEventListener("click", resetFilters);
 
@@ -85,49 +83,13 @@ function setupJobListeners() {
 }
 
 
-// ======================================================
-// APPLY / RESET FILTERS
-// ======================================================
-
-function applyFilters() {
-
-    const keyword = document.getElementById("searchInput").value.trim();
-    const location = document.getElementById("locationInput").value.trim();
-    const workSetup = document.getElementById("workSetup").value;
-    const jobType = document.getElementById("jobType").value;
-
-
-    // Build the search text sent to JSearch
-
-    let searchQuery = keyword || "jobs";
-
-    if (workSetup === "remote") {
-        searchQuery += " remote work from home";
-    } else if (workSetup === "onsite") {
-        searchQuery += " onsite";
-    } else if (workSetup === "hybrid") {
-        searchQuery += " hybrid";
-    }
-
-    if (jobType) {
-        searchQuery += " " + jobType.toLowerCase();
-    }
-
-    searchQuery += location ? " in " + location : " philippines";
-
-
-    loadJobs(searchQuery);
-
-}
-
-
 function resetFilters() {
 
-    for (const id of ["searchInput", "locationInput", "workSetup", "jobType", "minSalary", "maxSalary"]) {
+    for (const id of ["searchInput", "locationInput", "workSetup", "jobType", "minSalary", "maxSalary", "minScore"]) {
         document.getElementById(id).value = "";
     }
 
-    loadJobs(DEFAULT_SEARCH);
+    loadJobs();
 
 }
 
@@ -136,7 +98,7 @@ function resetFilters() {
 // LOAD JOBS FROM THE BACKEND
 // ======================================================
 
-async function loadJobs(search = DEFAULT_SEARCH) {
+async function loadJobs() {
 
     const container = document.getElementById("jobContainer");
 
@@ -149,11 +111,30 @@ async function loadJobs(search = DEFAULT_SEARCH) {
         </div>
     `;
 
+    const keyword = document.getElementById("searchInput").value.trim();
+
+    const params = new URLSearchParams();
+
+    params.set("q", keyword || DEFAULT_SEARCH);
+    params.set("page", "1");
+
+    const workSetup = document.getElementById("workSetup").value;
+    const location = document.getElementById("locationInput").value.trim();
+    const minSalary = document.getElementById("minSalary").value;
+    const maxSalary = document.getElementById("maxSalary").value;
+    const jobType = document.getElementById("jobType").value;
+    const minScore = document.getElementById("minScore").value;
+
+    if (workSetup) params.set("workSetup", workSetup);
+    if (location) params.set("location", location);
+    if (minSalary) params.set("minSalary", minSalary);
+    if (maxSalary) params.set("maxSalary", maxSalary);
+    if (jobType) params.set("jobType", jobType);
+    if (minScore) params.set("minScore", minScore);
+
     try {
 
-        const response = await ApiClient.authFetch(
-            `${JOB_API}/search?query=${encodeURIComponent(search)}&page=1`
-        );
+        const response = await ApiClient.authFetch(`${API_BASE}/Recommendations/search?${params.toString()}`);
 
         if (!response.ok) {
 
@@ -171,7 +152,7 @@ async function loadJobs(search = DEFAULT_SEARCH) {
 
         currentJobs = data.data || [];
 
-        renderJobs(filterJobs(currentJobs));
+        renderJobs(currentJobs);
 
     } catch (error) {
 
@@ -194,114 +175,6 @@ async function loadJobs(search = DEFAULT_SEARCH) {
         `;
 
     }
-
-}
-
-
-// ======================================================
-// LOCAL FILTERING (on top of the search results)
-// ======================================================
-
-function filterJobs(jobs) {
-
-    const workSetup = document.getElementById("workSetup").value.toLowerCase();
-    const location = document.getElementById("locationInput").value.trim().toLowerCase();
-    const minSalary = parseFloat(document.getElementById("minSalary").value);
-    const maxSalary = parseFloat(document.getElementById("maxSalary").value);
-    const jobType = document.getElementById("jobType").value;
-
-
-    return jobs.filter(job => {
-
-        // WORK SETUP
-
-        if (workSetup) {
-
-            const isRemote = job.job_is_remote;
-
-            const description = (job.job_description || "").toLowerCase();
-
-            if (workSetup === "remote") {
-
-                if (
-                    !isRemote &&
-                    !description.includes("remote") &&
-                    !description.includes("work from home") &&
-                    !description.includes("wfh")
-                ) {
-                    return false;
-                }
-
-            }
-
-            if (workSetup === "onsite" && isRemote) {
-                return false;
-            }
-
-            if (workSetup === "hybrid" && !description.includes("hybrid")) {
-                return false;
-            }
-
-        }
-
-
-        // LOCATION
-
-        if (location) {
-
-            const jobLocation =
-                `${job.job_city || ""} ${job.job_state || ""} ${job.job_country || ""}`
-                    .toLowerCase();
-
-            if (!jobLocation.includes(location)) {
-                return false;
-            }
-
-        }
-
-
-        // JOB TYPE
-        // JSearch's job_employment_type is a display label ("Full-time");
-        // the machine-readable codes (FULLTIME, PARTTIME, ...) live in
-        // job_employment_types.
-
-        if (jobType) {
-
-            const types =
-                Array.isArray(job.job_employment_types) && job.job_employment_types.length > 0
-                    ? job.job_employment_types
-                    : [job.job_employment_type || ""];
-
-            if (
-                !types
-                    .map(type => String(type).toUpperCase().replace(/[^A-Z]/g, ""))
-                    .includes(jobType)
-            ) {
-                return false;
-            }
-
-        }
-
-
-        // SALARY - jobs that list no (comparable) salary always pass
-
-        const pay = getMonthlySalaryRange(job);
-
-        if (pay) {
-
-            if (!isNaN(minSalary) && pay.max < minSalary) {
-                return false;
-            }
-
-            if (!isNaN(maxSalary) && pay.min > maxSalary) {
-                return false;
-            }
-
-        }
-
-        return true;
-
-    });
 
 }
 
@@ -332,51 +205,6 @@ function renderJobs(jobs) {
 
     }
 
-
-    container.innerHTML = jobs.map(job => {
-
-        const jobId = escapeHtml(job.job_id || "");
-
-        return `
-            <div class="job-card">
-                <div class="job-card-content">
-
-                    <div class="job-main-info">
-
-                        <p class="company-name">${escapeHtml(job.employer_name || "Unknown Company")}</p>
-
-                        <h3 class="job-title">${escapeHtml(job.job_title || "Job Position")}</h3>
-
-                        <div class="job-meta">
-                            <span>
-                                <i class="fa-solid fa-location-dot"></i>
-                                ${escapeHtml(getJobLocation(job))}
-                            </span>
-
-                            <span>
-                                <i class="fa-solid fa-briefcase"></i>
-                                ${escapeHtml(formatJobType(job.job_employment_type))}
-                            </span>
-
-                            ${getWorkBadge(getWorkSetup(job))}
-                        </div>
-
-                        ${ApplyFlow.externalNoteHtml(job)}
-
-                    </div>
-
-                    <div class="job-card-actions">
-                        <button class="btn btn-secondary view-details-btn" data-job-id="${jobId}">
-                            View Details
-                        </button>
-
-                        ${ApplyFlow.applyButtonHtml(job)}
-                    </div>
-
-                </div>
-            </div>
-        `;
-
-    }).join("");
+    container.innerHTML = jobs.map(renderScoredJobCard).join("");
 
 }

@@ -37,6 +37,10 @@ namespace Joblink.Services.Employer
         public IReadOnlyList<PostingPackageView> ListPackages() =>
             JobPostCatalogue.Options.Select(o => new PostingPackageView(o.Package, o.CreditKind, o.PricePhp, o.Credits, o.Description)).ToList();
 
+        public CreditsView GetCredits(int employerId) => new(
+            _jobs.CreditBalance(employerId, JobCreditKinds.Post),
+            _jobs.CreditBalance(employerId, JobCreditKinds.Renewal));
+
         public (PurchaseOutcome Outcome, PurchaseView? View) Purchase(int employerId, string? package)
         {
             var option = JobPostCatalogue.Find(package);
@@ -49,11 +53,7 @@ namespace Joblink.Services.Employer
             _notifications.Send(employerId, NotificationTypes.PurchaseConfirmed,
                 $"Payment confirmed: {option.Description} (PHP {option.PricePhp:0.##}).", "/employer/jobs");
 
-            var balance = new CreditsView(
-                _jobs.CreditBalance(employerId, JobCreditKinds.Post),
-                _jobs.CreditBalance(employerId, JobCreditKinds.Renewal));
-
-            return (PurchaseOutcome.Ok, new PurchaseView(purchase.Package, purchase.AmountPhp, purchase.CreditsGranted, purchase.PurchasedAt, balance));
+            return (PurchaseOutcome.Ok, new PurchaseView(purchase.Package, purchase.AmountPhp, purchase.CreditsGranted, purchase.PurchasedAt, GetCredits(employerId)));
         }
 
         public (string? Error, EmployerJobView? View) CreateDraft(int employerId, JobRequest request)

@@ -1,163 +1,594 @@
+// ======================================================
+// EMPLOYER JOB POSTS
+// A real employer login is required - see requireEmployer(). Every job/credit read or write
+// goes through /api/employer/... (EmployerJobsController), scoped to the caller's own employer
+// id on the server; nothing here can act on anyone else's jobs. ApiClient.js (shared with the
+// job seeker pages) supplies the login token and authFetch().
+// ======================================================
+
+const API = ApiClient.API;
+
+let currentJobs = [];
+let currentPackages = [];
+
+// Set right before a publish/renew is refused for lack of a credit, so a purchase can retry it.
+let pendingAction = null;
+
+
 document.addEventListener("DOMContentLoaded", () => {
-    let user = null;
-    let demoMode = false;
+
+    const employer = requireEmployer();
+
+    if (!employer) {
+        return;
+    }
+
+    document.getElementById("welcomeText").textContent = `Welcome, ${employer.fullName}!`;
+
+    setupListeners();
+
+    loadEverything();
+
+});
+
+
+// ======================================================
+// SESSION - a real employer login only, no demo fallback
+// ======================================================
+
+function requireEmployer() {
+
+    const loginPage = "../LOGIN/login.html";
 
     try {
-        user = JSON.parse(localStorage.getItem("user"));
-    }
-    catch {
-        user = null;
-    }
 
-    if (!user || user.role !== "employer") {
-        demoMode = true;
-        user = {
-            fullName: "Employer Demo"
-        };
-    }
+        const user = JSON.parse(localStorage.getItem("user"));
 
-    const welcomeText = document.getElementById("welcomeText");
-    if (welcomeText) {
-        welcomeText.textContent = `Welcome, ${user.fullName}!`;
-    }
+        const userId = user?.userId || user?.user_id;
 
-    if (demoMode) {
-        const demoBanner = document.getElementById("demoBanner");
-        if (demoBanner) {
-            demoBanner.style.display = "inline-block";
+        if (!userId || user.role !== "employer") {
+            throw new Error("Not an employer session");
         }
+
+        if (!localStorage.getItem("token")) {
+
+            localStorage.removeItem("user");
+
+            sessionStorage.setItem("joblink.sessionExpired", "1");
+
+            throw new Error("No login token");
+
+        }
+
+        const fullName = user.fullName || user.full_name || user.companyName || "Employer";
+
+        return { ...user, userId, fullName };
+
+    } catch {
+
+        window.location.href = loginPage;
+
+        return null;
+
     }
 
-    document.getElementById("activeJobs").textContent = "3";
-    document.getElementById("totalApplicants").textContent = "27";
-    document.getElementById("openInterviews").textContent = "5";
-    renderPastListings();
-});
-
-const jobForm = document.getElementById("jobForm");
-const applicantList = document.getElementById("applicantList");
-const pastListingContainer = document.getElementById("pastListingContainer");
-
-let demoPastListings = [
-    {
-        title: "Junior WordPress Developer",
-        location: "Remote",
-        status: "Closed",
-        posted: "2 weeks ago"
-    },
-    {
-        title: "Senior Project Engineer",
-        location: "On-Site",
-        status: "Filled",
-        posted: "1 month ago"
-    },
-    {
-        title: "Pastry Chef",
-        location: "Downtown Kitchen",
-        status: "Closed",
-        posted: "3 weeks ago"
-    }
-];
-
-function renderPastListings() {
-    if (!pastListingContainer) {
-        return;
-    }
-
-    if (demoPastListings.length === 0) {
-        pastListingContainer.innerHTML = '<p>No past listings available.</p>';
-        return;
-    }
-
-    pastListingContainer.innerHTML = demoPastListings.map((listing, index) => `
-        <div class="job-card">
-            <h3>${listing.title}</h3>
-            <p>${listing.location}</p>
-            <span class="job-status">${listing.status} · ${listing.posted}</span>
-            <button class="btn btn-secondary btn-toggle-status" data-index="${index}">
-                ${listing.status === 'Open' ? 'Close Listing' : 'Reopen Listing'}
-            </button>
-        </div>
-    `).join('');
 }
 
-pastListingContainer?.addEventListener('click', (event) => {
-    const button = event.target.closest('.btn-toggle-status');
-    if (!button) {
-        return;
+
+// ======================================================
+// HELPERS
+// ======================================================
+
+function escapeHtml(value) {
+
+    if (value === null || value === undefined) {
+        return "";
     }
 
-    const index = Number(button.dataset.index);
-    if (Number.isNaN(index) || !demoPastListings[index]) {
-        return;
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+}
+
+function formatMoney(amount) {
+    return `PHP ${Number(amount).toLocaleString()}`;
+}
+
+function formatSalary(job) {
+
+    if (job.salaryMin && job.salaryMax) {
+        return `${formatMoney(job.salaryMin)} - ${formatMoney(job.salaryMax)}/month`;
     }
 
-    const listing = demoPastListings[index];
-    if (listing.status === 'Open' || listing.status === 'Published') {
-        listing.status = 'Closed';
-    } else {
-        listing.status = 'Open';
+    if (job.salaryMin) {
+        return `From ${formatMoney(job.salaryMin)}/month`;
     }
 
-    renderPastListings();
-});
+    if (job.salaryMax) {
+        return `Up to ${formatMoney(job.salaryMax)}/month`;
+    }
 
-if (jobForm) {
-    jobForm.addEventListener("submit", (e) => {
-        e.preventDefault();
+    return "Salary not specified";
 
-        const title = document.getElementById("jobTitle").value.trim();
-        const location = document.getElementById("jobLocation").value.trim();
-        const description = document.getElementById("jobDescription").value.trim();
+}
 
-        if (!title || !location) {
-            alert("Please enter a job title and location.");
+function formatWorkSetup(setup) {
+    return { onsite: "On-site", remote: "Remote", hybrid: "Hybrid" }[setup] || "Not specified";
+}
+
+function formatJobType(type) {
+    return { FULLTIME: "Full-time", PARTTIME: "Part-time", CONTRACTOR: "Contract", INTERN: "Internship" }[type] || "Not specified";
+}
+
+async function readError(response, fallback) {
+
+    const body = await response.json().catch(() => null);
+
+    return body?.message || fallback;
+
+}
+
+
+// ======================================================
+// LOAD
+// ======================================================
+
+async function loadEverything() {
+
+    await Promise.all([loadCredits(), loadJobs(), loadPackages()]);
+
+}
+
+async function loadCredits() {
+
+    try {
+
+        const response = await ApiClient.authFetch(`${API}/employer/credits`);
+
+        if (!response.ok) {
             return;
         }
 
-        const jobCard = document.createElement("div");
-        jobCard.className = "job-card";
-        jobCard.innerHTML = `
-            <h3>${title}</h3>
-            <p><strong>Location:</strong> ${location}</p>
-            <p>${description || "No description provided."}</p>
-            <span class="job-status">Published</span>
-        `;
+        const credits = await response.json();
 
-        applicantList.prepend(jobCard);
+        document.getElementById("postCreditsCount").textContent = credits.postCredits;
+        document.getElementById("renewalCreditsCount").textContent = credits.renewalCredits;
 
-        demoPastListings.unshift({
-            title,
-            location,
-            status: "Open",
-            posted: "Just now"
-        });
-        renderPastListings();
+    } catch (error) {
+        console.error("Error loading credits:", error);
+    }
 
-        document.getElementById("jobTitle").value = "";
-        document.getElementById("jobLocation").value = "";
-        document.getElementById("jobDescription").value = "";
-
-        document.getElementById("activeJobs").textContent =
-            parseInt(document.getElementById("activeJobs").textContent || "0") + 1;
-    });
 }
 
-const logoutBtn = document.getElementById("logoutBtn");
-const logoutModal = document.getElementById("logoutModal");
-const cancelLogout = document.getElementById("cancelLogout");
-const confirmLogout = document.getElementById("confirmLogout");
+async function loadPackages() {
 
-logoutBtn?.addEventListener("click", () => {
-    logoutModal.style.display = "flex";
-});
+    try {
 
-cancelLogout?.addEventListener("click", () => {
-    logoutModal.style.display = "none";
-});
+        const response = await ApiClient.authFetch(`${API}/employer/posting-packages`);
 
-confirmLogout?.addEventListener("click", () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    window.location.href = "../LOGIN/login.html";
-});
+        currentPackages = response.ok ? await response.json() : [];
+
+        renderPackages();
+
+    } catch (error) {
+        console.error("Error loading posting packages:", error);
+    }
+
+}
+
+async function loadJobs() {
+
+    const container = document.getElementById("jobListContainer");
+
+    try {
+
+        const response = await ApiClient.authFetch(`${API}/employer/jobs`);
+
+        if (!response.ok) {
+            throw new Error(await readError(response, `Couldn't load your job posts (${response.status}).`));
+        }
+
+        currentJobs = await response.json();
+
+        document.getElementById("activeCount").textContent = currentJobs.filter(j => j.status === "Active").length;
+
+        renderJobs();
+
+    } catch (error) {
+
+        console.error("Error loading job posts:", error);
+
+        container.innerHTML = `
+            <div class="no-jobs">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <p>Unable to load your job posts. ${escapeHtml(error.message)}</p>
+            </div>
+        `;
+
+    }
+
+}
+
+
+// ======================================================
+// RENDER
+// ======================================================
+
+function renderJobs() {
+
+    const container = document.getElementById("jobListContainer");
+
+    if (currentJobs.length === 0) {
+        container.innerHTML = "<p>You haven't posted any jobs yet. Use the form above to create your first draft.</p>";
+        return;
+    }
+
+    container.innerHTML = currentJobs.map(renderJobCard).join("");
+
+}
+
+function renderJobCard(job) {
+
+    const statusClass = `status-${job.status.toLowerCase()}`;
+
+    const daysLeft = job.status === "Active" && job.daysLeft !== null
+        ? `<span><i class="fa-solid fa-clock"></i> ${job.daysLeft} ${job.daysLeft === 1 ? "day" : "days"} left</span>`
+        : "";
+
+    const skills = (job.skills || []).length > 0
+        ? `<p class="job-card-meta"><i class="fa-solid fa-list-check"></i> ${escapeHtml(job.skills.join(", "))}</p>`
+        : "";
+
+    return `
+        <div class="job-card">
+            <div class="job-card-top">
+                <div>
+                    <h3>${escapeHtml(job.title)}</h3>
+                    <p class="job-card-meta">
+                        ${escapeHtml(job.company)} &middot; ${escapeHtml(job.location)}
+                    </p>
+                </div>
+                <span class="status-pill ${statusClass}">${escapeHtml(job.status)}</span>
+            </div>
+
+            <p class="job-card-meta">
+                <i class="fa-solid fa-money-bill-wave"></i> ${escapeHtml(formatSalary(job))}
+                &middot; <i class="fa-solid fa-building"></i> ${escapeHtml(formatWorkSetup(job.workSetup))}
+                &middot; <i class="fa-solid fa-briefcase"></i> ${escapeHtml(formatJobType(job.jobType))}
+                &middot; <i class="fa-solid fa-users"></i> ${job.applicantCount} ${job.applicantCount === 1 ? "applicant" : "applicants"}
+                ${daysLeft ? ` &middot; ${daysLeft}` : ""}
+            </p>
+
+            ${skills}
+
+            <div class="job-card-actions">
+                <button class="btn btn-secondary btn-edit" data-job-id="${job.jobId}">Edit</button>
+                ${job.status === "Draft" ? `<button class="btn btn-primary btn-publish" data-job-id="${job.jobId}">Publish</button>` : ""}
+                ${job.status === "Active" ? `<button class="btn btn-secondary btn-close" data-job-id="${job.jobId}">Close</button>` : ""}
+                ${job.status === "Active" || job.status === "Closed" || job.status === "Expired"
+                    ? `<button class="btn btn-secondary btn-renew" data-job-id="${job.jobId}">Renew (+30 days)</button>`
+                    : ""}
+            </div>
+        </div>
+    `;
+
+}
+
+function renderPackages() {
+
+    const container = document.getElementById("packageList");
+
+    container.innerHTML = currentPackages.map(pkg => `
+        <div class="package-card">
+            <div>
+                <h4>${escapeHtml(pkg.package)} &middot; ${formatMoney(pkg.pricePhp)}</h4>
+                <p>${escapeHtml(pkg.description)}</p>
+            </div>
+            <button class="btn btn-primary btn-buy-package" data-package="${escapeHtml(pkg.package)}">Buy</button>
+        </div>
+    `).join("");
+
+}
+
+
+// ======================================================
+// FORM: CREATE / EDIT
+// ======================================================
+
+function readForm() {
+
+    return {
+        title: document.getElementById("jobTitle").value.trim(),
+        company: document.getElementById("jobCompany").value.trim(),
+        location: document.getElementById("jobLocationInput").value.trim(),
+        description: document.getElementById("jobDescription").value.trim(),
+        salaryMin: document.getElementById("jobSalaryMin").value ? Number(document.getElementById("jobSalaryMin").value) : null,
+        salaryMax: document.getElementById("jobSalaryMax").value ? Number(document.getElementById("jobSalaryMax").value) : null,
+        workSetup: document.getElementById("jobWorkSetup").value || null,
+        jobType: document.getElementById("jobTypeInput").value || null,
+        skills: document.getElementById("jobSkills").value.split(",").map(s => s.trim()).filter(Boolean)
+    };
+
+}
+
+function fillForm(job) {
+
+    document.getElementById("jobId").value = job.jobId;
+    document.getElementById("jobTitle").value = job.title || "";
+    document.getElementById("jobCompany").value = job.company || "";
+    document.getElementById("jobLocationInput").value = job.location || "";
+    document.getElementById("jobDescription").value = job.description || "";
+    document.getElementById("jobSalaryMin").value = job.salaryMin ?? "";
+    document.getElementById("jobSalaryMax").value = job.salaryMax ?? "";
+    document.getElementById("jobWorkSetup").value = job.workSetup || "";
+    document.getElementById("jobTypeInput").value = job.jobType || "";
+    document.getElementById("jobSkills").value = (job.skills || []).join(", ");
+
+    document.getElementById("formTitle").textContent = `Editing "${job.title}"`;
+    document.getElementById("saveJobBtn").textContent = "Save Changes";
+    document.getElementById("cancelEditBtn").hidden = false;
+
+    document.getElementById("post-job").scrollIntoView({ behavior: "smooth", block: "start" });
+
+}
+
+function resetForm() {
+
+    document.getElementById("jobForm").reset();
+    document.getElementById("jobId").value = "";
+    document.getElementById("formTitle").textContent = "Post a New Job";
+    document.getElementById("saveJobBtn").textContent = "Save as Draft";
+    document.getElementById("cancelEditBtn").hidden = true;
+    hideFormError();
+
+}
+
+function showFormError(message) {
+    const error = document.getElementById("formError");
+    error.textContent = message;
+    error.hidden = false;
+}
+
+function hideFormError() {
+    document.getElementById("formError").hidden = true;
+}
+
+async function submitForm(event) {
+
+    event.preventDefault();
+
+    hideFormError();
+
+    const jobId = document.getElementById("jobId").value;
+    const body = readForm();
+
+    const saveBtn = document.getElementById("saveJobBtn");
+    saveBtn.disabled = true;
+
+    try {
+
+        const response = await ApiClient.authFetch(
+            jobId ? `${API}/employer/jobs/${jobId}` : `${API}/employer/jobs`,
+            {
+                method: jobId ? "PUT" : "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body)
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(await readError(response, `Couldn't save this job post (${response.status}).`));
+        }
+
+        resetForm();
+
+        await loadJobs();
+
+    } catch (error) {
+
+        showFormError(error.message);
+
+    } finally {
+
+        saveBtn.disabled = false;
+
+    }
+
+}
+
+
+// ======================================================
+// PUBLISH / CLOSE / RENEW
+// ======================================================
+
+async function handleJobAction(jobId, action) {
+
+    try {
+
+        const response = await ApiClient.authFetch(
+            `${API}/employer/jobs/${jobId}/${action}`,
+            { method: "POST", noUpgradePrompt: true }
+        );
+
+        if (response.status === 403) {
+
+            const body = await response.json().catch(() => ({}));
+
+            if (body.purchaseRequired) {
+                pendingAction = { jobId, action };
+                openPurchaseModal();
+                return;
+            }
+
+        }
+
+        if (!response.ok) {
+            throw new Error(await readError(response, `That didn't work (${response.status}).`));
+        }
+
+        await loadEverything();
+
+    } catch (error) {
+
+        alert(error.message);
+
+    }
+
+}
+
+async function editJob(jobId) {
+
+    try {
+
+        const response = await ApiClient.authFetch(`${API}/employer/jobs/${jobId}`);
+
+        if (!response.ok) {
+            throw new Error(await readError(response, `Couldn't load this job (${response.status}).`));
+        }
+
+        fillForm(await response.json());
+
+    } catch (error) {
+
+        alert(error.message);
+
+    }
+
+}
+
+
+// ======================================================
+// PURCHASE MODAL
+// ======================================================
+
+function openPurchaseModal() {
+    hidePurchaseError();
+    document.getElementById("purchaseModal").style.display = "flex";
+}
+
+function closePurchaseModal() {
+    document.getElementById("purchaseModal").style.display = "none";
+    pendingAction = null;
+}
+
+function showPurchaseError(message) {
+    const error = document.getElementById("purchaseError");
+    error.textContent = message;
+    error.hidden = false;
+}
+
+function hidePurchaseError() {
+    document.getElementById("purchaseError").hidden = true;
+}
+
+async function buyPackage(packageName) {
+
+    hidePurchaseError();
+
+    try {
+
+        const response = await ApiClient.authFetch(`${API}/employer/purchase`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ package: packageName })
+        });
+
+        if (!response.ok) {
+            throw new Error(await readError(response, `Couldn't complete that purchase (${response.status}).`));
+        }
+
+        await loadCredits();
+
+        const retry = pendingAction;
+        pendingAction = null;
+
+        closePurchaseModal();
+
+        if (retry) {
+            await handleJobAction(retry.jobId, retry.action);
+        }
+
+    } catch (error) {
+
+        showPurchaseError(error.message);
+
+    }
+
+}
+
+
+// ======================================================
+// EVENT LISTENERS
+// ======================================================
+
+function setupListeners() {
+
+    document.getElementById("jobForm").addEventListener("submit", submitForm);
+
+    document.getElementById("cancelEditBtn").addEventListener("click", resetForm);
+
+    document.getElementById("openPurchaseBtn").addEventListener("click", openPurchaseModal);
+
+    document.getElementById("cancelPurchase").addEventListener("click", closePurchaseModal);
+
+    document.getElementById("purchaseModal").addEventListener("click", (event) => {
+        if (event.target.id === "purchaseModal") {
+            closePurchaseModal();
+        }
+    });
+
+    document.getElementById("packageList").addEventListener("click", (event) => {
+
+        const button = event.target.closest(".btn-buy-package");
+
+        if (button) {
+            buyPackage(button.dataset.package);
+        }
+
+    });
+
+    document.getElementById("jobListContainer").addEventListener("click", (event) => {
+
+        const button = event.target.closest("button[data-job-id]");
+
+        if (!button) {
+            return;
+        }
+
+        const jobId = button.dataset.jobId;
+
+        if (button.classList.contains("btn-edit")) {
+            editJob(jobId);
+        } else if (button.classList.contains("btn-publish")) {
+            handleJobAction(jobId, "publish");
+        } else if (button.classList.contains("btn-close")) {
+            if (confirm("Close this job post? It will stop appearing to job seekers.")) {
+                handleJobAction(jobId, "close");
+            }
+        } else if (button.classList.contains("btn-renew")) {
+            handleJobAction(jobId, "renew");
+        }
+
+    });
+
+    // Logout (same confirmation pattern as the job seeker pages).
+    const logoutModal = document.getElementById("logoutModal");
+
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+        logoutModal.style.display = "flex";
+    });
+
+    document.getElementById("cancelLogout").addEventListener("click", () => {
+        logoutModal.style.display = "none";
+    });
+
+    document.getElementById("confirmLogout").addEventListener("click", () => {
+        localStorage.clear();
+        window.location.href = "../LOGIN/login.html";
+    });
+
+}

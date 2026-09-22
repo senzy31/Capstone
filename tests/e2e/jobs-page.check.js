@@ -1,9 +1,23 @@
-// The Jobs page: search, every filter, the search text sent to the backend, ?q= hand-off,
-// out-of-order responses, error display. Apply is covered by apply-flow.check.js. API faked.
+// The Jobs page: search + filters sent to GET /api/Recommendations/search (server-side scoring
+// and filtering - see the .NET RecommendationsDbTests for the filter/merge logic itself), the
+// ?q= hand-off, out-of-order responses, error display, and the "Posted on JobLink" badge for
+// employer-posted jobs. Apply is covered by apply-flow.check.js. API faked.
 const { chromium } = require("playwright");
 const { startStaticServer, createChecker, loggedInPage, mockApi, searchJob } = require("./helpers");
 
-const job = (id, extra) => searchJob(id, { job_title: `Job J${id}`, employer_name: `Company J${id}`, job_publisher: null, ...extra });
+const matched = (score, detailed = false) => ({ score, band: { level: score >= 75 ? "excellent" : score >= 50 ? "good" : score >= 25 ? "fair" : "low", label: "x" }, detailed });
+
+const job = (id, extra) => searchJob(id, { job_title: `Job J${id}`, employer_name: `Company J${id}`, job_publisher: null, joblink_match: matched(60), ...extra });
+
+const internalJob = (id, extra) => ({
+    job_id: `internal-${id}`, joblink_job_id: id, joblink_source: "Internal",
+    job_title: `Internal Job J${id}`, employer_name: `Employer ${id}`,
+    job_description: "Posted directly by an employer.", job_employment_type: "Full-time", job_employment_types: ["FULLTIME"],
+    job_is_remote: false, job_city: "Manila", joblink_work_setup: "onsite",
+    job_min_salary: 30000, job_max_salary: 40000, job_salary_currency: "PHP", job_salary_period: "MONTH",
+    joblink_match: matched(70), ...extra,
+});
+
 const FIXTURE = [
     job(1, { job_is_remote: true, job_city: "Manila", job_min_salary: 40000, job_max_salary: 50000, job_salary_period: "MONTH" }),
     job(2, { job_employment_type: "Part-time", job_employment_types: ["PARTTIME"], job_city: "Makati" }),
@@ -17,11 +31,11 @@ const FIXTURE = [
     const browser = await chromium.launch();
     const t = createChecker("Jobs page");
 
-    async function openJobs({ url = "Jobs.html", respond = () => ({ json: { status: "OK", data: FIXTURE } }), token = "test-token", waitForCards = true } = {}) {
+    async function openJobs({ url = "Jobs.html", respond = () => ({ json: { status: "OK", query: "jobs philippines", page: 1, skillCount: 0, hasPreferences: false, detailed: false, data: FIXTURE } }), token = "test-token", waitForCards = true } = {}) {
         const session = await loggedInPage(browser, server.baseUrl, { token });
         const api = await mockApi(session.context);
         const queries = [];
-        api.on("GET", /^\/JobSearch\/search$/, call => { queries.push(call.query.query); return respond(call, queries.length); });
+        api.on("GET", /^\/Recommendations\/search$/, call => { queries.push(call.query); return respond(call, queries.length); });
         api.on("GET", /^\/JobSearch\/details$/, () => ({ json: { status: "OK", data: [{ job_description: "FULL DETAIL TEXT" }] } }));
         api.on("GET", /^\/JobSearch\/salary$/, () => ({ json: { status: "OK", data: [] } }));
         const errors = [];
@@ -37,50 +51,52 @@ const FIXTURE = [
     t.section("page basics");
     {
         const { context, page, queries, api, errors } = await openJobs();
-        t.check("default search on load", queries, ["jobs philippines"]);
-        t.check("all 5 jobs listed", await shownIds(page), ids(1, 2, 3, 4, 5));
+        t.check("default search on load", queries, [{ q: "jobs philippines", page: "1" }]);
+        t.check("all 5 jobs listed, best-first order preserved from the server", await shownIds(page), ids(1, 2, 3, 4, 5));
         t.check("result text", await page.locator("#jobResultText").innerText(), "5 jobs found");
         t.check("sidebar highlights Jobs", (await page.locator(".nav-links li.active a").innerText()).trim(), "Jobs");
         t.check("title + navbar name", [await page.locator(".welcome-section h1").innerText(), await page.locator("#userName").innerText()], ["Find Jobs", "Maria"]);
-        t.check("all filter fields present", await Promise.all(["workSetup", "locationInput", "minSalary", "maxSalary", "jobType", "applyFilters", "resetFilters"].map(id => page.locator("#" + id).count())), [1, 1, 1, 1, 1, 1, 1]);
-        t.check("every API call the page makes (search, preferences, resume data) carries the login token", [api.calls.length > 0, api.calls.every(c => c.headers.authorization === "Bearer test-token")], [true, true]);
+        t.check("all filter fields present", await Promise.all(["workSetup", "locationInput", "minSalary", "maxSalary", "jobType", "minScore", "applyFilters", "resetFilters"].map(id => page.locator("#" + id).count())), [1, 1, 1, 1, 1, 1, 1, 1]);
+        t.check("every API call the page makes carries the login token", [api.calls.length > 0, api.calls.every(c => c.headers.authorization === "Bearer test-token")], [true, true]);
         t.check("no page errors", errors, []);
+        t.check("every card shows its suitability score", await page.locator(".score-ring").count(), 5);
 
-        t.section("filters (on top of the search results)");
+        t.section("filters are sent to the server as their own query params");
         const apply = async () => { await page.click("#applyFilters"); await page.waitForFunction(() => !document.querySelector(".loading-jobs")); };
         const reset = async () => { await page.click("#resetFilters"); await page.waitForFunction(() => !document.querySelector(".loading-jobs")); };
-        const set = async f => { for (const [id, v] of Object.entries(f)) { if (["workSetup", "jobType"].includes(id)) await page.selectOption("#" + id, v); else await page.fill("#" + id, v); } };
-        const expectFilter = async (name, f, expected) => { await set(f); await apply(); t.check(name, await shownIds(page), ids(...expected)); await reset(); };
+        const set = async f => { for (const [id, v] of Object.entries(f)) { if (["workSetup", "jobType", "minScore"].includes(id)) await page.selectOption("#" + id, v); else await page.fill("#" + id, v); } };
 
-        await expectFilter("FULLTIME -> 1,4,5", { jobType: "FULLTIME" }, [1, 4, 5]);
-        await expectFilter("PARTTIME -> 2", { jobType: "PARTTIME" }, [2]);
-        await expectFilter("CONTRACTOR -> 3", { jobType: "CONTRACTOR" }, [3]);
-        await expectFilter("location 'cebu' (any case) -> 3,4", { locationInput: "cebu" }, [3, 4]);
-        await expectFilter("remote -> 1", { workSetup: "remote" }, [1]);
-        await expectFilter("hybrid -> 3 (description says hybrid)", { workSetup: "hybrid" }, [3]);
-        await expectFilter("onsite -> everything not remote", { workSetup: "onsite" }, [2, 3, 4, 5]);
-        await expectFilter("min 30000 drops job 4 (pays up to 20k); unlisted and USD jobs pass", { minSalary: "30000" }, [1, 2, 3, 5]);
-        await expectFilter("max 30000 drops job 1 (pays from 40k)", { maxSalary: "30000" }, [2, 3, 4, 5]);
-        await expectFilter("range 16k-45k keeps overlapping jobs", { minSalary: "16000", maxSalary: "45000" }, [1, 2, 3, 4, 5]);
-        await expectFilter("filters combine (FULLTIME + cebu -> 4)", { jobType: "FULLTIME", locationInput: "cebu" }, [4]);
-        await set({ locationInput: "nowhere" }); await apply();
-        t.check("nothing matches -> empty state", [await page.locator(".no-jobs h3").innerText(), await page.locator("#jobResultText").innerText()], ["No matching jobs found", "0 jobs found"]);
+        await set({ workSetup: "remote" }); await apply();
+        t.check("work setup", queries.at(-1), { q: "jobs philippines", page: "1", workSetup: "remote" });
         await reset();
 
-        t.section("the search text sent to the backend");
-        queries.length = 0;
-        await set({ workSetup: "onsite", jobType: "FULLTIME", locationInput: "Cebu" });
+        await set({ locationInput: "Cebu" }); await apply();
+        t.check("location", queries.at(-1), { q: "jobs philippines", page: "1", location: "Cebu" });
+        await reset();
+
+        await set({ minSalary: "20000", maxSalary: "60000" }); await apply();
+        t.check("salary range", queries.at(-1), { q: "jobs philippines", page: "1", minSalary: "20000", maxSalary: "60000" });
+        await reset();
+
+        await set({ jobType: "FULLTIME" }); await apply();
+        t.check("job type", queries.at(-1), { q: "jobs philippines", page: "1", jobType: "FULLTIME" });
+        await reset();
+
+        await set({ minScore: "50" }); await apply();
+        t.check("minimum suitability score", queries.at(-1), { q: "jobs philippines", page: "1", minScore: "50" });
+        await reset();
+
+        await set({ workSetup: "onsite", jobType: "FULLTIME", locationInput: "Cebu", minScore: "25" });
         await page.fill("#searchInput", "nurse"); await page.press("#searchInput", "Enter");
         await page.waitForFunction(() => !document.querySelector(".loading-jobs"));
-        t.check("keyword + setup + type + location", queries.at(-1), "nurse onsite fulltime in Cebu");
-        await reset();
-        t.check("reset restores the default search and clears the fields",
-            [queries.at(-1), await page.inputValue("#searchInput"), await page.inputValue("#locationInput"), await page.inputValue("#jobType")], ["jobs philippines", "", "", ""]);
-        await set({ workSetup: "remote" }); await apply();
-        t.check("remote adds remote wording and defaults to philippines", queries.at(-1), "jobs remote work from home philippines");
+        t.check("keyword and every filter combine into one request", queries.at(-1),
+            { q: "nurse", page: "1", workSetup: "onsite", location: "Cebu", jobType: "FULLTIME", minScore: "25" });
 
-        await page.click("#resetFilters");
-        await page.waitForFunction(() => !document.querySelector(".loading-jobs"));
+        await reset();
+        t.check("reset restores the default search and clears every field",
+            [queries.at(-1), await page.inputValue("#searchInput"), await page.inputValue("#locationInput"), await page.inputValue("#jobType"), await page.inputValue("#minScore")],
+            [{ q: "jobs philippines", page: "1" }, "", "", "", ""]);
+
         await page.locator('.view-details-btn[data-job-id="jsearch-2"]').click();
         await page.waitForFunction(() => document.getElementById("popupDescription").textContent === "FULL DETAIL TEXT");
         t.check("View Details opens the popup for that job", [await page.locator("#popupTitle").innerText(), await page.locator("#popupCompany").innerText(), await page.locator("#popupJobType").innerText()], ["Job J2", "Company J2", "Part-time"]);
@@ -89,17 +105,28 @@ const FIXTURE = [
         await context.close();
     }
 
+    t.section("internal (employer-posted) jobs");
+    {
+        const { context, page } = await openJobs({
+            respond: () => ({ json: { status: "OK", query: "jobs philippines", page: 1, skillCount: 0, hasPreferences: false, detailed: false, data: [internalJob(6), job(1)] } }),
+        });
+        t.check("internal job is listed first, with a Posted on JobLink badge", [await shownIds(page), await page.locator(".job-card").first().locator(".joblink-badge").count(), await page.locator(".job-card").nth(1).locator(".joblink-badge").count()], [["internal-6", "jsearch-1"], 1, 0]);
+        t.check("internal job's Apply button says just Apply, not Apply on a publisher", (await page.locator(".job-card").first().locator(".apply-job-btn").innerText()).trim(), "Apply");
+        await context.close();
+    }
+
     t.section("?q= hand-off from the dashboard search box");
     {
         const { context, page, queries } = await openJobs({ url: `Jobs.html?q=${encodeURIComponent("chef & baker")}` });
-        t.check("search box is pre-filled and the keyword is what's searched", [await page.inputValue("#searchInput"), queries], ["chef & baker", ["chef & baker philippines"]]);
+        t.check("search box is pre-filled and the keyword is what's searched", [await page.inputValue("#searchInput"), queries], ["chef & baker", [{ q: "chef & baker", page: "1" }]]);
         await context.close();
     }
 
     t.section("newest search wins");
     {
-        const { context, page } = await openJobs({ respond: (call, n) => call.query.query === "jobs philippines"
-            ? { delay: 1500, json: { status: "OK", data: [job(90)] } } : { json: { status: "OK", data: [job(91)] } }, waitForCards: false });
+        const { context, page } = await openJobs({ respond: (call, n) => call.query.q === "jobs philippines"
+            ? { delay: 1500, json: { status: "OK", query: "jobs philippines", page: 1, skillCount: 0, hasPreferences: false, detailed: false, data: [job(90)] } }
+            : { json: { status: "OK", query: call.query.q, page: 1, skillCount: 0, hasPreferences: false, detailed: false, data: [job(91)] } }, waitForCards: false });
         await page.fill("#searchInput", "quick"); await page.press("#searchInput", "Enter");
         await page.waitForSelector('[data-job-id="jsearch-91"]');
         await page.waitForTimeout(2200);

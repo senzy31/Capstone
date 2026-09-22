@@ -27,7 +27,7 @@ const PENDING = "joblink.pendingApply";
     async function openJobs({ apiSetup, init, page: pageName = "Jobs.html", jobs = [EXT, INT, NOPUB, NOID, HTMLPUB] } = {}) {
         const session = await loggedInPage(browser, server.baseUrl, { init });
         const api = await mockApi(session.context);
-        api.on("GET", /^\/JobSearch\/search$/, () => ({ json: { status: "OK", data: jobs } }));
+        api.on("GET", /^\/Recommendations\/search$/, () => ({ json: { status: "OK", query: "jobs philippines", page: 1, skillCount: 0, hasPreferences: false, detailed: false, data: jobs } }));
         api.on("GET", /^\/JobSearch\/details$/, () => ({ json: { status: "OK", data: [{ job_description: "Details" }] } }));
         api.on("GET", /^\/JobSearch\/salary$/, () => ({ json: { status: "OK", data: [] } }));
         apiSetup?.(api);

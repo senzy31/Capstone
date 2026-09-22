@@ -25,6 +25,16 @@ namespace Joblink.Controllers
         [HttpGet("posting-packages")]
         public IActionResult Packages() => Ok(_service.ListPackages());
 
+        // The caller's own unused Post/Renewal credits.
+        [HttpGet("credits")]
+        public IActionResult Credits()
+        {
+            if (User.GetUserId() is not int employerId)
+                return Unauthorized();
+
+            return Ok(_service.GetCredits(employerId));
+        }
+
         [HttpPost("purchase")]
         public IActionResult Purchase([FromBody] PurchaseRequest request)
         {

@@ -301,6 +301,10 @@ namespace Joblink.Services.Recommendations
         {
             var node = new JsonObject
             {
+                // JSearch's own ids are strings, and the popup/card rendering keys off this
+                // field client-side (data-job-id) - joblink_job_id is the one that's actually
+                // sent back to the server to apply.
+                ["job_id"] = $"internal-{job.JobId}",
                 ["joblink_job_id"] = job.JobId,
                 ["joblink_source"] = ListingSources.Internal,
                 ["job_title"] = job.Title,

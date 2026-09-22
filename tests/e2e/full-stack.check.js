@@ -69,7 +69,9 @@ function sql(query) {
         const firstCard = page.locator(".job-card").first();
         const label = (await firstCard.locator(".apply-job-btn").innerText()).replace(/\s+/g, " ").trim();
         const note = (await firstCard.locator(".external-note").innerText()).replace(/\s+/g, " ").trim();
-        const title = (await firstCard.locator(".job-title").innerText()).trim();
+        // .job-title also carries a "<level> match" label (see JobsShared.js's renderScoredJobCard) -
+        // its own first text node, before that label span, is the plain title.
+        const title = (await firstCard.locator(".job-title").evaluate(el => el.childNodes[0].textContent)).trim();
         const publisher = label.replace(/^Apply on /, "");
         t.check("real search results: external button + note", [label.startsWith("Apply on "), publisher.length > 0, note.includes(`posted on ${publisher}`)], [true, true, true]);
 

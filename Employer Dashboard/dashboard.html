@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Employer Dashboard | JobLink</title>
+    <title>My Job Posts | JobLink</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
@@ -16,10 +18,7 @@
             Job<span>Link</span>
         </div>
         <nav>
-            <a class="active" href="#overview">Overview</a>
-            <a href="#post-job">Post Job</a>
-            <a href="#applicants">Applicants</a>
-            <a href="#settings">Settings</a>
+            <a class="active" href="dashboard.html">My Job Posts</a>
         </nav>
         <button id="logoutBtn" class="btn btn-logout">Logout</button>
     </aside>
@@ -28,57 +27,94 @@
         <header class="topbar">
             <div>
                 <h1 id="welcomeText">Welcome, Employer</h1>
-                <p>Manage your company postings and review candidates.</p>
-
+                <p>Post jobs, manage posting credits, and track your listings.</p>
             </div>
         </header>
 
-        <section class="cards-grid" id="overview">
+        <section class="cards-grid">
             <article class="card">
-                <h3>Active Jobs</h3>
-                <p id="activeJobs">0</p>
+                <h3>Active Posts</h3>
+                <p id="activeCount">0</p>
             </article>
             <article class="card">
-                <h3>Total Applicants</h3>
-                <p id="totalApplicants">0</p>
+                <h3>Post Credits</h3>
+                <p id="postCreditsCount">0</p>
             </article>
             <article class="card">
-                <h3>Open Interviews</h3>
-                <p id="openInterviews">0</p>
+                <h3>Renewal Credits</h3>
+                <p id="renewalCreditsCount">0</p>
             </article>
         </section>
 
         <section class="panel" id="post-job">
             <div class="panel-header">
-                <h2>Post a New Job</h2>
+                <h2 id="formTitle">Post a New Job</h2>
+                <p>Posting isn't free - publishing spends one posting credit. <button type="button" id="openPurchaseBtn" class="link-btn">Buy credits</button></p>
             </div>
+
             <form id="jobForm" class="job-form">
-                <input type="text" id="jobTitle" placeholder="Job Title" required>
-                <input type="text" id="jobLocation" placeholder="Location" required>
-                <textarea id="jobDescription" rows="4" placeholder="Job Description"></textarea>
-                <button type="submit" class="btn btn-primary">Publish Job</button>
+                <input type="hidden" id="jobId" value="">
+
+                <input type="text" id="jobTitle" placeholder="Job Title" required maxlength="150">
+                <input type="text" id="jobCompany" placeholder="Company" required maxlength="150">
+                <input type="text" id="jobLocationInput" placeholder="Location (e.g. Makati, Metro Manila)" required maxlength="150">
+                <textarea id="jobDescription" rows="4" placeholder="Job Description" required maxlength="8000"></textarea>
+
+                <div class="job-form-row">
+                    <input type="number" id="jobSalaryMin" placeholder="Minimum monthly salary (PHP)" min="0">
+                    <input type="number" id="jobSalaryMax" placeholder="Maximum monthly salary (PHP)" min="0">
+                </div>
+
+                <div class="job-form-row">
+                    <select id="jobWorkSetup">
+                        <option value="">Work setup...</option>
+                        <option value="onsite">On-site</option>
+                        <option value="remote">Remote</option>
+                        <option value="hybrid">Hybrid</option>
+                    </select>
+
+                    <select id="jobTypeInput">
+                        <option value="">Job type...</option>
+                        <option value="FULLTIME">Full-time</option>
+                        <option value="PARTTIME">Part-time</option>
+                        <option value="CONTRACTOR">Contract</option>
+                        <option value="INTERN">Internship</option>
+                    </select>
+                </div>
+
+                <input type="text" id="jobSkills" placeholder="Required skills, comma separated (e.g. SQL, React, Communication)">
+
+                <p id="formError" class="form-error" hidden></p>
+
+                <div class="job-form-actions">
+                    <button type="submit" class="btn btn-primary" id="saveJobBtn">Save as Draft</button>
+                    <button type="button" class="btn btn-secondary" id="cancelEditBtn" hidden>Cancel edit</button>
+                </div>
             </form>
         </section>
 
-        <section class="panel" id="applicants">
+        <section class="panel" id="my-jobs">
             <div class="panel-header">
-                <h2>Recent Applicants</h2>
+                <h2>My Job Posts</h2>
+                <p>Publish a draft to put it in front of job seekers for 30 days.</p>
             </div>
-            <div id="applicantList" class="applicant-list">
-                <p>No applicants yet.</p>
-            </div>
-        </section>
-
-        <section class="panel" id="past-listings">
-            <div class="panel-header">
-                <h2>Past Listings</h2>
-                <p>Review jobs you've posted previously.</p>
-            </div>
-            <div id="pastListingContainer" class="applicant-list">
-                <p>Loading past listings...</p>
+            <div id="jobListContainer" class="applicant-list">
+                <p>Loading your job posts...</p>
             </div>
         </section>
     </main>
+</div>
+
+<div id="purchaseModal" class="modal">
+    <div class="modal-content">
+        <h3>Buy Posting Credits</h3>
+        <p class="demo-note">Demo only. No real payment is processed.</p>
+        <div id="packageList" class="package-list"></div>
+        <p id="purchaseError" class="form-error" hidden></p>
+        <div class="modal-actions">
+            <button id="cancelPurchase" class="btn btn-secondary">Close</button>
+        </div>
+    </div>
 </div>
 
 <div id="logoutModal" class="modal">
@@ -92,6 +128,7 @@
     </div>
 </div>
 
+<script src="../DASHBOARD/ApiClient.js"></script>
 <script src="dashboard.js"></script>
 </body>
 </html>

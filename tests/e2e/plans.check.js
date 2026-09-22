@@ -193,7 +193,9 @@ function plan({ premium = false, billing = null, until = null, cancelled = false
     {
         const employer = await openPlans({ user: { userId: 9, fullName: "Acme HR", email: "hr@acme.example", role: "employer" } });
         await employer.page.waitForURL("**/Employer%20Dashboard/dashboard.html", { timeout: 8000 });
-        t.check("an employer is sent to the employer dashboard without asking for a plan", [employer.page.url().endsWith("/Employer%20Dashboard/dashboard.html"), employer.api.calls.length], [true, 0]);
+        // Plans.js itself never asks for a plan (the employer dashboard it lands on is real now,
+        // and loads its own job posts/credits - that's its own concern, checked in its own suite).
+        t.check("an employer is sent to the employer dashboard without asking for a plan", [employer.page.url().endsWith("/Employer%20Dashboard/dashboard.html"), employer.api.callsTo("GET", /^\/Subscription$/).length], [true, 0]);
         await employer.context.close();
 
         const signedOut = await openPlans({ token: null });
@@ -201,9 +203,14 @@ function plan({ premium = false, billing = null, until = null, cancelled = false
         t.check("no login goes to the login page, and no API call is made", [signedOut.page.url().endsWith("/LOGIN/login.html"), signedOut.api.calls.length], [true, 0]);
         await signedOut.context.close();
 
+        // A session whose local role isn't "employer" but whose API calls 403 anyway (a stale
+        // saved session, say) leaves Plans.js for the employer dashboard - which itself requires
+        // a real employer login and won't show a page meant for someone else. It sends the
+        // session on to log in; the login page, seeing it's still signed in, bounces it once
+        // more to its own (job seeker) dashboard rather than asking to sign in again.
         const forbidden = await openPlans({ getStatus: 403 });
-        await forbidden.page.waitForURL("**/Employer%20Dashboard/dashboard.html", { timeout: 8000 });
-        t.check("if the API answers 403 (an employer account) the page leaves for the employer dashboard", forbidden.page.url().endsWith("/Employer%20Dashboard/dashboard.html"), true);
+        await forbidden.page.waitForURL("**/DASHBOARD/dashboard.html", { timeout: 8000 });
+        t.check("if the API answers 403 the page leaves for the employer dashboard, which sends an inconsistent session on to its own dashboard instead", forbidden.page.url().endsWith("/DASHBOARD/dashboard.html"), true);
         await forbidden.context.close();
     }
 

@@ -172,6 +172,18 @@ function getJobLocation(job) {
 
 function getWorkSetup(job) {
 
+    // An internal (employer-posted) job carries its own authoritative setup - no need to
+    // guess it from description text the way an external JSearch listing has to.
+    if (job.joblink_work_setup) {
+
+        const setup = String(job.joblink_work_setup).toLowerCase();
+
+        if (setup === "remote") return "Remote / WFH";
+        if (setup === "hybrid") return "Hybrid";
+        if (setup === "onsite") return "On-site";
+
+    }
+
     const description = (job.job_description || "").toLowerCase();
 
     if (
@@ -188,6 +200,21 @@ function getWorkSetup(job) {
     }
 
     return "On-site";
+
+}
+
+
+// A job an employer posted directly on JobLink, not imported from JSearch.
+function isInternalJob(job) {
+    return job.joblink_source === "Internal";
+}
+
+
+function joblinkBadgeHtml(job) {
+
+    return isInternalJob(job)
+        ? `<span class="badge joblink-badge"><i class="fa-solid fa-star"></i> Posted on JobLink</span>`
+        : "";
 
 }
 
@@ -264,48 +291,6 @@ function getJobSalary(job) {
     }
 
     return "Salary not specified";
-
-}
-
-
-// Salaries in the app (filters, preferences) are monthly PHP, but JSearch
-// reports whatever period/currency the listing used.
-const MONTHLY_FACTOR = {
-    YEAR: 1 / 12,
-    MONTH: 1,
-    WEEK: 52 / 12,
-    DAY: (5 * 52) / 12,
-    HOUR: (40 * 52) / 12
-};
-
-
-// The job's pay as a { min, max } monthly-PHP range, or null when the
-// listing has no salary or it isn't in PHP (so it can't be compared).
-// A missing bound means open-ended ("Starting at X" -> max is Infinity).
-function getMonthlySalaryRange(job) {
-
-    const min = Number(job.job_min_salary) || 0;
-    const max = Number(job.job_max_salary) || 0;
-
-    if (!min && !max) {
-        return null;
-    }
-
-    if (getJobCurrency(job) !== "PHP") {
-        return null;
-    }
-
-    // PH listings without a stated period are quoted per month.
-    const factor = MONTHLY_FACTOR[String(job.job_salary_period || "MONTH").toUpperCase()];
-
-    if (!factor) {
-        return null;
-    }
-
-    return {
-        min: min ? min * factor : 0,
-        max: max ? max * factor : Infinity
-    };
 
 }
 
@@ -442,5 +427,157 @@ async function loadSalary(job) {
 function closePopup() {
 
     document.getElementById("jobPopup").classList.remove("show");
+
+}
+
+
+// ======================================================
+// SCORED JOB CARD
+// Shared by dashboard.html (recommendations) and Jobs.html (search) - both show a job's
+// joblink_match the same way: everyone gets the overall score and band, a Premium plan also
+// gets how each part scored. The rules are in docs/scoring.md.
+// ======================================================
+
+const SKILL_CHIPS_SHOWN = 6;
+
+// What a job is shown with if a server ever sent it without a match.
+const NO_MATCH = { score: 0, band: { level: "low", label: "Low match" }, detailed: false };
+
+function matchOf(job) {
+
+    return job.joblink_match || NO_MATCH;
+
+}
+
+// One line of the score breakdown (Premium). A part the server left out of the score has no score and
+// says why in its note.
+function matchRow(label, part) {
+
+    if (!part || part.score === null || part.score === undefined) {
+
+        return `
+            <div class="match-row muted">
+                <span class="match-name">${label}</span>
+                <span class="match-note">${escapeHtml(part?.note || "")}</span>
+            </div>
+        `;
+
+    }
+
+    const score = Number(part.score) || 0;
+
+    return `
+        <div class="match-row">
+            <span class="match-name">${label}</span>
+            <div class="match-bar"><div class="match-fill" style="width:${Math.max(0, Math.min(100, score))}%"></div></div>
+            <span class="match-pct">${score}%</span>
+            <span class="match-note">${escapeHtml(part.note || "")}</span>
+        </div>
+    `;
+
+}
+
+
+function renderScoredJobCard(job) {
+
+    const match = matchOf(job);
+
+    const score = Number(match.score) || 0;
+
+    const level = escapeHtml(match.band?.level || "low");
+
+    const jobId = escapeHtml(job.job_id || "");
+
+    const listedSalary = (job.job_min_salary || job.job_max_salary)
+        ? `<span><i class="fa-solid fa-money-bill-wave"></i> ${escapeHtml(getJobSalary(job))}</span>`
+        : "";
+
+    // A Premium plan is sent how each part scored and which skills matched; a Free plan is sent neither,
+    // so there is nothing here to show it - only an invitation.
+    const detailed = match.detailed === true;
+
+    const matched = detailed ? (match.skills?.matched || []) : [];
+
+    const chips = matched
+        .slice(0, SKILL_CHIPS_SHOWN)
+        .map(skill => `<span class="skill-chip">${escapeHtml(skill)}</span>`)
+        .join("");
+
+    const moreChips = matched.length > SKILL_CHIPS_SHOWN
+        ? `<span class="skill-chip more">+${matched.length - SKILL_CHIPS_SHOWN} more</span>`
+        : "";
+
+    const breakdown = detailed
+        ? `
+            <div class="match-breakdown level-${level}">
+                ${matchRow("Skills", match.skills)}
+                ${matchRow("Location", match.location)}
+                ${matchRow("Salary", match.salary)}
+            </div>
+        `
+        : `
+            <div class="match-locked">
+                <i class="fa-solid fa-lock"></i>
+                <span>See how skills, location and salary each scored</span>
+                <a href="Plans.html">Upgrade to Premium</a>
+            </div>
+        `;
+
+
+    return `
+        <div class="job-card recommended-card">
+            <div class="job-card-content">
+
+                <div class="score-ring level-${level}" style="--pct:${score}"
+                     title="Suitability score: ${score}%">
+                    <span>${score}%</span>
+                </div>
+
+                <div class="job-main-info">
+
+                    <p class="company-name">${escapeHtml(job.employer_name || "Unknown Company")}</p>
+
+                    <h3 class="job-title">
+                        ${escapeHtml(job.job_title || "Job Position")}
+                        <span class="match-label level-${level}">${escapeHtml(match.band?.label || "")}</span>
+                    </h3>
+
+                    <div class="job-meta">
+                        <span>
+                            <i class="fa-solid fa-location-dot"></i>
+                            ${escapeHtml(getJobLocation(job))}
+                        </span>
+
+                        <span>
+                            <i class="fa-solid fa-briefcase"></i>
+                            ${escapeHtml(formatJobType(job.job_employment_type))}
+                        </span>
+
+                        ${getWorkBadge(getWorkSetup(job))}
+
+                        ${joblinkBadgeHtml(job)}
+
+                        ${listedSalary}
+                    </div>
+
+                    ${breakdown}
+
+                    ${chips ? `<div class="matched-skills">${chips}${moreChips}</div>` : ""}
+
+                    ${ApplyFlow.externalNoteHtml(job)}
+
+                </div>
+
+                <div class="job-card-actions">
+                    <button class="btn btn-secondary view-details-btn" data-job-id="${jobId}">
+                        View Details
+                    </button>
+
+                    ${ApplyFlow.applyButtonHtml(job)}
+                </div>
+
+            </div>
+        </div>
+    `;
 
 }

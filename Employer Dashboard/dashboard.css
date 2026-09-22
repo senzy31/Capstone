@@ -196,6 +196,137 @@ body{
     font-size:0.95rem;
 }
 
+.job-form-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+}
+
+.job-form select{
+    width:100%;
+    border:1px solid #d7e3f5;
+    border-radius:14px;
+    padding:16px;
+    font-size:15px;
+    font-family:inherit;
+    background:white;
+}
+
+.job-form-actions{
+    display:flex;
+    gap:14px;
+}
+
+.form-error{
+    margin:0;
+    padding:12px 16px;
+    border-radius:12px;
+    background:#fdecea;
+    color:#b3261e;
+    font-size:14px;
+}
+
+.link-btn{
+    border:none;
+    background:none;
+    padding:0;
+    color:#1f3e8a;
+    font-weight:600;
+    text-decoration:underline;
+    cursor:pointer;
+    font-size:inherit;
+    font-family:inherit;
+}
+
+.job-card-top{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+}
+
+.job-card-meta{
+    margin:6px 0 0;
+    color:#5c6e88;
+    font-size:13.5px;
+}
+
+.job-card-actions{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-top:16px;
+}
+
+.job-card-actions .btn{
+    padding:10px 16px;
+    font-size:13.5px;
+}
+
+.status-pill{
+    display:inline-block;
+    padding:6px 14px;
+    border-radius:999px;
+    font-size:12.5px;
+    font-weight:600;
+    white-space:nowrap;
+}
+
+.status-draft{ background:#eef1f6; color:#4a5568; }
+.status-active{ background:#e3f9e5; color:#1a7f37; }
+.status-closed{ background:#fff1e0; color:#b56a00; }
+.status-expired{ background:#fdecea; color:#b3261e; }
+
+.package-list{
+    display:grid;
+    gap:14px;
+    margin:20px 0;
+    text-align:left;
+}
+
+.package-card{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:14px;
+    padding:16px 18px;
+    border:1px solid #e5ecf8;
+    border-radius:16px;
+    background:#f9fbff;
+}
+
+.package-card h4{
+    margin:0 0 4px;
+    font-size:15px;
+}
+
+.package-card p{
+    margin:0;
+    font-size:13px;
+    color:#5c6e88;
+}
+
+.demo-note{
+    margin:4px 0 0;
+    color:#b56a00;
+    font-size:13.5px;
+    font-weight:600;
+}
+
+.no-jobs{
+    text-align:center;
+    padding:30px 20px;
+    color:#5c6e88;
+}
+
+.no-jobs i{
+    font-size:28px;
+    margin-bottom:10px;
+    display:block;
+    color:#b3261e;
+}
+
 .modal{
     display:none;
     position:fixed;
