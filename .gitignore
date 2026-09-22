@@ -12,3 +12,27 @@ obj/
 # OS junk
 Thumbs.db
 .DS_Store
+
+# Node (tests/) - recreate with: cd tests && npm install
+node_modules/
+npm-debug.log*
+
+# Python (JobLink-AI/) - recreate with: cd JobLink-AI && python -m venv venv && ./venv/Scripts/pip install -r requirements.txt
+venv/
+__pycache__/
+*.pyc
+.env
+
+# .NET test output (dotnet test --logger trx would write these)
+TestResults/
+*.trx
+
+# Playwright (a failed run writes these)
+test-results/
+playwright-report/
+blob-report/
+
+# Logs, screenshots, scratch
+*.log
+*.tmp
+*.bak
