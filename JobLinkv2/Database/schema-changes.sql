@@ -182,3 +182,130 @@ IF OBJECT_ID('CK_Applications_priority_internal', 'C') IS NULL
     ALTER TABLE Applications ADD CONSTRAINT CK_Applications_priority_internal CHECK (
         is_priority = 0 OR application_type = 'Internal');
 GO
+
+
+-- =====================================================================
+-- Paid employer job posting. Payments are SIMULATED (same DemoCheckout
+-- pattern as Subscriptions) - there is no payment gateway.
+--
+-- Job_Post_Purchases is an append-only ledger, one row per purchase, not a
+-- single running balance: it doubles as purchase history for the employer's
+-- "My Job Posts" page, and it keeps "post" credits (Single/Bundle5) and
+-- "renewal" credits (Renewal) apart, since a renewal never grants a new
+-- post. Spending a credit decrements credits_remaining on the oldest row of
+-- that kind that still has one (FIFO), the same per-user sp_getapplock
+-- pattern SqlSubscriptionStore already uses for Subscriptions.
+-- =====================================================================
+IF OBJECT_ID('Job_Post_Purchases', 'U') IS NULL
+    CREATE TABLE Job_Post_Purchases (
+        purchase_id       INT IDENTITY(1,1) PRIMARY KEY,
+        employer_id       INT NOT NULL
+            CONSTRAINT FK_Job_Post_Purchases_Employer FOREIGN KEY REFERENCES Users(user_id),
+        package           VARCHAR(10) NOT NULL,   -- Single | Bundle5 | Renewal
+        credit_kind       VARCHAR(10) NOT NULL,   -- Post | Renewal
+        amount_php        DECIMAL(10,2) NOT NULL,
+        credits_granted   INT NOT NULL,
+        credits_remaining INT NOT NULL,
+        purchased_at      DATETIME NOT NULL CONSTRAINT DF_Job_Post_Purchases_purchased_at DEFAULT GETUTCDATE(),
+        CONSTRAINT CK_Job_Post_Purchases_package CHECK (package IN ('Single', 'Bundle5', 'Renewal')),
+        CONSTRAINT CK_Job_Post_Purchases_credit_kind CHECK (credit_kind IN ('Post', 'Renewal')),
+        CONSTRAINT CK_Job_Post_Purchases_credits CHECK (credits_remaining >= 0 AND credits_remaining <= credits_granted)
+    );
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Job_Post_Purchases_Employer_Kind' AND object_id = OBJECT_ID('Job_Post_Purchases'))
+    CREATE INDEX IX_Job_Post_Purchases_Employer_Kind ON Job_Post_Purchases (employer_id, credit_kind, purchased_at);
+GO
+
+-- Job_Listings: employer-posted (Internal) jobs get real posting fields.
+-- Existing rows (External, imported or manually logged) default to Draft -
+-- harmless, since status is never read for anything but Internal jobs.
+IF COL_LENGTH('Job_Listings', 'status') IS NULL
+    ALTER TABLE Job_Listings ADD status VARCHAR(10) NOT NULL
+        CONSTRAINT DF_Job_Listings_status DEFAULT 'Draft';       -- Draft | Active | Closed | Expired
+IF COL_LENGTH('Job_Listings', 'salary_min') IS NULL
+    ALTER TABLE Job_Listings ADD salary_min DECIMAL(12,2) NULL;  -- monthly, PHP - same shape as Job_Preferences
+IF COL_LENGTH('Job_Listings', 'salary_max') IS NULL
+    ALTER TABLE Job_Listings ADD salary_max DECIMAL(12,2) NULL;
+IF COL_LENGTH('Job_Listings', 'work_setup') IS NULL
+    ALTER TABLE Job_Listings ADD work_setup VARCHAR(20) NULL;    -- onsite | remote | hybrid
+IF COL_LENGTH('Job_Listings', 'job_type') IS NULL
+    ALTER TABLE Job_Listings ADD job_type VARCHAR(20) NULL;      -- FULLTIME | PARTTIME | CONTRACTOR | INTERN
+IF COL_LENGTH('Job_Listings', 'published_at') IS NULL
+    ALTER TABLE Job_Listings ADD published_at DATETIME NULL;
+IF COL_LENGTH('Job_Listings', 'expires_at') IS NULL
+    ALTER TABLE Job_Listings ADD expires_at DATETIME NULL;
+GO
+
+IF OBJECT_ID('CK_Job_Listings_status', 'C') IS NULL
+    ALTER TABLE Job_Listings ADD CONSTRAINT CK_Job_Listings_status CHECK (
+        status IN ('Draft', 'Active', 'Closed', 'Expired'));
+IF OBJECT_ID('CK_Job_Listings_salary_range', 'C') IS NULL
+    ALTER TABLE Job_Listings ADD CONSTRAINT CK_Job_Listings_salary_range CHECK (
+        salary_min IS NULL OR salary_max IS NULL OR salary_min <= salary_max);
+IF OBJECT_ID('CK_Job_Listings_work_setup', 'C') IS NULL
+    ALTER TABLE Job_Listings ADD CONSTRAINT CK_Job_Listings_work_setup CHECK (
+        work_setup IS NULL OR work_setup IN ('onsite', 'remote', 'hybrid'));
+IF OBJECT_ID('CK_Job_Listings_job_type', 'C') IS NULL
+    ALTER TABLE Job_Listings ADD CONSTRAINT CK_Job_Listings_job_type CHECK (
+        job_type IS NULL OR job_type IN ('FULLTIME', 'PARTTIME', 'CONTRACTOR', 'INTERN'));
+GO
+
+-- Required skills on an employer-posted job - the same shared Skills catalog
+-- resumes use, so missing-skills analysis can compare the two lists later.
+-- Removing a skill from a posting keeps the row (like Resume_Skills): flip
+-- is_deleted back to 0 to re-add it instead of a duplicate key error.
+IF OBJECT_ID('Job_Listing_Skills', 'U') IS NULL
+    CREATE TABLE Job_Listing_Skills (
+        job_id     INT NOT NULL CONSTRAINT FK_Job_Listing_Skills_Job FOREIGN KEY REFERENCES Job_Listings(job_id),
+        skill_id   INT NOT NULL CONSTRAINT FK_Job_Listing_Skills_Skill FOREIGN KEY REFERENCES Skills(skill_id),
+        is_deleted BIT NOT NULL CONSTRAINT DF_Job_Listing_Skills_is_deleted DEFAULT 0,
+        CONSTRAINT PK_Job_Listing_Skills PRIMARY KEY (job_id, skill_id)
+    );
+GO
+
+
+-- =====================================================================
+-- Profile pictures (job seekers and employers). The bytes live in the
+-- database, not on disk - there is no wwwroot/static-file serving in this
+-- app yet, and this reuses the same "stream bytes with a content type"
+-- shape the resume PDF/DOCX export already uses.
+--
+-- photo_key is a random, unguessable id, regenerated on every upload -
+-- GET /api/Profile/photo/{photoKey} needs no login (so <img src> just
+-- works), but there is deliberately no endpoint that maps a user id to a
+-- photo_key for anyone but that profile's own owner. An old key stops
+-- working the moment a new photo is uploaded.
+-- =====================================================================
+IF COL_LENGTH('Profiles', 'photo') IS NULL
+    ALTER TABLE Profiles ADD photo VARBINARY(MAX) NULL;
+IF COL_LENGTH('Profiles', 'photo_content_type') IS NULL
+    ALTER TABLE Profiles ADD photo_content_type VARCHAR(20) NULL;
+IF COL_LENGTH('Profiles', 'photo_key') IS NULL
+    ALTER TABLE Profiles ADD photo_key UNIQUEIDENTIFIER NULL;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_Profiles_PhotoKey' AND object_id = OBJECT_ID('Profiles'))
+    CREATE UNIQUE INDEX UX_Profiles_PhotoKey ON Profiles (photo_key) WHERE photo_key IS NOT NULL;
+GO
+
+
+-- =====================================================================
+-- Notifications: what kind, and where clicking one should go. NULL on
+-- every row created before this - the bell only started reading them.
+-- =====================================================================
+IF COL_LENGTH('Notifications', 'type') IS NULL
+    ALTER TABLE Notifications ADD type VARCHAR(40) NULL;
+IF COL_LENGTH('Notifications', 'link') IS NULL
+    ALTER TABLE Notifications ADD link VARCHAR(255) NULL;
+GO
+
+IF OBJECT_ID('CK_Notifications_type', 'C') IS NULL
+    ALTER TABLE Notifications ADD CONSTRAINT CK_Notifications_type CHECK (
+        type IS NULL OR type IN (
+            'NewApplication', 'ApplicationStatusChanged',
+            'PremiumActivated', 'PremiumExpiringSoon', 'PremiumExpired',
+            'ConfirmExternalReminder',
+            'JobPublished', 'JobExpiringSoon', 'JobExpired', 'PurchaseConfirmed'));
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Notifications_User_Type_Created' AND object_id = OBJECT_ID('Notifications'))
+    CREATE INDEX IX_Notifications_User_Type_Created ON Notifications (user_id, type, created_at);
+GO
