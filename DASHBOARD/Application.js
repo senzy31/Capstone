@@ -232,6 +232,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const name = currentUser.fullName || currentUser.full_name || currentUser.name || "User";
 
         Navbar.mount(userId, name);
+        Navbar.mountBell();
 
     }
 

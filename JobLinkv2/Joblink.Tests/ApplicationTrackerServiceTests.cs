@@ -340,7 +340,7 @@ namespace Joblink.Tests
 
             _clock.Advance(TimeSpan.FromHours(23));
             _tracker.List(Owner);
-            Assert.Empty(_notifications.Sent.Where(n => n.Type == "ConfirmExternalReminder"));
+            Assert.DoesNotContain(_notifications.Sent, n => n.Type == "ConfirmExternalReminder");
 
             _clock.Advance(TimeSpan.FromHours(2));          // now 25 hours since the redirect
             _tracker.List(Owner);
@@ -368,7 +368,7 @@ namespace Joblink.Tests
 
             _tracker.List(Owner);
 
-            Assert.Empty(_notifications.Sent.Where(n => n.Type == "ConfirmExternalReminder"));
+            Assert.DoesNotContain(_notifications.Sent, n => n.Type == "ConfirmExternalReminder");
         }
     }
 }

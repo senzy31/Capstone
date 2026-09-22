@@ -92,6 +92,17 @@ body{
     font-size:32px;
 }
 
+.topbar-actions{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    flex-shrink:0;
+}
+
+.nav-bell-btn{
+    color:#1f2941;
+}
+
 .topbar p{
     margin:10px 0 0;
     color:#5c6e88;

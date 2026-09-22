@@ -6,8 +6,8 @@
     <title>My Job Posts | JobLink</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="dashboard.css">
     <link rel="stylesheet" href="../DASHBOARD/Navbar.css">
+    <link rel="stylesheet" href="dashboard.css">
     <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -31,10 +31,27 @@
                 <p>Post jobs, manage posting credits, and track your listings.</p>
             </div>
 
-            <a href="#my-photo" class="nav-avatar" id="navAvatarLink" aria-label="Open your photo settings">
-                <img id="navAvatarImg" alt="" hidden>
-                <span id="navAvatarInitials" class="nav-avatar-fallback">E</span>
-            </a>
+            <div class="topbar-actions">
+                <div class="nav-bell-wrap">
+                    <button type="button" class="nav-bell-btn" id="navBellBtn" aria-label="Notifications" aria-haspopup="true" aria-expanded="false">
+                        <i class="fa-regular fa-bell"></i>
+                        <span class="nav-bell-badge" id="navBellBadge" hidden>0</span>
+                    </button>
+                    <div class="nav-bell-dropdown" id="navBellDropdown" hidden>
+                        <div class="nav-bell-header">
+                            <span>Notifications</span>
+                            <button type="button" id="navMarkAllReadBtn">Mark all as read</button>
+                        </div>
+                        <div class="nav-bell-list" id="navBellList"></div>
+                        <a href="/DASHBOARD/Notifications.html" class="nav-bell-viewall">View all</a>
+                    </div>
+                </div>
+
+                <a href="#my-photo" class="nav-avatar" id="navAvatarLink" aria-label="Open your photo settings">
+                    <img id="navAvatarImg" alt="" hidden>
+                    <span id="navAvatarInitials" class="nav-avatar-fallback">E</span>
+                </a>
+            </div>
         </header>
 
         <section class="cards-grid">

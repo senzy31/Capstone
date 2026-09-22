@@ -27,6 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
     showUserName(user);
 
     Navbar.mount(user.userId, user.fullName);
+    Navbar.mountBell();
 
     setupSharedListeners();
 

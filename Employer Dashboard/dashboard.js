@@ -34,6 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Instant initials; loadPhoto() (below) fetches the real photo, if any, and updates both
     // this avatar and the big one in the Company Photo panel from the same response.
     Navbar.render(employer.fullName, null);
+    Navbar.mountBell();
 
     setupListeners();
 

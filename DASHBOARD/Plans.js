@@ -40,6 +40,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("userName").textContent = currentUser.fullName || "User";
 
     Navbar.mount(currentUser.userId || currentUser.user_id, currentUser.fullName);
+    Navbar.mountBell();
 
     document.getElementById("logoutBtn").addEventListener("click", (event) => {
         event.preventDefault();

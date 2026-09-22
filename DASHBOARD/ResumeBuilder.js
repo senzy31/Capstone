@@ -166,6 +166,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderPreview();
 
     Navbar.mount(userId, state.personal.fullName);
+    Navbar.mountBell();
 
     loadEverything();
 

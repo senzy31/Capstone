@@ -94,7 +94,7 @@ const envelope = (detailed, extra = {}) => ({ status: "OK", query: QUERY, page: 
         t.check("sidebar: Dashboard active, Jobs links to the Jobs page",
             [(await page.locator(".nav-links li.active a").innerText()).trim(), await page.locator('.nav-links a:has-text("Jobs")').getAttribute("href")], ["Dashboard", "Jobs.html"]);
         t.check("ONE request builds the whole list, with the login token and nothing but the page number - no user id, skills or plan",
-            [recommendationCalls(api).map(c => [c.headers.authorization, c.query]), api.calls.filter(c => c.method === "GET" && c.path !== "/Subscription" && !c.path.startsWith("/Profile/by-user/")).length], [[["Bearer test-token", { page: "1" }]], 1]);
+            [recommendationCalls(api).map(c => [c.headers.authorization, c.query]), api.calls.filter(c => c.method === "GET" && c.path !== "/Subscription" && !c.path.startsWith("/Profile/by-user/") && !c.path.startsWith("/Notification")).length], [[["Bearer test-token", { page: "1" }]], 1]);
         t.check("the page no longer loads the resume, skills, preferences or runs a job search itself",
             api.calls.filter(c => /^\/(Resume|Skills|ResumeSkills|Experience|JobPreference|JobSearch)/.test(c.path)).length, 0);
         t.check("says how many jobs were scored against how many skills, and what was searched", await page.locator("#jobResultText").innerText(), `3 jobs scored against your 2 resume skills · searched "${QUERY}"`);
@@ -285,6 +285,69 @@ const envelope = (detailed, extra = {}) => ({ status: "OK", query: QUERY, page: 
         await session.page.waitForURL("**/LOGIN/login.html", { timeout: 8000 });
         t.check("logged out: sent to login with zero API calls", [session.page.url().endsWith("/LOGIN/login.html"), api.calls.length], [true, 0]);
         await session.context.close();
+    }
+
+    // ----- the bell (shared with every page - see Navbar.js) --------------------------------------
+
+    t.section("the bell");
+    {
+        const NOTES = [
+            { notificationId: 501, message: "Your Premium plan expires in 3 days.", isRead: false, createdAt: new Date().toISOString(), type: "PremiumExpiringSoon", link: "/DASHBOARD/Plans.html" },
+            { notificationId: 500, message: "Older, already read.", isRead: true, createdAt: new Date(Date.now() - 86400000).toISOString(), type: "NewApplication", link: null },
+        ];
+        const { context, page, api } = await openDashboard();
+        // openDashboard() already navigated (and mountBell() already made its first, default-
+        // mocked unread-count request) before these overrides exist - force one more check now
+        // that they do, rather than waiting out the real 30s poll.
+        api.on("GET", /^\/Notification\/unread-count$/, () => ({ json: { count: 3 } }));
+        api.on("GET", /^\/Notification$/, () => ({ json: { data: NOTES, page: 1, pageSize: 20, totalCount: 2, unreadCount: 1 } }));
+        api.on("PATCH", /^\/Notification\/501\/read$/, () => ({ json: { ...NOTES[0], isRead: true } }));
+        api.on("PATCH", /^\/Notification\/read-all$/, () => ({ json: { updated: 1 } }));
+        await settle(page);
+        await page.evaluate(() => Navbar.refreshUnreadCount());
+
+        await page.waitForFunction(() => document.getElementById("navBellBadge")?.hidden === false);
+        t.check("the badge shows the unread count", await page.locator("#navBellBadge").innerText(), "3");
+
+        t.check("closed by default, with the right aria state", [await page.locator("#navBellDropdown").isHidden(), await page.getAttribute("#navBellBtn", "aria-expanded")], [true, "false"]);
+
+        await page.click("#navBellBtn");
+        await page.waitForFunction(() => document.querySelectorAll(".nav-bell-item").length === 2);
+        t.check("opens on click, shows both notifications newest first, unread marked",
+            [await page.getAttribute("#navBellBtn", "aria-expanded"), await page.$$eval(".nav-bell-item", els => els.map(e => e.classList.contains("unread")))],
+            ["true", [true, false]]);
+
+        await page.click("body", { position: { x: 5, y: 5 } });
+        t.check("clicking outside closes it", await page.locator("#navBellDropdown").isHidden(), true);
+
+        await page.click("#navBellBtn");
+        await page.keyboard.press("Escape");
+        t.check("Escape closes it too", await page.locator("#navBellDropdown").isHidden(), true);
+
+        await page.click("#navBellBtn");
+        await page.click('.nav-bell-item[data-id="501"]');
+        await page.waitForURL("**/DASHBOARD/Plans.html");
+        t.check("clicking an item marks it read and follows its link",
+            [api.callsTo("PATCH", /^\/Notification\/501\/read$/).length, page.url().endsWith("/DASHBOARD/Plans.html")], [1, true]);
+        await context.close();
+    }
+    {
+        const { context, page, api } = await openDashboard();
+        api.on("GET", /^\/Notification\/unread-count$/, () => ({ json: { count: 0 } }));
+        await settle(page);
+        await page.waitForTimeout(300);
+        t.check("no unread notifications: the badge stays hidden", await page.locator("#navBellBadge").isHidden(), true);
+
+        api.on("GET", /^\/Notification$/, () => ({ json: { data: [], page: 1, pageSize: 20, totalCount: 0, unreadCount: 0 } }));
+        let markedAll = false;
+        api.on("PATCH", /^\/Notification\/read-all$/, () => { markedAll = true; return { json: { updated: 0 } }; });
+        await page.click("#navBellBtn");
+        await page.waitForFunction(() => document.querySelector(".nav-bell-empty") !== null);
+        t.check("an empty list says so", await page.locator(".nav-bell-empty").innerText(), "No notifications yet.");
+        await page.click("#navMarkAllReadBtn");
+        await page.waitForResponse(response => /\/Notification\/read-all$/.test(new URL(response.url()).pathname) && response.request().method() === "PATCH");
+        t.check("mark all as read calls the endpoint", markedAll, true);
+        await context.close();
     }
 
     await browser.close();

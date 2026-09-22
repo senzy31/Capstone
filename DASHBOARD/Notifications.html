@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications | JobLink</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="ApiClient.css">
+    <link rel="stylesheet" href="Navbar.css">
+    <link rel="stylesheet" href="Notifications.css">
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+<!-- No sidebar here on purpose: this page is reached from the bell on both the job seeker
+     pages and the employer dashboard, so it doesn't assume either one's own navigation. -->
+<header class="top-navbar">
+
+    <a class="logo" href="dashboard.html">
+        <span class="logo-blue">JOB</span><span class="logo-black">LINK</span>
+    </a>
+
+    <div class="user-controls">
+        <div class="nav-bell-wrap">
+            <button type="button" class="nav-bell-btn" id="navBellBtn" aria-label="Notifications" aria-haspopup="true" aria-expanded="false">
+                <i class="fa-regular fa-bell"></i>
+                <span class="nav-bell-badge" id="navBellBadge" hidden>0</span>
+            </button>
+            <div class="nav-bell-dropdown" id="navBellDropdown" hidden>
+                <div class="nav-bell-header">
+                    <span>Notifications</span>
+                    <button type="button" id="navMarkAllReadBtn">Mark all as read</button>
+                </div>
+                <div class="nav-bell-list" id="navBellList"></div>
+                <a href="/DASHBOARD/Notifications.html" class="nav-bell-viewall">View all</a>
+            </div>
+        </div>
+
+        <a href="Profile.html" class="nav-avatar" id="navAvatarLink" aria-label="Open profile">
+            <img id="navAvatarImg" alt="" hidden>
+            <span id="navAvatarInitials" class="nav-avatar-fallback">U</span>
+        </a>
+    </div>
+
+</header>
+
+<main class="notifications-page">
+
+    <div class="notifications-header">
+        <h1>Notifications</h1>
+        <button type="button" class="btn-mark-all" id="markAllReadBtn">Mark all as read</button>
+    </div>
+
+    <div id="notificationsList" class="notifications-list">
+        <p class="notifications-loading">Loading...</p>
+    </div>
+
+    <div class="notifications-pager">
+        <button type="button" id="prevPageBtn" disabled>
+            <i class="fa-solid fa-chevron-left"></i> Previous
+        </button>
+        <span id="pageStatus">Page 1</span>
+        <button type="button" id="nextPageBtn" disabled>
+            Next <i class="fa-solid fa-chevron-right"></i>
+        </button>
+    </div>
+
+</main>
+
+<script src="ApiClient.js"></script>
+<script src="Navbar.js"></script>
+<script src="Notifications.js"></script>
+</body>
+</html>

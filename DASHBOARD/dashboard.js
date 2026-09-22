@@ -22,6 +22,7 @@ document.addEventListener("DOMContentLoaded", () => {
     showUserName(user);
 
     Navbar.mount(user.userId, user.fullName);
+    Navbar.mountBell();
 
     document.getElementById("welcomeText").textContent = `Welcome, ${user.firstName}!`;
 

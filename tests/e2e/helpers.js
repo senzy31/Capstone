@@ -118,6 +118,11 @@ async function mockApi(context) {
     // api.on(...) call, registered after this one wins (see api.on above: later registrations win).
     api.on("GET", /^\/Profile\/by-user\/\d+$/, () => ({ status: 404, json: { message: "You haven't saved a profile yet." } }));
 
+    // The bell (Navbar.js's mountBell) asks for these on every page too - default to "nothing
+    // to show" the same way, for the same reason.
+    api.on("GET", /^\/Notification\/unread-count$/, () => ({ json: { count: 0 } }));
+    api.on("GET", /^\/Notification$/, () => ({ json: { data: [], page: 1, pageSize: 20, totalCount: 0, unreadCount: 0 } }));
+
     await context.route(/^https:\/\/localhost:7142\/api\//, async route => {
         const request = route.request();
         const url = new URL(request.url());

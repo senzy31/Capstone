@@ -183,6 +183,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     loadPreferences();
 
+    Navbar.mountBell();
+
 
     /* =====================================
        SAVE JOB PREFERENCES

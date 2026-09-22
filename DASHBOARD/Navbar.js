@@ -103,6 +103,242 @@ const Navbar = (() => {
 
     }
 
-    return { mount, render, initials };
+    // ======================================================
+    // NOTIFICATIONS (the bell)
+    //
+    // Needs, already on the page:
+    //   #navBellBtn          the bell button (aria-haspopup, aria-expanded managed here)
+    //   #navBellBadge        the unread-count badge, hidden when there are none
+    //   #navBellDropdown     the dropdown panel, hidden until opened
+    //   #navBellList         where the latest notifications are drawn
+    //   #navMarkAllReadBtn   optional - "mark all as read"
+    // "View all" is a plain link in the dropdown's own markup - nothing here needs its href.
+    // ======================================================
+
+    const escapeText = (value) => String(value ?? "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+
+    function timeAgo(iso) {
+
+        const then = new Date(iso).getTime();
+
+        if (Number.isNaN(then)) {
+            return "";
+        }
+
+        const minutes = Math.floor(Math.max(0, Date.now() - then) / 60000);
+
+        if (minutes < 1) return "just now";
+        if (minutes < 60) return `${minutes}m ago`;
+
+        const hours = Math.floor(minutes / 60);
+
+        if (hours < 24) return `${hours}h ago`;
+
+        const days = Math.floor(hours / 24);
+
+        return days < 7 ? `${days}d ago` : new Date(iso).toLocaleDateString();
+
+    }
+
+    function renderBadge(count) {
+
+        const badge = document.getElementById("navBellBadge");
+
+        if (!badge) {
+            return;
+        }
+
+        if (count > 0) {
+            badge.textContent = count > 99 ? "99+" : String(count);
+            badge.hidden = false;
+        } else {
+            badge.hidden = true;
+        }
+
+    }
+
+    async function refreshUnreadCount() {
+
+        try {
+
+            const response = await ApiClient.authFetch(`${ApiClient.API}/Notification/unread-count`, { noUpgradePrompt: true });
+
+            if (!response.ok) {
+                return;
+            }
+
+            renderBadge((await response.json()).count);
+
+        } catch {
+            // Leaves the badge as it was.
+        }
+
+    }
+
+    function renderDropdownList(items) {
+
+        const list = document.getElementById("navBellList");
+
+        if (!list) {
+            return;
+        }
+
+        if (items.length === 0) {
+            list.innerHTML = `<p class="nav-bell-empty">No notifications yet.</p>`;
+            return;
+        }
+
+        list.innerHTML = items.map(n => `
+            <button type="button" class="nav-bell-item${n.isRead ? "" : " unread"}" data-id="${n.notificationId}" data-link="${escapeText(n.link || "")}">
+                <span class="nav-bell-dot" aria-hidden="true"></span>
+                <span class="nav-bell-message">${escapeText(n.message)}</span>
+                <span class="nav-bell-time">${escapeText(timeAgo(n.createdAt))}</span>
+            </button>
+        `).join("");
+
+    }
+
+    async function loadDropdown() {
+
+        try {
+
+            const response = await ApiClient.authFetch(`${ApiClient.API}/Notification?page=1`, { noUpgradePrompt: true });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const body = await response.json();
+
+            renderDropdownList(body.data.slice(0, 8));
+            renderBadge(body.unreadCount);
+
+        } catch {
+            // Leaves the dropdown as it was.
+        }
+
+    }
+
+    let dropdownOpen = false;
+
+    function closeDropdown() {
+
+        const dropdown = document.getElementById("navBellDropdown");
+
+        if (!dropdown) {
+            return;
+        }
+
+        dropdown.hidden = true;
+        dropdownOpen = false;
+        document.getElementById("navBellBtn")?.setAttribute("aria-expanded", "false");
+
+    }
+
+    function openDropdown() {
+
+        const dropdown = document.getElementById("navBellDropdown");
+
+        if (!dropdown) {
+            return;
+        }
+
+        dropdown.hidden = false;
+        dropdownOpen = true;
+        document.getElementById("navBellBtn")?.setAttribute("aria-expanded", "true");
+
+        loadDropdown();
+
+    }
+
+    // Sets up the bell: click to open/close, click outside or Escape to close, "mark all as
+    // read", clicking an item marks it read and follows its link, and polls the unread count
+    // every 30s (paused while the tab is hidden). Call once per page, after login is confirmed.
+    function mountBell() {
+
+        const button = document.getElementById("navBellBtn");
+        const dropdown = document.getElementById("navBellDropdown");
+        const markAllBtn = document.getElementById("navMarkAllReadBtn");
+        const list = document.getElementById("navBellList");
+
+        if (!button || !dropdown) {
+            return;
+        }
+
+        button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            dropdownOpen ? closeDropdown() : openDropdown();
+        });
+
+        document.addEventListener("click", (event) => {
+            if (dropdownOpen && !dropdown.contains(event.target) && event.target !== button) {
+                closeDropdown();
+            }
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && dropdownOpen) {
+                closeDropdown();
+            }
+        });
+
+        markAllBtn?.addEventListener("click", async () => {
+
+            try {
+                await ApiClient.authFetch(`${ApiClient.API}/Notification/read-all`, { method: "PATCH", noUpgradePrompt: true });
+            } catch {
+                // Best effort.
+            }
+
+            await loadDropdown();
+
+        });
+
+        list?.addEventListener("click", async (event) => {
+
+            const item = event.target.closest(".nav-bell-item");
+
+            if (!item) {
+                return;
+            }
+
+            const id = item.dataset.id;
+            const link = item.dataset.link;
+
+            item.classList.remove("unread");
+
+            try {
+                await ApiClient.authFetch(`${ApiClient.API}/Notification/${id}/read`, { method: "PATCH", noUpgradePrompt: true });
+            } catch {
+                // Best effort - still navigate below.
+            }
+
+            refreshUnreadCount();
+
+            if (link) {
+                window.location.href = link;
+            }
+
+        });
+
+        refreshUnreadCount();
+
+        setInterval(() => {
+            if (!document.hidden) {
+                refreshUnreadCount();
+            }
+        }, 30000);
+
+        document.addEventListener("visibilitychange", () => {
+            if (!document.hidden) {
+                refreshUnreadCount();
+            }
+        });
+
+    }
+
+    return { mount, render, initials, mountBell, refreshUnreadCount, timeAgo, escapeText };
 
 })();
