@@ -41,7 +41,8 @@ namespace JobLinkv2.Services.Resumes
 
         private const string ProfileColumns = @"
             profile_id AS ProfileId, user_id AS UserId, phone AS Phone, address AS Address,
-            linkedin_url AS LinkedinUrl, github_url AS GithubUrl, ISNULL(is_deleted, 0) AS IsDeleted";
+            linkedin_url AS LinkedinUrl, github_url AS GithubUrl, ISNULL(is_deleted, 0) AS IsDeleted,
+            photo_key AS PhotoKey";
 
         private const string ResumeColumns = @"
             resume_id AS ResumeId, user_id AS UserId, title AS Title, template_type AS TemplateType,

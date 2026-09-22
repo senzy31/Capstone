@@ -10,6 +10,9 @@ const API = ApiClient.API;
 
 let currentJobs = [];
 let currentPackages = [];
+let currentUserId = null;
+let currentFullName = null;
+let currentPhotoUrl = null;
 
 // Set right before a publish/renew is refused for lack of a credit, so a purchase can retry it.
 let pendingAction = null;
@@ -23,11 +26,20 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
     }
 
+    currentUserId = employer.userId;
+    currentFullName = employer.fullName;
+
     document.getElementById("welcomeText").textContent = `Welcome, ${employer.fullName}!`;
+
+    // Instant initials; loadPhoto() (below) fetches the real photo, if any, and updates both
+    // this avatar and the big one in the Company Photo panel from the same response.
+    Navbar.render(employer.fullName, null);
 
     setupListeners();
 
     loadEverything();
+
+    loadPhoto();
 
 });
 
@@ -522,12 +534,153 @@ async function buyPackage(packageName) {
 
 
 // ======================================================
+// PROFILE PHOTO
+// ======================================================
+
+async function loadPhoto() {
+
+    try {
+
+        const response = await ApiClient.authFetch(`${API}/Profile/by-user/${currentUserId}`, { noUpgradePrompt: true });
+
+        currentPhotoUrl = response.ok ? (await response.json()).photoUrl || null : null;
+
+        renderPhoto();
+
+    } catch (error) {
+        console.error("Error loading photo:", error);
+    }
+
+}
+
+function renderPhoto() {
+
+    const img = document.getElementById("profileAvatarImg");
+    const fallback = document.getElementById("profileAvatarInitials");
+    const removeBtn = document.getElementById("removePhotoBtn");
+
+    if (currentPhotoUrl) {
+
+        img.src = currentPhotoUrl;
+        img.alt = "Your company photo";
+        img.hidden = false;
+        fallback.hidden = true;
+
+    } else {
+
+        img.hidden = true;
+        img.removeAttribute("src");
+        fallback.hidden = false;
+        fallback.textContent = Navbar.initials(currentFullName);
+
+    }
+
+    removeBtn.hidden = !currentPhotoUrl;
+
+    Navbar.render(currentFullName, currentPhotoUrl);
+
+}
+
+function setPhotoStatus(text, isError = false) {
+
+    const status = document.getElementById("photoStatus");
+    status.textContent = text;
+    status.hidden = !text;
+    status.classList.toggle("error", isError);
+    status.classList.toggle("success", !isError && Boolean(text));
+
+}
+
+async function uploadPhoto(file) {
+
+    setPhotoStatus("Uploading...");
+
+    const body = new FormData();
+    body.append("file", file);
+
+    try {
+
+        const response = await ApiClient.authFetch(`${API}/Profile/photo`, { method: "POST", body });
+
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(result.message || `Couldn't upload that photo (${response.status}).`);
+        }
+
+        currentPhotoUrl = result.photoUrl;
+
+        renderPhoto();
+
+        setPhotoStatus("Photo updated.");
+
+    } catch (error) {
+
+        console.error("Unable to upload photo:", error);
+
+        setPhotoStatus(error.message, true);
+
+    } finally {
+
+        document.getElementById("photoInput").value = "";
+
+    }
+
+}
+
+async function removePhoto() {
+
+    const removeBtn = document.getElementById("removePhotoBtn");
+    removeBtn.disabled = true;
+
+    try {
+
+        const response = await ApiClient.authFetch(`${API}/Profile/photo`, { method: "DELETE" });
+
+        if (!response.ok) {
+            throw new Error(`Couldn't remove your photo (${response.status}).`);
+        }
+
+        currentPhotoUrl = null;
+
+        renderPhoto();
+
+        setPhotoStatus("Photo removed.");
+
+    } catch (error) {
+
+        console.error("Unable to remove photo:", error);
+
+        setPhotoStatus(error.message, true);
+
+    } finally {
+
+        removeBtn.disabled = false;
+
+    }
+
+}
+
+
+// ======================================================
 // EVENT LISTENERS
 // ======================================================
 
 function setupListeners() {
 
     document.getElementById("jobForm").addEventListener("submit", submitForm);
+
+    document.getElementById("photoInput").addEventListener("change", () => {
+
+        const file = document.getElementById("photoInput").files?.[0];
+
+        if (file) {
+            uploadPhoto(file);
+        }
+
+    });
+
+    document.getElementById("removePhotoBtn").addEventListener("click", removePhoto);
 
     document.getElementById("cancelEditBtn").addEventListener("click", resetForm);
 

@@ -139,6 +139,81 @@ const PASSWORD = "Sup3rSecret!";
         await session.context.close();
     }
 
+    // ----- profile photo ---------------------------------------------------------
+
+    const PHOTO_URL = "https://localhost:7142/api/Profile/photo/abc-123";
+
+    t.section("Profile photo: no photo yet");
+    {
+        const { context, page } = await profile();
+        t.check("initials show on both avatars, no Remove button",
+            [await page.locator("#profileAvatarInitials").innerText(), await page.locator("#profileAvatarImg").isHidden(),
+             await page.locator("#navAvatarInitials").innerText(), await page.locator("#navAvatarImg").isHidden(),
+             await page.locator("#removePhotoBtn").isHidden()],
+            ["MS", true, "MS", true, true]);
+        await context.close();
+    }
+
+    t.section("Profile photo: one already saved");
+    {
+        const session = await loggedInPage(browser, server.baseUrl);
+        const api = await mockApi(session.context);
+        api.on("GET", /^\/User\/7$/, () => ({ json: ACCOUNT }));
+        api.on("GET", /^\/Profile\/by-user\/7$/, () => ({ json: { profileId: 1, userId: 7, phone: null, address: null, linkedinUrl: null, githubUrl: null, isDeleted: false, photoUrl: PHOTO_URL } }));
+        api.on("GET", /^\/JobPreference\/by-user\/7$/, () => ({ status: 404 }));
+        await session.page.goto(`${server.baseUrl}/DASHBOARD/Profile.html`);
+        await session.page.waitForFunction(() => document.getElementById("fullNameDisplay")?.textContent.includes("Maria"));
+        t.check("both avatars show the photo, Remove button appears",
+            [await session.page.locator("#profileAvatarImg").getAttribute("src"), await session.page.locator("#profileAvatarInitials").isHidden(),
+             await session.page.locator("#navAvatarImg").getAttribute("src"), await session.page.locator("#removePhotoBtn").isHidden()],
+            [PHOTO_URL, true, PHOTO_URL, false]);
+        await session.context.close();
+    }
+
+    t.section("Profile photo: uploading");
+    {
+        const { context, page, api } = await profile();
+        api.on("POST", /^\/Profile\/photo$/, () => ({ json: { photoUrl: PHOTO_URL } }));
+        await page.setInputFiles("#photoInput", { name: "me.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff]) });
+        await page.waitForFunction(url => document.getElementById("profileAvatarImg")?.src === url, PHOTO_URL);
+        const upload = api.callsTo("POST", /^\/Profile\/photo$/)[0];
+        t.check("the upload carried the login token", upload.headers.authorization, "Bearer test-token");
+        t.check("the avatar and navbar update immediately, no reload",
+            [await page.locator("#profileAvatarImg").getAttribute("src"), await page.locator("#navAvatarImg").getAttribute("src"), await page.locator("#removePhotoBtn").isHidden()],
+            [PHOTO_URL, PHOTO_URL, false]);
+        await context.close();
+    }
+
+    t.section("Profile photo: a rejected upload shows the server's message and changes nothing");
+    {
+        const { context, page, api } = await profile();
+        api.on("POST", /^\/Profile\/photo$/, () => ({ status: 400, json: { message: "Photos must be a JPG, PNG or WEBP image.", code: "invalid_image" } }));
+        await page.setInputFiles("#photoInput", { name: "me.txt", mimeType: "text/plain", buffer: Buffer.from("not a photo") });
+        await page.getByText("Photos must be a JPG, PNG or WEBP image.").waitFor();
+        t.check("still showing initials, not stuck on the rejected file",
+            [await page.locator("#profileAvatarInitials").isHidden(), await page.locator("#removePhotoBtn").isHidden()], [false, true]);
+        await context.close();
+    }
+
+    t.section("Profile photo: removing");
+    {
+        const session = await loggedInPage(browser, server.baseUrl);
+        const api = await mockApi(session.context);
+        api.on("GET", /^\/User\/7$/, () => ({ json: ACCOUNT }));
+        api.on("GET", /^\/Profile\/by-user\/7$/, () => ({ json: { profileId: 1, userId: 7, phone: null, address: null, linkedinUrl: null, githubUrl: null, isDeleted: false, photoUrl: PHOTO_URL } }));
+        api.on("GET", /^\/JobPreference\/by-user\/7$/, () => ({ status: 404 }));
+        api.on("DELETE", /^\/Profile\/photo$/, () => ({ json: { message: "Photo removed." } }));
+        await session.page.goto(`${server.baseUrl}/DASHBOARD/Profile.html`);
+        await session.page.waitForFunction(() => document.getElementById("profileAvatarImg")?.src);
+        await session.page.click("#removePhotoBtn");
+        await session.page.waitForFunction(() => document.getElementById("profileAvatarInitials")?.hidden === false);
+        t.check("removal carried the login token", api.callsTo("DELETE", /^\/Profile\/photo$/)[0].headers.authorization, "Bearer test-token");
+        t.check("back to initials on both avatars, Remove button gone",
+            [await session.page.locator("#profileAvatarImg").isHidden(), await session.page.locator("#navAvatarImg").isHidden(), await session.page.locator("#removePhotoBtn").isHidden()],
+            [true, true, true]);
+        await session.context.close();
+    }
+
     // ----- the Resume Builder ---------------------------------------------------
 
     async function builder() {

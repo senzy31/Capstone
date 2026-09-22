@@ -12,6 +12,7 @@
 
     <link rel="stylesheet" href="profile.css">
     <link rel="stylesheet" href="ApiClient.css">
+    <link rel="stylesheet" href="Navbar.css">
 </head>
 
 <body>
@@ -42,17 +43,12 @@
             <i class="fa-regular fa-bell"></i>
         </button>
 
-        <button class="nav-icon" title="Profile">
-            <i class="fa-regular fa-user"></i>
-        </button>
-
-        <span class="nav-user" id="navUser">
-            Kc
-        </span>
+        <a href="Profile.html" class="nav-avatar" id="navAvatarLink" aria-label="Open profile">
+            <img id="navAvatarImg" alt="" hidden>
+            <span id="navAvatarInitials" class="nav-avatar-fallback">U</span>
+        </a>
 
     </div>
-
-</header>
 
 </header>
 
@@ -89,13 +85,6 @@
                 <a href="ResumeBuilder.html">
                     <i class="fa-solid fa-file-pen"></i>
                     Resume Builder
-                </a>
-            </li>
-
-            <li class="active">
-                <a href="Profile.html">
-                    <i class="fa-regular fa-user"></i>
-                    Profile
                 </a>
             </li>
 
@@ -144,8 +133,31 @@
         ========================== -->
         <section class="profile-summary">
 
-            <div class="profile-avatar" id="profileAvatar">
-                S
+            <div class="profile-avatar-wrap">
+
+                <div class="profile-avatar" id="profileAvatar">
+                    <img id="profileAvatarImg" alt="" hidden>
+                    <span id="profileAvatarInitials">S</span>
+                </div>
+
+                <div class="profile-avatar-actions">
+
+                    <label for="photoInput" class="btn-photo">
+                        <i class="fa-solid fa-camera"></i>
+                        Change photo
+                    </label>
+
+                    <input type="file" id="photoInput" accept="image/jpeg,image/png,image/webp" hidden>
+
+                    <button type="button" class="btn-photo btn-photo-remove" id="removePhotoBtn" hidden>
+                        Remove photo
+                    </button>
+
+                    <p class="photo-hint">JPG, PNG or WEBP. Up to 2MB.</p>
+                    <p class="photo-status" id="photoStatus" role="status" hidden></p>
+
+                </div>
+
             </div>
 
             <div class="profile-summary-info">
@@ -642,6 +654,7 @@
 
 
     <script src="ApiClient.js"></script>
+    <script src="Navbar.js"></script>
     <script src="profile.js"></script>
 
 </body>

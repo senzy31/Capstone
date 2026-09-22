@@ -113,6 +113,11 @@ async function mockApi(context) {
         callsTo: (method, pattern) => api.calls.filter(c => c.method === method && pattern.test(c.path)),
     };
 
+    // Navbar.js looks this up on every page - default to "no photo" so a test that doesn't care
+    // about avatars doesn't have to mock it. A test that does can still override with its own
+    // api.on(...) call, registered after this one wins (see api.on above: later registrations win).
+    api.on("GET", /^\/Profile\/by-user\/\d+$/, () => ({ status: 404, json: { message: "You haven't saved a profile yet." } }));
+
     await context.route(/^https:\/\/localhost:7142\/api\//, async route => {
         const request = route.request();
         const url = new URL(request.url());

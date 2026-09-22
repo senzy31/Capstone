@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="ApiClient.css">
     <link rel="stylesheet" href="ApplyFlow.css">
     <link rel="stylesheet" href="Ads.css">
+    <link rel="stylesheet" href="Navbar.css">
     <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -37,11 +38,15 @@
 
     <div class="user-controls">
         <i class="fa-regular fa-bell icon-btn"></i>
-        <i class="fa-regular fa-user icon-btn"></i>
 
         <span class="user-name" id="userName">
             Loading...
         </span>
+
+        <a href="Profile.html" class="nav-avatar" id="navAvatarLink" aria-label="Open profile">
+            <img id="navAvatarImg" alt="" hidden>
+            <span id="navAvatarInitials" class="nav-avatar-fallback">U</span>
+        </a>
     </div>
 
 </header>
@@ -81,13 +86,6 @@
                 <a href="ResumeBuilder.html">
                     <i class="fa-solid fa-file-pen"></i>
                     Resume Builder
-                </a>
-            </li>
-
-            <li>
-                <a href="Profile.html">
-                    <i class="fa-regular fa-user"></i>
-                    Profile
                 </a>
             </li>
 
@@ -393,6 +391,7 @@
 <script src="ApiClient.js"></script>
 <script src="ApplyFlow.js"></script>
 <script src="JobsShared.js"></script>
+<script src="Navbar.js"></script>
 <script src="Ads.js"></script>
 <script src="dashboard.js"></script>
 

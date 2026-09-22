@@ -94,7 +94,7 @@ const envelope = (detailed, extra = {}) => ({ status: "OK", query: QUERY, page: 
         t.check("sidebar: Dashboard active, Jobs links to the Jobs page",
             [(await page.locator(".nav-links li.active a").innerText()).trim(), await page.locator('.nav-links a:has-text("Jobs")').getAttribute("href")], ["Dashboard", "Jobs.html"]);
         t.check("ONE request builds the whole list, with the login token and nothing but the page number - no user id, skills or plan",
-            [recommendationCalls(api).map(c => [c.headers.authorization, c.query]), api.calls.filter(c => c.method === "GET" && c.path !== "/Subscription").length], [[["Bearer test-token", { page: "1" }]], 1]);
+            [recommendationCalls(api).map(c => [c.headers.authorization, c.query]), api.calls.filter(c => c.method === "GET" && c.path !== "/Subscription" && !c.path.startsWith("/Profile/by-user/")).length], [[["Bearer test-token", { page: "1" }]], 1]);
         t.check("the page no longer loads the resume, skills, preferences or runs a job search itself",
             api.calls.filter(c => /^\/(Resume|Skills|ResumeSkills|Experience|JobPreference|JobSearch)/.test(c.path)).length, 0);
         t.check("says how many jobs were scored against how many skills, and what was searched", await page.locator("#jobResultText").innerText(), `3 jobs scored against your 2 resume skills · searched "${QUERY}"`);

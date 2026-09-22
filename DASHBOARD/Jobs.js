@@ -26,6 +26,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     showUserName(user);
 
+    Navbar.mount(user.userId, user.fullName);
+
     setupSharedListeners();
 
     ApplyFlow.initReturnPrompt();

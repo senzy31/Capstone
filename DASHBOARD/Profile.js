@@ -82,6 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let userRecord = null;      // your account from the API (name, email, role, company - never a password hash)
     let profileRecord = null;   // full ProfileModel from the API, or null if none yet
+    let photoUrl = null;        // your current photo, or null - see profileRecord.photoUrl
     let extras = loadExtras();
 
     let profile = {
@@ -106,7 +107,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const newSkillInput = document.getElementById("newSkillInput");
     const skillAddBtn = document.getElementById("skillAddBtn");
     const skillCancelBtn = document.getElementById("skillCancelBtn");
-    const navUser = document.getElementById("navUser");
+    const photoInput = document.getElementById("photoInput");
+    const removePhotoBtn = document.getElementById("removePhotoBtn");
+    const photoStatus = document.getElementById("photoStatus");
+    const profileAvatarImg = document.getElementById("profileAvatarImg");
+    const profileAvatarInitials = document.getElementById("profileAvatarInitials");
 
 
     /* =====================================
@@ -301,6 +306,112 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     /* =====================================
+       PROFILE PHOTO
+    ===================================== */
+
+    photoInput.addEventListener("change", () => {
+
+        const file = photoInput.files?.[0];
+
+        if (file) {
+            uploadPhoto(file);
+        }
+
+    });
+
+    removePhotoBtn.addEventListener("click", () => {
+
+        removePhoto();
+
+    });
+
+    function setPhotoStatus(text, isError = false) {
+
+        photoStatus.textContent = text;
+        photoStatus.hidden = !text;
+        photoStatus.classList.toggle("error", isError);
+        photoStatus.classList.toggle("success", !isError && Boolean(text));
+
+    }
+
+    async function uploadPhoto(file) {
+
+        setPhotoStatus("Uploading...");
+
+        const body = new FormData();
+        body.append("file", file);
+
+        try {
+
+            const response = await ApiClient.authFetch(`${API_BASE}/Profile/photo`, {
+                method: "POST",
+                body
+            });
+
+            const result = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(result.message || `Couldn't upload that photo (${response.status}).`);
+            }
+
+            photoUrl = result.photoUrl;
+
+            renderAvatar();
+
+            setPhotoStatus("Photo updated.");
+
+            showToast("Profile photo updated!", "success");
+
+        } catch (error) {
+
+            console.error("Unable to upload photo:", error);
+
+            setPhotoStatus(error.message, true);
+
+        } finally {
+
+            photoInput.value = "";
+
+        }
+
+    }
+
+    async function removePhoto() {
+
+        removePhotoBtn.disabled = true;
+
+        try {
+
+            const response = await ApiClient.authFetch(`${API_BASE}/Profile/photo`, { method: "DELETE" });
+
+            if (!response.ok) {
+                throw new Error(`Couldn't remove your photo (${response.status}).`);
+            }
+
+            photoUrl = null;
+
+            renderAvatar();
+
+            setPhotoStatus("Photo removed.");
+
+            showToast("Profile photo removed.", "success");
+
+        } catch (error) {
+
+            console.error("Unable to remove photo:", error);
+
+            setPhotoStatus(error.message, true);
+
+        } finally {
+
+            removePhotoBtn.disabled = false;
+
+        }
+
+    }
+
+
+    /* =====================================
        LOGOUT
        SAME PATTERN AS APPLICATION / RESUME BUILDER
     ===================================== */
@@ -366,10 +477,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if (profileResponse.ok) {
 
                 profileRecord = await profileResponse.json();
+                photoUrl = profileRecord.photoUrl || null;
 
             } else if (profileResponse.status === 404) {
 
                 profileRecord = null;
+                photoUrl = null;
 
             } else {
 
@@ -457,14 +570,9 @@ document.addEventListener("DOMContentLoaded", () => {
         summaryScore.textContent = `${profile.profileScore}% profile score`;
 
 
-        /* Avatar */
+        /* Avatar (the big one on this page, and the small one in the navbar) */
 
-        profileAvatar.textContent = getInitial(profile.fullName);
-
-
-        /* Navbar */
-
-        updateNavbar();
+        renderAvatar();
 
 
         /* Skills */
@@ -475,43 +583,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     /* =====================================
-       UPDATE NAVBAR
+       AVATAR - the profile photo, or initials if there isn't one
     ===================================== */
 
-    function updateNavbar() {
+    function renderAvatar() {
 
-        const name = profile.fullName || "User";
+        if (photoUrl) {
 
-        const parts = name.trim().split(/\s+/);
-
-        let initials = "";
-
-        if (parts.length >= 2) {
-
-            initials = parts[0].charAt(0) + parts[parts.length - 1].charAt(0);
+            profileAvatarImg.src = photoUrl;
+            profileAvatarImg.alt = "Your profile photo";
+            profileAvatarImg.hidden = false;
+            profileAvatarInitials.hidden = true;
 
         } else {
 
-            initials = parts[0]?.charAt(0) || "U";
+            profileAvatarImg.hidden = true;
+            profileAvatarImg.removeAttribute("src");
+            profileAvatarInitials.hidden = false;
+            profileAvatarInitials.textContent = Navbar.initials(profile.fullName);
 
         }
 
-        navUser.textContent = initials;
+        removePhotoBtn.hidden = !photoUrl;
 
-    }
-
-
-    /* =====================================
-       GET INITIAL
-    ===================================== */
-
-    function getInitial(name) {
-
-        if (!name) {
-            return "U";
-        }
-
-        return name.trim().charAt(0).toUpperCase();
+        Navbar.render(profile.fullName, photoUrl);
 
     }
 

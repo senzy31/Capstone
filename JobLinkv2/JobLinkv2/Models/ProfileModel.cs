@@ -34,6 +34,11 @@ namespace JobLinkv2.Models
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }
 
+        // Never serialized as-is - the controller turns this into a full PhotoUrl (or leaves it
+        // out entirely) so nothing ever hands out a bare key alongside who it belongs to.
+        [Column("photo_key")]
+        public Guid? PhotoKey { get; set; }
+
         // Navigation property only - never sent/received over the API.
         // Nullable so ASP.NET's implicit required-on-non-nullable-reference-type
         // model validation doesn't reject POST/PUT bodies that omit it.

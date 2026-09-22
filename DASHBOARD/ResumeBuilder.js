@@ -124,8 +124,6 @@ document.addEventListener("DOMContentLoaded", () => {
        ELEMENTS
     ======================================= */
 
-    const navUser = document.getElementById("navUser");
-
     const personalInputs = {
         fullName: document.getElementById("fullName"),
         headline: document.getElementById("headline"),
@@ -166,6 +164,8 @@ document.addEventListener("DOMContentLoaded", () => {
     setFormDisabled(true);
     fillPersonalInputs();
     renderPreview();
+
+    Navbar.mount(userId, state.personal.fullName);
 
     loadEverything();
 
@@ -642,13 +642,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function updateNavbar() {
 
-        const name = state.personal.fullName || "User";
-
-        const parts = name.trim().split(/\s+/);
-
-        navUser.textContent = parts.length >= 2
-            ? parts[0].charAt(0) + parts[parts.length - 1].charAt(0)
-            : (parts[0]?.charAt(0) || "U");
+        Navbar.render(state.personal.fullName || "User");
 
     }
 

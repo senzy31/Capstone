@@ -14,6 +14,7 @@
 
     <link rel="stylesheet" href="ResumeBuilder.css">
     <link rel="stylesheet" href="ApiClient.css">
+    <link rel="stylesheet" href="Navbar.css">
 </head>
 
 <body>
@@ -47,13 +48,10 @@
                 <i class="fa-regular fa-bell"></i>
             </div>
 
-            <div class="icon-btn" title="Profile">
-                <i class="fa-regular fa-user"></i>
-            </div>
-
-            <span class="user-name" id="navUser">
-                Kc
-            </span>
+            <a href="Profile.html" class="nav-avatar" id="navAvatarLink" aria-label="Open profile">
+                <img id="navAvatarImg" alt="" hidden>
+                <span id="navAvatarInitials" class="nav-avatar-fallback">U</span>
+            </a>
 
         </div>
 
@@ -85,11 +83,6 @@
             <a href="ResumeBuilder.html" class="active">
                 <i class="fa-solid fa-file-pen"></i>
                 <span>Resume Builder</span>
-            </a>
-
-            <a href="Profile.html">
-                <i class="fa-regular fa-user"></i>
-                <span>Profile</span>
             </a>
 
             <a href="Plans.html">
@@ -423,6 +416,7 @@
 
 
     <script src="ApiClient.js"></script>
+    <script src="Navbar.js"></script>
     <script src="ResumeBuilder.js"></script>
 
 </body>

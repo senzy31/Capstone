@@ -82,7 +82,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const underReview = document.getElementById("underReview");
     const filterButtons = document.querySelectorAll(".filter-btn");
     const searchInput = document.getElementById("searchInput");
-    const navUser = document.getElementById("navUser");
 
     const logApplicationBtn = document.getElementById("logApplicationBtn");
     const logApplicationOverlay = document.getElementById("logApplicationOverlay");
@@ -232,26 +231,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const name = currentUser.fullName || currentUser.full_name || currentUser.name || "User";
 
-        navUser.textContent = getInitials(name);
-
-    }
-
-
-    function getInitials(name) {
-
-        if (!name) {
-            return "U";
-        }
-
-        const parts = name.trim().split(/\s+/);
-
-        if (parts.length >= 2) {
-
-            return parts[0].charAt(0) + parts[parts.length - 1].charAt(0);
-
-        }
-
-        return parts[0].charAt(0).toUpperCase();
+        Navbar.mount(userId, name);
 
     }
 

@@ -32,7 +32,7 @@ namespace Joblink.Controllers
 
             var profile = _data.GetProfile(userId, id);
 
-            return profile is null ? NotFound(new { message = "Profile not found." }) : Ok(profile);
+            return profile is null ? NotFound(new { message = "Profile not found." }) : Ok(WithPhoto(profile));
         }
 
         // 404 until the user saves a profile; 403 for anyone else's.
@@ -47,7 +47,7 @@ namespace Joblink.Controllers
 
             var profile = _data.GetProfileByUser(callerId);
 
-            return profile is null ? NotFound(new { message = "You haven't saved a profile yet." }) : Ok(profile);
+            return profile is null ? NotFound(new { message = "You haven't saved a profile yet." }) : Ok(WithPhoto(profile));
         }
 
         // Creates your profile. There is one per user, so a second is a 409.
@@ -64,7 +64,7 @@ namespace Joblink.Controllers
 
             return created is null
                 ? Conflict(new { message = "You already have a profile - update it instead.", code = "profile_exists" })
-                : Ok(created);
+                : Ok(WithPhoto(created));
         }
 
         // Replaces the details of your own profile.
@@ -84,7 +84,7 @@ namespace Joblink.Controllers
                 return NotFound(new { message = "Profile not found." });
 
             return _data.UpdateProfile(userId, current.ProfileId, request.ToFields())
-                ? Ok(_data.GetProfile(userId, current.ProfileId))
+                ? Ok(WithPhoto(_data.GetProfile(userId, current.ProfileId)!))
                 : NotFound(new { message = "Profile not found." });
         }
 
@@ -162,5 +162,19 @@ namespace Joblink.Controllers
         }
 
         private string PhotoUrl(Guid photoKey) => $"{Request.Scheme}://{Request.Host}/api/Profile/photo/{photoKey}";
+
+        // A profile as the API hands it out: PhotoKey itself is never serialized (see
+        // ProfileModel) - only the full, ready-to-use PhotoUrl it turns into, or nothing at all.
+        private object WithPhoto(JobLinkv2.Models.ProfileModel profile) => new
+        {
+            profile.ProfileId,
+            profile.UserId,
+            profile.Phone,
+            profile.Address,
+            profile.LinkedinUrl,
+            profile.GithubUrl,
+            profile.IsDeleted,
+            PhotoUrl = profile.PhotoKey is { } key ? PhotoUrl(key) : null
+        };
     }
 }

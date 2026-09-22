@@ -21,6 +21,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     showUserName(user);
 
+    Navbar.mount(user.userId, user.fullName);
+
     document.getElementById("welcomeText").textContent = `Welcome, ${user.firstName}!`;
 
     setupSharedListeners();

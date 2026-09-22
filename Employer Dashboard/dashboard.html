@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="../DASHBOARD/Navbar.css">
     <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -29,6 +30,11 @@
                 <h1 id="welcomeText">Welcome, Employer</h1>
                 <p>Post jobs, manage posting credits, and track your listings.</p>
             </div>
+
+            <a href="#my-photo" class="nav-avatar" id="navAvatarLink" aria-label="Open your photo settings">
+                <img id="navAvatarImg" alt="" hidden>
+                <span id="navAvatarInitials" class="nav-avatar-fallback">E</span>
+            </a>
         </header>
 
         <section class="cards-grid">
@@ -44,6 +50,40 @@
                 <h3>Renewal Credits</h3>
                 <p id="renewalCreditsCount">0</p>
             </article>
+        </section>
+
+        <section class="panel" id="my-photo">
+            <div class="panel-header">
+                <h2>Company Photo</h2>
+                <p>Shown next to your job posts.</p>
+            </div>
+
+            <div class="profile-photo-row">
+
+                <div class="profile-photo" id="profileAvatar">
+                    <img id="profileAvatarImg" alt="" hidden>
+                    <span id="profileAvatarInitials">E</span>
+                </div>
+
+                <div class="profile-photo-actions">
+
+                    <label for="photoInput" class="btn btn-secondary">
+                        <i class="fa-solid fa-camera"></i>
+                        Change photo
+                    </label>
+
+                    <input type="file" id="photoInput" accept="image/jpeg,image/png,image/webp" hidden>
+
+                    <button type="button" class="btn btn-secondary" id="removePhotoBtn" hidden>
+                        Remove photo
+                    </button>
+
+                    <p class="photo-hint">JPG, PNG or WEBP. Up to 2MB.</p>
+                    <p class="photo-status" id="photoStatus" role="status" hidden></p>
+
+                </div>
+
+            </div>
         </section>
 
         <section class="panel" id="post-job">
@@ -129,6 +169,7 @@
 </div>
 
 <script src="../DASHBOARD/ApiClient.js"></script>
+<script src="../DASHBOARD/Navbar.js"></script>
 <script src="dashboard.js"></script>
 </body>
 </html>
