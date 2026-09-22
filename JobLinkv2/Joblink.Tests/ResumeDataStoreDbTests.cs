@@ -317,5 +317,72 @@ namespace Joblink.Tests
             Assert.Equal(new DateTime(2020, 6, 15), _store.GetEducation(a, entry.EducationId)!.StartDate);
             Assert.Empty(_store.ListEducation(a, second.ResumeId)!);
         }
+
+        // ----- profile photo ----------------------------------------------------
+
+        [DbFact]
+        public void Setting_a_photo_with_no_profile_yet_creates_a_bare_one_and_the_key_resolves_it()
+        {
+            var user = NewUser();
+            var bytes = new byte[] { 1, 2, 3 };
+
+            var key = _store.SetPhoto(user, bytes, "image/jpeg");
+
+            var row = _store.GetPhotoByKey(key);
+
+            Assert.NotNull(row);
+            Assert.Equal(bytes, row!.Photo);
+            Assert.Equal("image/jpeg", row.ContentType);
+        }
+
+        [DbFact]
+        public void Uploading_again_gets_a_new_key_and_the_old_one_stops_resolving()
+        {
+            var user = NewUser();
+
+            var first = _store.SetPhoto(user, new byte[] { 1 }, "image/jpeg");
+            var second = _store.SetPhoto(user, new byte[] { 2 }, "image/jpeg");
+
+            Assert.NotEqual(first, second);
+            Assert.Null(_store.GetPhotoByKey(first));
+            Assert.Equal(new byte[] { 2 }, _store.GetPhotoByKey(second)!.Photo);
+        }
+
+        [DbFact]
+        public void Removing_a_photo_clears_the_key_and_reports_whether_there_was_one()
+        {
+            var withPhoto = NewUser();
+            var withoutPhoto = NewUser();
+            var key = _store.SetPhoto(withPhoto, new byte[] { 1 }, "image/jpeg");
+
+            Assert.True(_store.RemovePhoto(withPhoto));
+            Assert.Null(_store.GetPhotoByKey(key));
+            Assert.False(_store.RemovePhoto(withPhoto));   // nothing left to remove
+            Assert.False(_store.RemovePhoto(withoutPhoto));
+        }
+
+        [DbFact]
+        public void An_unknown_key_resolves_to_nothing()
+        {
+            NewUser();
+
+            Assert.Null(_store.GetPhotoByKey(Guid.NewGuid()));
+        }
+
+        [DbFact]
+        public void Setting_or_removing_one_users_photo_never_touches_another_users()
+        {
+            var a = NewUser();
+            var b = NewUser();
+
+            var aKey = _store.SetPhoto(a, new byte[] { 1 }, "image/jpeg");
+            _store.SetPhoto(b, new byte[] { 2 }, "image/jpeg");
+
+            _store.RemovePhoto(b);
+
+            // b's removal didn't touch a's photo or key.
+            Assert.NotNull(_store.GetPhotoByKey(aKey));
+            Assert.Equal(new byte[] { 1 }, _store.GetPhotoByKey(aKey)!.Photo);
+        }
     }
 }

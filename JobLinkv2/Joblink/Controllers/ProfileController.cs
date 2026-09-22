@@ -1,4 +1,5 @@
 using Joblink.Security;
+using Joblink.Services.Profile;
 using Joblink.Services.Resumes;
 using JobLinkv2.Services.Resumes;
 using Microsoft.AspNetCore.Authorization;
@@ -15,10 +16,12 @@ namespace Joblink.Controllers
     public class ProfileController : ControllerBase
     {
         private readonly ResumeDataStore _data;
+        private readonly ProfilePhotoProcessor _photos;
 
-        public ProfileController(ResumeDataStore data)
+        public ProfileController(ResumeDataStore data, ProfilePhotoProcessor photos)
         {
             _data = data;
+            _photos = photos;
         }
 
         [HttpGet("{id}")]
@@ -95,5 +98,69 @@ namespace Joblink.Controllers
                 ? Ok(new { message = "Profile deleted." })
                 : NotFound(new { message = "Profile not found." });
         }
+
+        // ----- profile photo --------------------------------------------------------
+
+        // Validated by content, not by filename or the browser's claimed type; resized, stripped
+        // of metadata and re-encoded - see ProfilePhotoProcessor. Only the owner can ever call this.
+        [HttpPost("photo")]
+        [RequestSizeLimit(5_000_000)]
+        public async Task<IActionResult> UploadPhoto(IFormFile? file)
+        {
+            if (User.GetUserId() is not int userId)
+                return Unauthorized();
+
+            if (file is null || file.Length == 0)
+                return BadRequest(new { message = "Choose a photo to upload.", code = "invalid" });
+
+            if (file.Length > ProfilePhotoProcessor.MaxUploadBytes)
+                return BadRequest(new { message = ProfilePhotoProcessor.Describe(PhotoRejection.TooLarge), code = "too_large" });
+
+            byte[] uploaded;
+
+            using (var buffer = new MemoryStream())
+            {
+                await file.CopyToAsync(buffer);
+                uploaded = buffer.ToArray();
+            }
+
+            var (rejection, photo) = _photos.Process(uploaded);
+
+            if (rejection is { } why || photo is null)
+                return BadRequest(new { message = ProfilePhotoProcessor.Describe(rejection ?? PhotoRejection.Corrupt), code = "invalid_image" });
+
+            var photoKey = _data.SetPhoto(userId, photo.Bytes, photo.ContentType);
+
+            return Ok(new { photoUrl = PhotoUrl(photoKey) });
+        }
+
+        [HttpDelete("photo")]
+        public IActionResult RemovePhoto()
+        {
+            if (User.GetUserId() is not int userId)
+                return Unauthorized();
+
+            _data.RemovePhoto(userId);
+
+            return Ok(new { message = "Photo removed." });
+        }
+
+        // No login needed - the key itself (unguessable, regenerated on every upload) is what
+        // makes this safe to serve publicly. There is no route that looks up a key by user id.
+        [HttpGet("photo/{photoKey:guid}")]
+        [AllowAnonymous]
+        public IActionResult GetPhoto(Guid photoKey)
+        {
+            var row = _data.GetPhotoByKey(photoKey);
+
+            if (row is null)
+                return NotFound();
+
+            Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+
+            return File(row.Photo, row.ContentType);
+        }
+
+        private string PhotoUrl(Guid photoKey) => $"{Request.Scheme}://{Request.Host}/api/Profile/photo/{photoKey}";
     }
 }

@@ -79,6 +79,11 @@ builder.Services.AddSingleton<UserAccountService>();
 // ✅ A job seeker's own data: profile, resumes and what hangs off them, preferences
 builder.Services.AddSingleton(new ResumeDataStore(connectionString));
 
+// ✅ Profile photos: job seekers and employers alike. Validated by content, resized and
+// stripped of metadata (ProfilePhotoProcessor), served from an unguessable, regenerated-on-
+// every-upload key - never from a userId, so there is no "photo for user X" lookup anywhere.
+builder.Services.AddSingleton<Joblink.Services.Profile.ProfilePhotoProcessor>();
+
 // ✅ Notifications, saved jobs and matches (yours only), and the shared skills list
 builder.Services.AddSingleton(new UserDataStore(connectionString));
 builder.Services.AddSingleton(new SkillStore(connectionString));

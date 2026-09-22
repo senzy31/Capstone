@@ -9,6 +9,8 @@ namespace JobLinkv2.Services.Resumes
     // deleted flag are never in here: they are decided by the server.
     public sealed record ProfileFields(string? Phone, string? Address, string? LinkedinUrl, string? GithubUrl);
 
+    public sealed record PhotoRow(byte[] Photo, string ContentType);
+
     public sealed record EducationFields(string? SchoolName, string? Degree, DateTime? StartDate, DateTime? EndDate);
 
     public sealed record ExperienceFields(string? CompanyName, string? Position, string? Description, DateTime? StartDate, DateTime? EndDate);
@@ -155,6 +157,65 @@ namespace JobLinkv2.Services.Resumes
             return db.Execute(
                 "UPDATE Profiles SET is_deleted = 1 WHERE profile_id = @profileId AND user_id = @userId AND is_deleted = 0",
                 new { profileId, userId }) == 1;
+        }
+
+        // ----- profile photo ------------------------------------------------------
+
+        // Saves (or replaces) the caller's photo, making them a bare profile row first if they
+        // don't have one yet - a photo shouldn't need phone/address filled in first. Always a
+        // fresh, unguessable key: the previous one, if any, stops resolving to anything the
+        // moment this returns.
+        public Guid SetPhoto(int userId, byte[] photo, string contentType)
+        {
+            using var db = Open();
+
+            var photoKey = Guid.NewGuid();
+
+            db.Execute($@"
+                SET XACT_ABORT ON;
+                BEGIN TRANSACTION;
+                {SqlLocks.Take}
+
+                UPDATE Profiles SET photo = @photo, photo_content_type = @contentType, photo_key = @photoKey
+                 WHERE user_id = @userId AND is_deleted = 0;
+
+                IF @@ROWCOUNT = 0
+                    INSERT INTO Profiles (user_id, is_deleted, photo, photo_content_type, photo_key)
+                    VALUES (@userId, 0, @photo, @contentType, @photoKey);
+
+                COMMIT TRANSACTION;",
+                new
+                {
+                    LockName = SqlLocks.Name("profile", userId),
+                    userId,
+                    photo,
+                    contentType = Ansi(contentType, 20),
+                    photoKey
+                });
+
+            return photoKey;
+        }
+
+        // True if the caller had a photo to remove.
+        public bool RemovePhoto(int userId)
+        {
+            using var db = Open();
+
+            return db.Execute(
+                "UPDATE Profiles SET photo = NULL, photo_content_type = NULL, photo_key = NULL WHERE user_id = @userId AND is_deleted = 0 AND photo IS NOT NULL",
+                new { userId }) == 1;
+        }
+
+        // No owner check - the key itself, unguessable and never listed anywhere, is what makes
+        // this safe to serve with no login. There is deliberately no "photo for user X" lookup:
+        // only SetPhoto's caller ever learns their own key.
+        public PhotoRow? GetPhotoByKey(Guid photoKey)
+        {
+            using var db = Open();
+
+            return db.QueryFirstOrDefault<PhotoRow>(
+                "SELECT photo AS Photo, photo_content_type AS ContentType FROM Profiles WHERE photo_key = @photoKey AND is_deleted = 0",
+                new { photoKey });
         }
 
         // ----- resumes ----------------------------------------------------------
